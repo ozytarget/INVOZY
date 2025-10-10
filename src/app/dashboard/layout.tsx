@@ -1,21 +1,10 @@
 "use client"
 
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarInset,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Logo } from "@/components/logo"
-import { FileText, FileSignature, LayoutDashboard, Settings } from "lucide-react"
+import { FileText, FileSignature, LayoutDashboard, Settings, Users } from "lucide-react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { UserNav } from "@/components/user-nav"
+import { cn } from "@/lib/utils"
 
 export default function DashboardLayout({
   children,
@@ -24,65 +13,44 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
 
-  const isActive = (path: string) => {
-    return pathname === path
-  }
+  const navItems = [
+    { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
+    { href: "/dashboard/estimates", icon: <FileText />, label: "Estimates" },
+    { href: "/dashboard/invoices", icon: <FileSignature />, label: "Invoices" },
+    { href: "/dashboard/clients", icon: <Users />, label: "Clients" },
+    { href: "/dashboard/settings", icon: <Settings />, label: "Settings" },
+  ]
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen">
-        <Sidebar>
-          <SidebarHeader>
-            <Logo />
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/dashboard")}>
-                  <Link href="/dashboard">
-                    <LayoutDashboard />
-                    Dashboard
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/dashboard/estimates")}>
-                   <Link href="/dashboard/estimates">
-                    <FileText />
-                    Estimates
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/dashboard/invoices")}>
-                   <Link href="/dashboard/invoices">
-                    <FileSignature />
-                    Invoices
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Settings />
-                  Settings
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarContent>
-        </Sidebar>
-        <SidebarInset>
-          <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
-            <SidebarTrigger className="md:hidden"/>
-            <div className="w-full flex-1">
-              {/* Add breadcrumbs or page title here */}
-            </div>
-            <UserNav />
-          </header>
-          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-            {children}
-          </main>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+    <div className="flex flex-col min-h-screen">
+      <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-card px-4 sm:px-6">
+        <h1 className="text-lg font-semibold md:text-2xl font-headline">
+          {navItems.find(item => pathname.startsWith(item.href))?.label || "Dashboard"}
+        </h1>
+        <UserNav />
+      </header>
+      <main className="flex-1 flex-col gap-4 p-4 pb-20 lg:gap-6 lg:p-6 lg:pb-6">
+        {children}
+      </main>
+      <nav className="fixed bottom-0 left-0 right-0 z-10 border-t bg-card md:hidden">
+        <div className="grid grid-cols-5 h-16">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 text-xs font-medium",
+                pathname === item.href
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-primary"
+              )}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
+    </div>
   )
 }
