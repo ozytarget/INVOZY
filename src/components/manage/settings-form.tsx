@@ -16,7 +16,10 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { Globe, Calendar, Building, User, Mail, Phone } from "lucide-react"
+import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon } from "lucide-react"
+import { useState, useEffect } from "react"
+import Image from "next/image"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 
 const settingsSchema = z.object({
   companyName: z.string().min(2, "Company name is required."),
@@ -26,7 +29,6 @@ const settingsSchema = z.object({
   companyAddress: z.string().optional(),
   companyWebsite: z.string().url("Invalid URL.").optional().or(z.literal("")),
   schedulingUrl: z.string().url("Invalid URL.").optional().or(z.literal("")),
-  // Zod validation for file uploads can be complex. For now, we'll accept any.
   companyLogo: z.any().optional(),
   userAvatar: z.any().optional(),
 })
@@ -35,10 +37,11 @@ type SettingsFormValues = z.infer<typeof settingsSchema>
 
 export function SettingsForm() {
   const { toast } = useToast();
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
-    // TODO: Load saved settings here
     defaultValues: {
       companyName: "",
       contractorName: "",
@@ -50,8 +53,26 @@ export function SettingsForm() {
     },
   })
 
+  const logoFile = form.watch("companyLogo");
+  const avatarFile = form.watch("userAvatar");
+
+  useEffect(() => {
+    if (logoFile && logoFile instanceof File) {
+      const newUrl = URL.createObjectURL(logoFile);
+      setLogoPreview(newUrl);
+      return () => URL.revokeObjectURL(newUrl);
+    }
+  }, [logoFile]);
+
+  useEffect(() => {
+    if (avatarFile && avatarFile instanceof File) {
+      const newUrl = URL.createObjectURL(avatarFile);
+      setAvatarPreview(newUrl);
+      return () => URL.revokeObjectURL(newUrl);
+    }
+  }, [avatarFile]);
+
   function onSubmit(data: SettingsFormValues) {
-    // TODO: Save settings to a database, including file uploads
     console.log(data)
     toast({
       title: "Settings Saved",
@@ -183,16 +204,25 @@ export function SettingsForm() {
                     )}
                 />
             </div>
-             <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-8 items-start">
                 <FormField
                     control={form.control}
                     name="companyLogo"
-                    render={({ field }) => (
+                    render={({ field: { onChange, value, ...rest }}) => (
                     <FormItem>
                         <FormLabel>Company Logo</FormLabel>
-                        <FormControl>
-                          <Input type="file" onChange={(e) => field.onChange(e.target.files ? e.target.files[0] : null)} />
-                        </FormControl>
+                        <div className="flex items-center gap-4">
+                          <div className="w-20 h-20 rounded-md border border-dashed flex items-center justify-center bg-muted">
+                            {logoPreview ? (
+                              <Image src={logoPreview} alt="Company logo preview" width={80} height={80} className="object-contain rounded-md" />
+                            ) : (
+                              <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                            )}
+                          </div>
+                          <FormControl>
+                            <Input type="file" accept="image/*" onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)} {...rest} />
+                          </FormControl>
+                        </div>
                         <FormMessage />
                     </FormItem>
                     )}
@@ -200,12 +230,20 @@ export function SettingsForm() {
                  <FormField
                     control={form.control}
                     name="userAvatar"
-                    render={({ field }) => (
+                    render={({ field: { onChange, value, ...rest } }) => (
                     <FormItem>
                         <FormLabel>User Avatar</FormLabel>
-                        <FormControl>
-                          <Input type="file" onChange={(e) => field.onChange(e.target.files ? e.target.files[0] : null)} />
-                        </FormControl>
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-20 w-20">
+                            {avatarPreview && <AvatarImage src={avatarPreview} alt="User avatar preview" />}
+                            <AvatarFallback className="text-3xl">
+                              <User />
+                            </AvatarFallback>
+                          </Avatar>
+                          <FormControl>
+                            <Input type="file" accept="image/*" onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)} {...rest} />
+                          </FormControl>
+                        </div>
                         <FormMessage />
                     </FormItem>
                     )}
