@@ -1,3 +1,16 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "user-avatar",
+      "description": "User avatar",
+      "imageUrl": "https://picsum.photos/seed/user-avatar/40/40",
+      "imageHint": "person avatar"
+    },
+    {
+      "id": "company-logo",
+      "description": "Company logo placeholder",
+      "imageUrl": "https://picsum.photos/seed/logo/100/100",
+      "imageHint": "abstract geometric"
+    }
+  ]
 }
