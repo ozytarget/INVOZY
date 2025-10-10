@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { FileText, User, Users, CreditCard, Settings, Search, Bell } from "lucide-react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
