@@ -27,8 +27,8 @@ const settingsSchema = z.object({
   companyEmail: z.string().email("Invalid email address."),
   companyPhone: z.string().optional(),
   companyAddress: z.string().optional(),
-  companyWebsite: z.string().url("Invalid URL.").optional().or(z.literal("")),
-  schedulingUrl: z.string().url("Invalid URL.").optional().or(z.literal("")),
+  companyWebsite: z.string().optional(),
+  schedulingUrl: z.string().optional(),
   companyLogo: z.string().optional(),
   userAvatar: z.string().optional(),
 })
@@ -211,7 +211,7 @@ export function SettingsForm() {
                         <FormControl>
                         <div className="relative">
                             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="https://acme.com" {...field} className="pl-10" />
+                            <Input placeholder="acme.com" {...field} className="pl-10" />
                         </div>
                         </FormControl>
                         <FormMessage />
@@ -227,7 +227,7 @@ export function SettingsForm() {
                         <FormControl>
                         <div className="relative">
                             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="https://calendly.com/acme" {...field} className="pl-10" />
+                            <Input placeholder="calendly.com/acme" {...field} className="pl-10" />
                         </div>
                         </FormControl>
                         <FormMessage />
