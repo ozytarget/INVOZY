@@ -45,6 +45,11 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
   
   const filteredDocuments = documents.filter(doc => doc.type === type)
 
+  const getViewLink = (doc: Document) => {
+    const docType = doc.type.toLowerCase();
+    return `/view/${docType}/${doc.id}`;
+  }
+
   return (
     <>
       <div className="flex items-center justify-between">
@@ -100,7 +105,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem asChild><Link href={`/view/estimate/${doc.id}`} target="_blank">View Public Page</Link></DropdownMenuItem>
+                        <DropdownMenuItem asChild><Link href={getViewLink(doc)} target="_blank">View Public Page</Link></DropdownMenuItem>
                         <DropdownMenuItem>Duplicate</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                       </DropdownMenuContent>
