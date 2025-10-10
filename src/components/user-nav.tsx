@@ -25,9 +25,11 @@ export function UserNav() {
   const [settings, setSettings] = useState<UserSettings | null>(null);
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem("companySettings");
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+    if (typeof window !== 'undefined') {
+        const savedSettings = localStorage.getItem("companySettings");
+        if (savedSettings) {
+            setSettings(JSON.parse(savedSettings));
+        }
     }
   }, []);
 
@@ -38,7 +40,7 @@ export function UserNav() {
           <Avatar className="h-9 w-9">
             {settings?.userAvatar && <AvatarImage src={settings.userAvatar} alt="User avatar" />}
             <AvatarFallback>
-                {settings?.contractorName ? settings.contractorName.charAt(0) : <User />}
+                {settings?.contractorName ? settings.contractorName.charAt(0).toUpperCase() : <User />}
             </AvatarFallback>
           </Avatar>
         </Button>

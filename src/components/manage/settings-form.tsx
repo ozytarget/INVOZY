@@ -65,16 +65,18 @@ export function SettingsForm() {
   })
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem("companySettings");
-    if (savedSettings) {
-      const parsedSettings = JSON.parse(savedSettings);
-      form.reset(parsedSettings);
-      if (parsedSettings.companyLogo) {
-        setLogoPreview(parsedSettings.companyLogo);
-      }
-      if (parsedSettings.userAvatar) {
-        setAvatarPreview(parsedSettings.userAvatar);
-      }
+    if (typeof window !== 'undefined') {
+        const savedSettings = localStorage.getItem("companySettings");
+        if (savedSettings) {
+            const parsedSettings = JSON.parse(savedSettings);
+            form.reset(parsedSettings);
+            if (parsedSettings.companyLogo) {
+                setLogoPreview(parsedSettings.companyLogo);
+            }
+            if (parsedSettings.userAvatar) {
+                setAvatarPreview(parsedSettings.userAvatar);
+            }
+        }
     }
   }, [form]);
 
@@ -85,6 +87,8 @@ export function SettingsForm() {
         title: "Settings Saved",
         description: "Your information has been updated successfully.",
         });
+        // This will force a re-render of components that depend on localStorage
+        window.dispatchEvent(new Event("storage"));
     } catch (error) {
         toast({
             variant: "destructive",
@@ -106,10 +110,30 @@ export function SettingsForm() {
             return;
         }
         const dataUrl = await fileToDataUrl(file);
-        form.setValue(fieldName, dataUrl);
+        form.setValue(fieldName, dataUrl, { shouldDirty: true });
         setPreview(dataUrl);
     }
   }
+  
+  // Add a listener to update nav when settings change in another tab
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedSettings = localStorage.getItem('companySettings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        form.reset(parsed);
+         if (parsed.companyLogo) {
+          setLogoPreview(parsed.companyLogo);
+        }
+        if (parsed.userAvatar) {
+          setAvatarPreview(parsed.userAvatar);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [form]);
+
 
   return (
     <Form {...form}>
@@ -239,7 +263,7 @@ export function SettingsForm() {
                 <FormField
                     control={form.control}
                     name="companyLogo"
-                    render={() => (
+                    render={({ field }) => (
                     <FormItem>
                         <FormLabel>Company Logo</FormLabel>
                         <div className="flex items-center gap-4">
@@ -261,7 +285,7 @@ export function SettingsForm() {
                  <FormField
                     control={form.control}
                     name="userAvatar"
-                    render={() => (
+                    render={({ field }) => (
                     <FormItem>
                         <FormLabel>User Avatar</FormLabel>
                         <div className="flex items-center gap-4">

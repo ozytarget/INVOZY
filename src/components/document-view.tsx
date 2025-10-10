@@ -31,9 +31,11 @@ export function DocumentView({ document }: DocumentViewProps) {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem("companySettings");
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+    if (typeof window !== 'undefined') {
+        const savedSettings = localStorage.getItem("companySettings");
+        if (savedSettings) {
+            setSettings(JSON.parse(savedSettings));
+        }
     }
   }, []);
 
@@ -48,7 +50,7 @@ export function DocumentView({ document }: DocumentViewProps) {
             <header className="flex justify-between items-start mb-8">
               <div>
                 {settings?.companyLogo ? (
-                    <Image src={settings.companyLogo} alt={settings.companyName} width={120} height={50} className="object-contain" />
+                    <Image src={settings.companyLogo} alt={settings.companyName || 'Company Logo'} width={120} height={50} className="object-contain" />
                 ) : (
                     <Logo />
                 )}
