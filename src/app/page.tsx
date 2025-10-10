@@ -23,7 +23,7 @@ export default function Home() {
                     Effortless Invoicing, Smarter Estimates
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    Welcome to InvoiceAI Pro. Create professional estimates and invoices with AI-powered suggestions to optimize pricing, refine descriptions, and identify upsells.
+                    Welcome to invozzy. Create professional estimates and invoices with AI-powered suggestions to optimize pricing, refine descriptions, and identify upsells.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
@@ -48,7 +48,7 @@ export default function Home() {
         </section>
       </main>
       <footer className="flex items-center justify-center p-4 text-sm text-muted-foreground">
-        © {new Date().getFullYear()} InvoiceAI Pro. All rights reserved.
+        © {new Date().getFullYear()} invozzy. All rights reserved.
       </footer>
     </div>
   );
