@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon } from "lucide-react"
+import { Globe, Calendar, Building, User, Mail, Phone } from "lucide-react"
 
 const settingsSchema = z.object({
   companyName: z.string().min(2, "Company name is required."),
@@ -26,8 +26,9 @@ const settingsSchema = z.object({
   companyAddress: z.string().optional(),
   companyWebsite: z.string().url("Invalid URL.").optional().or(z.literal("")),
   schedulingUrl: z.string().url("Invalid URL.").optional().or(z.literal("")),
-  companyLogoUrl: z.string().url("Invalid URL.").optional().or(z.literal("")),
-  userAvatarUrl: z.string().url("Invalid URL.").optional().or(z.literal("")),
+  // Zod validation for file uploads can be complex. For now, we'll accept any.
+  companyLogo: z.any().optional(),
+  userAvatar: z.any().optional(),
 })
 
 type SettingsFormValues = z.infer<typeof settingsSchema>
@@ -46,13 +47,11 @@ export function SettingsForm() {
       companyAddress: "",
       companyWebsite: "",
       schedulingUrl: "",
-      companyLogoUrl: "",
-      userAvatarUrl: "",
     },
   })
 
   function onSubmit(data: SettingsFormValues) {
-    // TODO: Save settings to a database
+    // TODO: Save settings to a database, including file uploads
     console.log(data)
     toast({
       title: "Settings Saved",
@@ -187,15 +186,12 @@ export function SettingsForm() {
              <div className="grid md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
-                    name="companyLogoUrl"
+                    name="companyLogo"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Company Logo URL</FormLabel>
+                        <FormLabel>Company Logo</FormLabel>
                         <FormControl>
-                        <div className="relative">
-                            <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="https://your-site.com/logo.png" {...field} className="pl-10" />
-                        </div>
+                          <Input type="file" onChange={(e) => field.onChange(e.target.files ? e.target.files[0] : null)} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
@@ -203,15 +199,12 @@ export function SettingsForm() {
                 />
                  <FormField
                     control={form.control}
-                    name="userAvatarUrl"
+                    name="userAvatar"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>User Avatar URL</FormLabel>
+                        <FormLabel>User Avatar</FormLabel>
                         <FormControl>
-                        <div className="relative">
-                            <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="https://your-site.com/avatar.png" {...field} className="pl-10" />
-                        </div>
+                          <Input type="file" onChange={(e) => field.onChange(e.target.files ? e.target.files[0] : null)} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
