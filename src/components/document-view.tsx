@@ -1,12 +1,22 @@
+'use client'
+
 import { Document } from "@/lib/types";
 import { Card, CardContent } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import { Logo } from "./logo";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 
 type DocumentViewProps = {
   document: Document;
+}
+
+type CompanySettings = {
+    companyName: string;
+    companyAddress: string;
+    companyLogo: string;
 }
 
 const statusStyles: Record<Document['status'], string> = {
@@ -18,6 +28,16 @@ const statusStyles: Record<Document['status'], string> = {
 }
 
 export function DocumentView({ document }: DocumentViewProps) {
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
+
+  useEffect(() => {
+    const savedSettings = localStorage.getItem("companySettings");
+    if (savedSettings) {
+      setSettings(JSON.parse(savedSettings));
+    }
+  }, []);
+
+
   const subtotal = document.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
 
   return (
@@ -27,8 +47,12 @@ export function DocumentView({ document }: DocumentViewProps) {
           <CardContent className="p-0">
             <header className="flex justify-between items-start mb-8">
               <div>
-                <Logo />
-                <p className="text-muted-foreground mt-2">123 Contractor Lane<br />Buildsville, ST 12345</p>
+                {settings?.companyLogo ? (
+                    <Image src={settings.companyLogo} alt={settings.companyName} width={120} height={50} className="object-contain" />
+                ) : (
+                    <Logo />
+                )}
+                <p className="text-muted-foreground mt-2 whitespace-pre-line">{settings?.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
               </div>
               <div className="text-right">
                 <h1 className="text-4xl font-bold font-headline uppercase">{document.type}</h1>

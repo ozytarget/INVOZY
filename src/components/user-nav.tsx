@@ -11,36 +11,52 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { User } from "lucide-react";
+
+type UserSettings = {
+    contractorName: string;
+    companyEmail: string;
+    userAvatar: string;
+}
 
 export function UserNav() {
-  const userAvatar = PlaceHolderImages.find((img) => img.id === "user-avatar");
+  const [settings, setSettings] = useState<UserSettings | null>(null);
+
+  useEffect(() => {
+    const savedSettings = localStorage.getItem("companySettings");
+    if (savedSettings) {
+      setSettings(JSON.parse(savedSettings));
+    }
+  }, []);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt="User avatar" />}
-            <AvatarFallback>U</AvatarFallback>
+            {settings?.userAvatar && <AvatarImage src={settings.userAvatar} alt="User avatar" />}
+            <AvatarFallback>
+                {settings?.contractorName ? settings.contractorName.charAt(0) : <User />}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">Contractor</p>
+            <p className="text-sm font-medium leading-none">{settings?.contractorName || "Contractor"}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              contractor@example.com
+              {settings?.companyEmail || "contractor@example.com"}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>Profile</DropdownMenuItem>
-          <DropdownMenuItem>Billing</DropdownMenuItem>
-          <DropdownMenuItem>Settings</DropdownMenuItem>
+           <DropdownMenuItem asChild>
+                <Link href="/dashboard/manage">Settings</Link>
+            </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>

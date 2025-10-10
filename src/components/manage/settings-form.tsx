@@ -29,11 +29,20 @@ const settingsSchema = z.object({
   companyAddress: z.string().optional(),
   companyWebsite: z.string().url("Invalid URL.").optional().or(z.literal("")),
   schedulingUrl: z.string().url("Invalid URL.").optional().or(z.literal("")),
-  companyLogo: z.any().optional(),
-  userAvatar: z.any().optional(),
+  companyLogo: z.string().optional(),
+  userAvatar: z.string().optional(),
 })
 
 type SettingsFormValues = z.infer<typeof settingsSchema>
+
+const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
 
 export function SettingsForm() {
   const { toast } = useToast();
@@ -50,34 +59,48 @@ export function SettingsForm() {
       companyAddress: "",
       companyWebsite: "",
       schedulingUrl: "",
+      companyLogo: "",
+      userAvatar: "",
     },
   })
 
-  const logoFile = form.watch("companyLogo");
-  const avatarFile = form.watch("userAvatar");
-
   useEffect(() => {
-    if (logoFile && logoFile instanceof File) {
-      const newUrl = URL.createObjectURL(logoFile);
-      setLogoPreview(newUrl);
-      return () => URL.revokeObjectURL(newUrl);
+    const savedSettings = localStorage.getItem("companySettings");
+    if (savedSettings) {
+      const parsedSettings = JSON.parse(savedSettings);
+      form.reset(parsedSettings);
+      if (parsedSettings.companyLogo) {
+        setLogoPreview(parsedSettings.companyLogo);
+      }
+      if (parsedSettings.userAvatar) {
+        setAvatarPreview(parsedSettings.userAvatar);
+      }
     }
-  }, [logoFile]);
+  }, [form]);
 
-  useEffect(() => {
-    if (avatarFile && avatarFile instanceof File) {
-      const newUrl = URL.createObjectURL(avatarFile);
-      setAvatarPreview(newUrl);
-      return () => URL.revokeObjectURL(newUrl);
+  async function onSubmit(data: SettingsFormValues) {
+    try {
+        localStorage.setItem("companySettings", JSON.stringify(data));
+        toast({
+        title: "Settings Saved",
+        description: "Your information has been updated successfully.",
+        });
+    } catch (error) {
+        toast({
+            variant: "destructive",
+            title: "Error Saving",
+            description: "Could not save settings to your browser's local storage.",
+        });
     }
-  }, [avatarFile]);
+  }
 
-  function onSubmit(data: SettingsFormValues) {
-    console.log(data)
-    toast({
-      title: "Settings Saved",
-      description: "Your information has been updated successfully.",
-    })
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'companyLogo' | 'userAvatar', setPreview: (url: string) => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        const dataUrl = await fileToDataUrl(file);
+        form.setValue(fieldName, dataUrl);
+        setPreview(dataUrl);
+    }
   }
 
   return (
@@ -208,7 +231,7 @@ export function SettingsForm() {
                 <FormField
                     control={form.control}
                     name="companyLogo"
-                    render={({ field: { onChange, value, ...rest }}) => (
+                    render={({ field }) => (
                     <FormItem>
                         <FormLabel>Company Logo</FormLabel>
                         <div className="flex items-center gap-4">
@@ -220,7 +243,7 @@ export function SettingsForm() {
                             )}
                           </div>
                           <FormControl>
-                            <Input type="file" accept="image/*" onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)} {...rest} />
+                            <Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'companyLogo', setLogoPreview)} className="file:text-primary file:font-medium" />
                           </FormControl>
                         </div>
                         <FormMessage />
@@ -230,7 +253,7 @@ export function SettingsForm() {
                  <FormField
                     control={form.control}
                     name="userAvatar"
-                    render={({ field: { onChange, value, ...rest } }) => (
+                    render={({ field }) => (
                     <FormItem>
                         <FormLabel>User Avatar</FormLabel>
                         <div className="flex items-center gap-4">
@@ -241,7 +264,7 @@ export function SettingsForm() {
                             </AvatarFallback>
                           </Avatar>
                           <FormControl>
-                            <Input type="file" accept="image/*" onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)} {...rest} />
+                             <Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'userAvatar', setAvatarPreview)} className="file:text-primary file:font-medium" />
                           </FormControl>
                         </div>
                         <FormMessage />
