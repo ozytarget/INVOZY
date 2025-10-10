@@ -97,6 +97,14 @@ export function SettingsForm() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'companyLogo' | 'userAvatar', setPreview: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
+        if (file.size > 2 * 1024 * 1024) { // 2MB limit
+            toast({
+                variant: "destructive",
+                title: "File too large",
+                description: "Please upload an image smaller than 2MB.",
+            });
+            return;
+        }
         const dataUrl = await fileToDataUrl(file);
         form.setValue(fieldName, dataUrl);
         setPreview(dataUrl);
@@ -231,7 +239,7 @@ export function SettingsForm() {
                 <FormField
                     control={form.control}
                     name="companyLogo"
-                    render={({ field }) => (
+                    render={() => (
                     <FormItem>
                         <FormLabel>Company Logo</FormLabel>
                         <div className="flex items-center gap-4">
@@ -243,7 +251,7 @@ export function SettingsForm() {
                             )}
                           </div>
                           <FormControl>
-                            <Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'companyLogo', setLogoPreview)} className="file:text-primary file:font-medium" />
+                            <Input id="companyLogoInput" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'companyLogo', setLogoPreview)} className="file:text-primary file:font-medium" />
                           </FormControl>
                         </div>
                         <FormMessage />
@@ -253,7 +261,7 @@ export function SettingsForm() {
                  <FormField
                     control={form.control}
                     name="userAvatar"
-                    render={({ field }) => (
+                    render={() => (
                     <FormItem>
                         <FormLabel>User Avatar</FormLabel>
                         <div className="flex items-center gap-4">
@@ -264,7 +272,7 @@ export function SettingsForm() {
                             </AvatarFallback>
                           </Avatar>
                           <FormControl>
-                             <Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'userAvatar', setAvatarPreview)} className="file:text-primary file:font-medium" />
+                             <Input id="userAvatarInput" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'userAvatar', setAvatarPreview)} className="file:text-primary file:font-medium" />
                           </FormControl>
                         </div>
                         <FormMessage />
