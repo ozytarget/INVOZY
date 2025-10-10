@@ -23,30 +23,30 @@ export default function DashboardLayout({
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-card px-4 sm:px-6">
+      <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-card px-4 sm:px-6">
         <h1 className="text-lg font-semibold md:text-2xl font-headline">
           {navItems.find(item => pathname.startsWith(item.href))?.label || "Dashboard"}
         </h1>
         <UserNav />
       </header>
-      <main className="flex-1 flex-col gap-4 p-4 pb-20 lg:gap-6 lg:p-6 lg:pb-6">
+      <main className="flex-1 flex-col gap-4 p-4 pb-24 sm:gap-6 sm:p-6 sm:pb-6">
         {children}
       </main>
       <nav className="fixed bottom-0 left-0 right-0 z-10 border-t bg-card md:hidden">
-        <div className="grid grid-cols-5 h-16">
+        <div className="grid h-16 w-full grid-flow-col-dense justify-around">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 text-xs font-medium",
+                "flex flex-col items-center justify-center gap-1 p-2 text-xs font-medium",
                 pathname === item.href
                   ? "text-primary"
                   : "text-muted-foreground hover:text-primary"
               )}
             >
               {item.icon}
-              <span>{item.label}</span>
+              <span className="truncate">{item.label}</span>
             </Link>
           ))}
         </div>
