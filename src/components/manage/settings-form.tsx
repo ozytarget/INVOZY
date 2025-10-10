@@ -275,7 +275,7 @@ export function SettingsForm() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end mt-8">
           <Button type="submit">Save Settings</Button>
         </div>
       </form>
