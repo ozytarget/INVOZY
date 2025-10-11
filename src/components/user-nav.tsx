@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 type UserSettings = {
     contractorName: string;
     companyEmail: string;
+    companyLogo?: string;
 }
 
 export function UserNav() {
@@ -32,15 +33,24 @@ export function UserNav() {
   const { toast } = useToast();
   const [settings, setSettings] = useState<UserSettings | null>(null);
 
-  useEffect(() => {
-    // This component now relies on the user object from Firebase,
-    // but we can still pull settings from localStorage for display purposes.
+  const updateSettingsFromStorage = () => {
     if (typeof window !== 'undefined') {
         const savedSettings = localStorage.getItem("companySettings");
         if (savedSettings) {
             setSettings(JSON.parse(savedSettings));
         }
     }
+  };
+
+  useEffect(() => {
+    updateSettingsFromStorage();
+
+    // Listen for changes from other tabs/windows
+    window.addEventListener('storage', updateSettingsFromStorage);
+
+    return () => {
+      window.removeEventListener('storage', updateSettingsFromStorage);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -59,6 +69,14 @@ export function UserNav() {
       });
     }
   };
+  
+  const getInitials = (name: string | undefined | null): string => {
+    if (!name) return "";
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  }
+
+  const avatarSrc = settings?.companyLogo || user?.photoURL || '';
+  const fallbackText = getInitials(settings?.contractorName) || (user?.email ? user.email.charAt(0).toUpperCase() : <UserIcon />);
 
 
   return (
@@ -66,9 +84,9 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user?.photoURL || ''} alt="User avatar" />
+            <AvatarImage src={avatarSrc} alt="User avatar" />
             <AvatarFallback>
-                {user?.displayName ? user.displayName.charAt(0).toUpperCase() : (user?.email?.charAt(0).toUpperCase() || <UserIcon />)}
+                {fallbackText}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -76,9 +94,9 @@ export function UserNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.displayName || settings?.contractorName || "Contractor"}</p>
+            <p className="text-sm font-medium leading-none">{settings?.contractorName || user?.displayName || "Contractor"}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user?.email || "contractor@example.com"}
+              {user?.email || settings?.companyEmail || "contractor@example.com"}
             </p>
           </div>
         </DropdownMenuLabel>
