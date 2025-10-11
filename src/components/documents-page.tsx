@@ -27,6 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "./ui/dropdown-menu"
 import { useDocuments } from "@/hooks/use-documents"
 import { useRouter } from "next/navigation"
@@ -100,52 +101,99 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead>Issued Date</TableHead>
-                {type === "Invoice" && <TableHead>Due Date</TableHead>}
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredDocuments.map((doc) => (
-                <TableRow key={doc.id} onClick={() => handleRowClick(doc)} className="cursor-pointer">
-                  <TableCell className="font-medium">{doc.clientName}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge className={statusStyles[doc.status]} variant="outline">
-                      {doc.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{doc.issuedDate}</TableCell>
-                  {type === "Invoice" && <TableCell>{doc.dueDate}</TableCell>}
-                  <TableCell className="text-right">${doc.amount.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
-                        <DropdownMenuItem asChild><Link href={getViewLink(doc)} target="_blank">View Public Page</Link></DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
-                        <DeleteDocumentMenuItem onDelete={() => handleDelete(doc.id)} />
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          {/* Desktop View */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead>Issued Date</TableHead>
+                  {type === "Invoice" && <TableHead>Due Date</TableHead>}
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredDocuments.map((doc) => (
+                  <TableRow key={doc.id} onClick={() => handleRowClick(doc)} className="cursor-pointer">
+                    <TableCell className="font-medium">{doc.clientName}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={statusStyles[doc.status]} variant="outline">
+                        {doc.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{doc.issuedDate}</TableCell>
+                    {type === "Invoice" && <TableCell>{doc.dueDate}</TableCell>}
+                    <TableCell className="text-right">${doc.amount.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href={getViewLink(doc)} target="_blank">View Public Page</Link></DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DeleteDocumentMenuItem onDelete={() => handleDelete(doc.id)} />
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile View */}
+          <div className="md:hidden space-y-4">
+            {filteredDocuments.map((doc) => (
+              <div key={doc.id} className="border rounded-lg p-4 space-y-2 cursor-pointer relative" onClick={() => handleRowClick(doc)}>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <div className="font-medium">{doc.clientName}</div>
+                        <div className="text-sm text-muted-foreground">{doc.type} #{doc.id}</div>
+                    </div>
+                    <Badge className={statusStyles[doc.status]} variant="outline">
+                        {doc.status}
+                    </Badge>
+                </div>
+                <div className="flex justify-between items-center text-sm pt-2 border-t">
+                    <div className="text-muted-foreground">
+                        <p>Issued: {doc.issuedDate}</p>
+                        {doc.dueDate && <p>Due: {doc.dueDate}</p>}
+                    </div>
+                    <span className="font-bold text-base">${doc.amount.toLocaleString()}</span>
+                </div>
+                 <div className="absolute top-2 right-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href={getViewLink(doc)} target="_blank">View Public Page</Link></DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DeleteDocumentMenuItem onDelete={() => handleDelete(doc.id)} />
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                 </div>
+              </div>
+            ))}
+          </div>
+
         </CardContent>
       </Card>
     </>
