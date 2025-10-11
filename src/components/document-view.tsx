@@ -359,7 +359,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                                 <FabMenuItem 
                                     onClick={handleGenerateWorkOrder}
                                     icon={<ClipboardList className="h-6 w-6" />}
-                                    label="Generar Orden de Trabajo"
+                                    label="Generate Work Order"
                                     variant="default"
                                 />
                             )}

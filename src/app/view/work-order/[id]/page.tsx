@@ -22,7 +22,7 @@ function WorkOrderDisplay({ workOrder, document }: { workOrder: WorkOrderOutput,
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-headline">
                         <HardHat className="w-6 h-6" />
-                        Tareas a Realizar
+                        Tasks to Perform
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -39,7 +39,7 @@ function WorkOrderDisplay({ workOrder, document }: { workOrder: WorkOrderOutput,
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 font-headline">
                             <ClipboardList className="w-6 h-6" />
-                            Materiales Requeridos
+                            Required Materials
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -54,7 +54,7 @@ function WorkOrderDisplay({ workOrder, document }: { workOrder: WorkOrderOutput,
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 font-headline">
                             <Wrench className="w-6 h-6" />
-                            Herramientas Necesarias
+                            Necessary Tools
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -100,8 +100,8 @@ export default function WorkOrderViewPage() {
         } else {
           toast({
             variant: "destructive",
-            title: "Error de Generación",
-            description: "No se pudo generar la orden de trabajo. Por favor, inténtalo de nuevo.",
+            title: "Generation Error",
+            description: "Could not generate the work order. Please try again.",
           });
         }
         setIsGenerating(false);
@@ -129,7 +129,7 @@ export default function WorkOrderViewPage() {
                 <Button asChild variant="outline" className="bg-background/80 backdrop-blur-sm">
                     <Link href={`/view/invoice/${id}`}>
                         <Home className="mr-2" />
-                        Volver a la Factura
+                        Back to Invoice
                     </Link>
                 </Button>
             </div>
@@ -146,8 +146,8 @@ export default function WorkOrderViewPage() {
                             </div>
                         </div>
                         <div className="text-right">
-                            <h1 className="text-4xl font-bold font-headline uppercase">Orden de Trabajo</h1>
-                            <p className="text-muted-foreground">Factura de Referencia: {document.invoiceNumber}</p>
+                            <h1 className="text-4xl font-bold font-headline uppercase">Work Order</h1>
+                            <p className="text-muted-foreground">Reference Invoice: {document.invoiceNumber}</p>
                         </div>
                     </header>
                     <div className="border rounded-lg p-4 bg-muted/30">
@@ -175,8 +175,8 @@ export default function WorkOrderViewPage() {
                     {isGenerating && (
                         <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                            <h3 className="font-semibold text-lg">Generando Orden de Trabajo...</h3>
-                            <p className="text-muted-foreground">La IA está analizando los detalles del proyecto para crear las listas de tareas, materiales y herramientas.</p>
+                            <h3 className="font-semibold text-lg">Generating Work Order...</h3>
+                            <p className="text-muted-foreground">The AI is analyzing the project details to create the task, material, and tool lists.</p>
                         </div>
                     )}
                     {workOrder && <WorkOrderDisplay workOrder={workOrder} document={document} />}
