@@ -16,6 +16,7 @@ import { Wand2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { ScrollArea } from '../ui/scroll-area';
+import { Checkbox } from '../ui/checkbox';
 
 type AiSuggestionsDialogProps = {
   projectDescription: string;
@@ -34,6 +35,15 @@ export function AiSuggestionsDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<AIPoweredEstimateSuggestionsOutput | null>(null);
   const { toast } = useToast();
+  const [selectedItems, setSelectedItems] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (suggestions) {
+      // By default, select all items when they are loaded.
+      setSelectedItems(suggestions.lineItems.map((_, index) => index));
+    }
+  }, [suggestions]);
+
 
   const handleGenerate = async () => {
     setIsLoading(true);
@@ -82,15 +92,35 @@ export function AiSuggestionsDialog({
   
   const handleApplyAndClose = () => {
     if (suggestions) {
-      onApplyLineItems(suggestions.lineItems);
+      const itemsToApply = suggestions.lineItems.filter((_, index) => selectedItems.includes(index));
+      if (itemsToApply.length > 0) {
+        onApplyLineItems(itemsToApply);
+      }
       onApplyNotes(suggestions.notes);
       toast({
         title: 'Suggestions Applied',
-        description: 'Line items and notes have been added to your estimate.',
+        description: `${itemsToApply.length} line item(s) and notes have been added to your estimate.`,
       });
     }
     setIsOpen(false);
   }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && suggestions) {
+      setSelectedItems(suggestions.lineItems.map((_, index) => index));
+    } else {
+      setSelectedItems([]);
+    }
+  };
+
+  const handleSelectItem = (index: number, checked: boolean) => {
+    if (checked) {
+      setSelectedItems(prev => [...prev, index]);
+    } else {
+      setSelectedItems(prev => prev.filter(itemIndex => itemIndex !== index));
+    }
+  };
+
 
   return (
     <>
@@ -104,7 +134,7 @@ export function AiSuggestionsDialog({
           <DialogHeader>
             <DialogTitle className="font-headline">AI-Powered Estimate</DialogTitle>
             <DialogDescription>
-              Here is a detailed breakdown of materials and labor for your project. Review and apply to your estimate.
+              Review and select the items to add to your estimate.
             </DialogDescription>
           </DialogHeader>
           
@@ -124,7 +154,14 @@ export function AiSuggestionsDialog({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-[60%]">Description</TableHead>
+                                    <TableHead className="w-10">
+                                      <Checkbox 
+                                        checked={selectedItems.length === suggestions.lineItems.length}
+                                        onCheckedChange={handleSelectAll}
+                                        aria-label="Select all items"
+                                      />
+                                    </TableHead>
+                                    <TableHead className="w-[55%]">Description</TableHead>
                                     <TableHead className="text-center">Qty</TableHead>
                                     <TableHead className="text-right">Unit Price</TableHead>
                                     <TableHead className="text-right">Total</TableHead>
@@ -133,6 +170,13 @@ export function AiSuggestionsDialog({
                             <TableBody>
                                 {suggestions.lineItems.map((item, index) => (
                                     <TableRow key={index}>
+                                        <TableCell>
+                                          <Checkbox
+                                            checked={selectedItems.includes(index)}
+                                            onCheckedChange={(checked) => handleSelectItem(index, !!checked)}
+                                            aria-label={`Select item ${index + 1}`}
+                                          />
+                                        </TableCell>
                                         <TableCell>{item.description}</TableCell>
                                         <TableCell className="text-center">{item.quantity}</TableCell>
                                         <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
@@ -152,7 +196,7 @@ export function AiSuggestionsDialog({
           
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
-            {suggestions && <Button type="button" onClick={handleApplyAndClose}>Apply Items & Notes</Button>}
+            {suggestions && <Button type="button" onClick={handleApplyAndClose}>Apply Selected Items</Button>}
           </DialogFooter>
         </DialogContent>
       </Dialog>
