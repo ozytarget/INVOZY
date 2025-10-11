@@ -200,10 +200,10 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       
       const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
 
-      const newInvoice: Omit<Document, 'id'> = {
-          ...(originalDoc as any),
-          type: 'Invoice',
-          status: 'Sent',
+      const newInvoiceData = {
+          ...originalDoc,
+          type: 'Invoice' as DocumentType,
+          status: 'Sent' as DocumentStatus,
           userId: user.uid,
           issuedDate: format(new Date(), "yyyy-MM-dd"),
           dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
@@ -222,8 +222,9 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           taxId: companySettings.taxId || '',
           contractorName: companySettings.contractorName || '',
           schedulingUrl: companySettings.schedulingUrl || '',
-        };
-      batch.set(newInvoiceRef, newInvoice);
+      };
+      delete newInvoiceData.id; // remove old id
+      batch.set(newInvoiceRef, newInvoiceData);
 
     } else { // It's an invoice
       const invoiceRef = doc(firestore, 'invoices', docId);
