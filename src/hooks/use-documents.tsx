@@ -4,13 +4,14 @@
 
 
 
+
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, doc, addDoc, deleteDoc, writeBatch, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { collection, doc, addDoc, deleteDoc, writeBatch, getDocs, query, where, getDoc, updateDoc } from 'firebase/firestore';
 
 // This function extracts unique clients from documents and combines with stored clients
 const getCombinedClients = (documents: Document[], storedClients: Client[]): Client[] => {
@@ -171,12 +172,12 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       const newInvoice: Omit<Document, 'id'> = {
           ...(originalDoc as any), // This is a bit unsafe, but it's the easiest way to copy fields
           type: 'Invoice',
-          status: 'Draft',
+          status: 'Sent', // The new invoice is now 'Sent' because it's approved
           userId: user.uid,
           issuedDate: format(new Date(), "yyyy-MM-dd"),
           dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
-          signature: null,
-          isSigned: false,
+          signature: signature, // Carry over the signature
+          isSigned: true, // Mark as signed
           terms: originalDoc.terms || 'Net 30',
           payments: [],
           invoiceNumber: newInvoiceNumber,
@@ -189,7 +190,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       batch.update(invoiceRef, {
         signature,
         isSigned: true,
-        status: 'Sent', // Correctly set to 'Sent', not 'Paid'
+        status: 'Sent',
       });
     }
 
