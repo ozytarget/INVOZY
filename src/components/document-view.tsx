@@ -1,6 +1,5 @@
 
 
-
 'use client'
 
 import { Document, Payment } from "@/lib/types";
@@ -329,23 +328,23 @@ export function DocumentView({ document }: DocumentViewProps) {
       </div>
        {isDashboardView && (
             <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 backdrop-blur-sm">
-                <div className="container mx-auto flex h-20 items-center justify-center gap-4">
+                <div className="container mx-auto flex h-20 items-center justify-center gap-2 sm:gap-4 flex-wrap px-4">
                     {document.type === 'Invoice' && document.status !== 'Paid' && (
                         <RecordPaymentDialog document={document} onRecordPayment={handleRecordPayment}>
-                             <Button variant="default" size="lg">
-                                <DollarSign className="mr-2 h-4 w-4" /> Record Payment
+                             <Button variant="default" size="lg" className="flex-1 sm:flex-none">
+                                <DollarSign className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Record Payment</span>
                             </Button>
                         </RecordPaymentDialog>
                     )}
-                     <Button variant="outline" size="lg" disabled>
-                        <Edit className="mr-2 h-4 w-4" /> Edit
+                     <Button variant="outline" size="lg" disabled className="flex-1 sm:flex-none">
+                        <Edit className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Edit</span>
                     </Button>
-                    <Button variant="outline" size="lg" onClick={handleShare}>
-                        <Share2 className="mr-2 h-4 w-4" /> Share
+                    <Button variant="outline" size="lg" onClick={handleShare} className="flex-1 sm:flex-none">
+                        <Share2 className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Share</span>
                     </Button>
                     <DeleteDocumentDialog onDelete={handleDelete}>
-                        <Button variant="destructive" size="lg">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        <Button variant="destructive" size="lg" className="flex-1 sm:flex-none">
+                            <Trash2 className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Delete</span>
                         </Button>
                     </DeleteDocumentDialog>
                 </div>
