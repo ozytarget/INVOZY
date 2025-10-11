@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
+import { DocumentProvider } from '@/hooks/use-documents';
 
 export const metadata: Metadata = {
   title: 'invozzy',
@@ -22,7 +23,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <DocumentProvider>
+          {children}
+        </DocumentProvider>
         <Toaster />
       </body>
     </html>

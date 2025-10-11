@@ -1,6 +1,7 @@
 import type { Document } from './types';
 
-export const documents: Document[] = [
+// Renamed to initialDocuments to reflect that this is the starting data.
+export const initialDocuments: Document[] = [
   {
     id: 'EST-001',
     type: 'Estimate',

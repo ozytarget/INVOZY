@@ -1,3 +1,5 @@
+'use client'
+
 import {
   Card,
   CardContent,
@@ -15,7 +17,6 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { documents } from "@/lib/data"
 import { Document, DocumentStatus, DocumentType } from "@/lib/types"
 import { MoreHorizontal, PlusCircle } from "lucide-react"
 import Link from "next/link"
@@ -26,6 +27,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
+import { useDocuments } from "@/hooks/use-documents"
 
 const statusStyles: Record<DocumentStatus, string> = {
   Paid: "text-primary bg-primary/10",
@@ -40,6 +42,7 @@ type DocumentsPageProps = {
 }
 
 export function DocumentsPage({ type }: DocumentsPageProps) {
+  const { documents } = useDocuments();
   const title = type === "Estimate" ? "Estimates" : "Invoices"
   const createHref = type === "Estimate" ? "/dashboard/estimates/create" : "/dashboard/invoices/create"
   

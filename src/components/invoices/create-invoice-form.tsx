@@ -34,7 +34,6 @@ import {
   TableFooter,
 } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
-import { AiSuggestionsDialog } from "./ai-suggestions-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useDocuments } from "@/hooks/use-documents"
@@ -49,31 +48,31 @@ const formSchema = z.object({
   clientName: z.string().min(2, "Client name must be at least 2 characters."),
   clientEmail: z.string().email("Invalid email address."),
   projectTitle: z.string().min(3, "Project title is required."),
-  projectDescription: z.string().optional(),
   issuedDate: z.date(),
+  dueDate: z.date(),
   lineItems: z.array(lineItemSchema).min(1, "At least one line item is required."),
   notes: z.string().optional(),
   terms: z.string().optional(),
 })
 
-type EstimateFormValues = z.infer<typeof formSchema>
+type InvoiceFormValues = z.infer<typeof formSchema>
 
-export function CreateEstimateForm() {
+export function CreateInvoiceForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const { addDocument, documents } = useDocuments();
+  const { documents, addDocument } = useDocuments();
   
-  const form = useForm<EstimateFormValues>({
+  const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       clientName: "",
       clientEmail: "",
       projectTitle: "",
-      projectDescription: "",
       issuedDate: new Date(),
+      dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
       lineItems: [{ description: "", quantity: 1, price: 0 }],
       notes: "",
-      terms: "",
+      terms: "Net 30",
     },
   })
 
@@ -84,43 +83,29 @@ export function CreateEstimateForm() {
   
   const lineItems = form.watch("lineItems");
   const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
-  
-  const projectDetailsForAI = `Project Title: ${form.watch('projectTitle')}\nProject Description: ${form.watch('projectDescription')}\nLine Items:\n${lineItems.map(item => `- ${item.description} (Qty: ${item.quantity}, Price: $${item.price})`).join('\n')}`;
 
-
-  function onSubmit(data: EstimateFormValues) {
-    const nextId = `EST-${(documents.filter(d => d.type === 'Estimate').length + 1).toString().padStart(3, '0')}`;
-    const newEstimate = {
+  function onSubmit(data: InvoiceFormValues) {
+    const nextId = `INV-${(documents.filter(d => d.type === 'Invoice').length + 1).toString().padStart(3, '0')}`;
+    const newInvoice = {
       id: nextId,
-      type: 'Estimate' as const,
+      type: 'Invoice' as const,
       status: 'Draft' as const,
       clientName: data.clientName,
       clientEmail: data.clientEmail,
       projectTitle: data.projectTitle,
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
+      dueDate: format(data.dueDate, "yyyy-MM-dd"),
       amount: subtotal,
       lineItems: data.lineItems.map((item, index) => ({ ...item, id: `${index + 1}` })),
       notes: data.notes || '',
       terms: data.terms || '',
-    }
-
-    addDocument(newEstimate);
-    
+    };
+    addDocument(newInvoice);
     toast({
-      title: "Estimate Created",
-      description: `Estimate for ${data.clientName} has been saved as a draft.`,
+      title: "Invoice Created",
+      description: `Invoice for ${data.clientName} has been saved as a draft.`,
     })
-    router.push("/dashboard/estimates");
-  }
-
-  const handleApplySuggestions = (suggestions: { refinedDescription?: string }) => {
-    if (suggestions.refinedDescription) {
-        form.setValue('projectDescription', suggestions.refinedDescription);
-        toast({
-            title: "Description Updated",
-            description: "The project description has been updated with the AI suggestion.",
-        })
-    }
+    router.push("/dashboard/invoices");
   }
 
   return (
@@ -159,7 +144,7 @@ export function CreateEstimateForm() {
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader><CardTitle className="font-headline">Estimate Details</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-headline">Invoice Details</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                 <FormField
                     control={form.control}
@@ -174,6 +159,7 @@ export function CreateEstimateForm() {
                     </FormItem>
                     )}
                 />
+                 <div className="grid md:grid-cols-2 gap-4">
                  <FormField
                     control={form.control}
                     name="issuedDate"
@@ -204,9 +190,6 @@ export function CreateEstimateForm() {
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                            }
                             initialFocus
                             />
                         </PopoverContent>
@@ -215,40 +198,54 @@ export function CreateEstimateForm() {
                     </FormItem>
                     )}
                 />
+                 <FormField
+                    control={form.control}
+                    name="dueDate"
+                    render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                        <FormLabel>Due Date</FormLabel>
+                        <Popover>
+                        <PopoverTrigger asChild>
+                            <FormControl>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                "pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                                )}
+                            >
+                                {field.value ? (
+                                format(field.value, "PPP")
+                                ) : (
+                                <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                            </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                            />
+                        </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                 </div>
                 </CardContent>
             </Card>
         </div>
 
         <Card>
             <CardHeader>
-                <div className="flex items-center justify-between">
-                    <CardTitle className="font-headline">Project Scope & Line Items</CardTitle>
-                    <AiSuggestionsDialog 
-                        projectDetails={projectDetailsForAI} 
-                        currentPricing={subtotal.toFixed(2)}
-                        onApplySuggestions={handleApplySuggestions}
-                    />
-                </div>
+                <CardTitle className="font-headline">Line Items</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="projectDescription"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Project Description</FormLabel>
-                        <FormControl>
-                            <Textarea
-                                placeholder="Describe the project scope, deliverables, and timeline."
-                                className="resize-y min-h-[100px]"
-                                {...field}
-                            />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                
                 <div className="border rounded-md">
                 <Table>
                     <TableHeader>

@@ -1,13 +1,17 @@
+'use client';
+
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { documents } from "@/lib/data"
+import { useDocuments } from "@/hooks/use-documents"
 import { DollarSign, FileText, FileSignature } from "lucide-react"
 
 export function StatsCards() {
+  const { documents } = useDocuments();
+
   const totalRevenue = documents
     .filter(doc => doc.type === 'Invoice' && doc.status === 'Paid')
     .reduce((sum, doc) => sum + doc.amount, 0);

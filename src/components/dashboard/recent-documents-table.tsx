@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Card,
   CardContent,
@@ -14,8 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { documents } from "@/lib/data"
 import { DocumentStatus } from "@/lib/types"
+import { useDocuments } from "@/hooks/use-documents"
 
 const statusStyles: Record<DocumentStatus, string> = {
   Paid: "text-primary bg-primary/10",
@@ -26,6 +28,8 @@ const statusStyles: Record<DocumentStatus, string> = {
 }
 
 export function RecentDocumentsTable() {
+  const { documents } = useDocuments();
+
   const recentDocuments = [...documents]
     .sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime())
     .slice(0, 5)
