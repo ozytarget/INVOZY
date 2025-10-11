@@ -41,7 +41,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useDocuments } from "@/hooks/use-documents"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Client } from "@/lib/types"
+import { Client, Document } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
 
 const lineItemSchema = z.object({
@@ -115,7 +115,7 @@ export function CreateEstimateForm() {
     form.setValue('clientId', clientId);
   }, [clients, form]);
 
-  function onSubmit(data: EstimateFormValues) {
+  async function onSubmit(data: EstimateFormValues) {
     if (!selectedClient) {
       toast({
         variant: "destructive",
@@ -125,9 +125,7 @@ export function CreateEstimateForm() {
       return;
     }
 
-    const nextId = `EST-${(documents.filter(d => d.type === 'Estimate').length + 1).toString().padStart(3, '0')}`;
-    const newEstimate = {
-      id: nextId,
+    const newEstimate: Omit<Document, 'id'> = {
       type: 'Estimate' as const,
       status: 'Draft' as const,
       clientName: selectedClient.name,
@@ -142,7 +140,7 @@ export function CreateEstimateForm() {
       terms: data.terms || '',
     }
 
-    addDocument(newEstimate);
+    await addDocument(newEstimate);
     
     toast({
       title: "Estimate Created",

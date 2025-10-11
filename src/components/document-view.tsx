@@ -81,7 +81,7 @@ export function DocumentView({ document }: DocumentViewProps) {
     sigCanvas.current?.clear();
   }
 
-  const handleSignAndApprove = () => {
+  const handleSignAndApprove = async () => {
     if (sigCanvas.current?.isEmpty()) {
       toast({
         variant: "destructive",
@@ -91,7 +91,7 @@ export function DocumentView({ document }: DocumentViewProps) {
       return;
     }
     const signature = sigCanvas.current!.toDataURL('image/png');
-    const newInvoiceId = signAndProcessDocument(document.id, signature);
+    const newInvoiceId = await signAndProcessDocument(document.id, signature);
 
     toast({
       title: `${document.type} Approved!`,
@@ -99,12 +99,13 @@ export function DocumentView({ document }: DocumentViewProps) {
     });
 
     if (document.type === 'Estimate' && newInvoiceId) {
-        router.push(`/view/invoice/${newInvoiceId}`);
+        // Can't navigate to public page anymore
+        router.push(`/dashboard/invoices`);
     }
   }
 
-   const handleDelete = () => {
-    deleteDocument(document.id);
+   const handleDelete = async () => {
+    await deleteDocument(document.id);
     toast({
       title: "Document Deleted",
       description: `The document has been successfully deleted.`,
@@ -130,8 +131,8 @@ export function DocumentView({ document }: DocumentViewProps) {
     }
   };
 
-  const handleRecordPayment = (payment: Omit<Payment, 'id' | 'date'>) => {
-    recordPayment(document.id, payment);
+  const handleRecordPayment = async (payment: Omit<Payment, 'id' | 'date'>) => {
+    await recordPayment(document.id, payment);
     toast({
       title: "Payment Recorded",
       description: `A payment of $${payment.amount.toFixed(2)} has been recorded.`

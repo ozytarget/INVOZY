@@ -58,12 +58,14 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
   const filteredDocuments = documents.filter(doc => doc.type === type)
 
   const getViewLink = (doc: Document) => {
-    const docType = doc.type.toLowerCase();
-    return `/view/${docType}/${doc.id}`;
+    // Public view is disabled with Firestore implementation
+    return `/dashboard`;
   }
 
   const handleRowClick = (doc: Document) => {
-    router.push(getViewLink(doc));
+    // Since public view is not functional, we can't navigate there.
+    // For now, we will log to console. A real implementation might open an edit view.
+    console.log("Viewing document:", doc.id)
   }
 
   const handleDelete = (docId: string) => {
@@ -80,7 +82,11 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
         title: "Document Duplicated",
         description: `A new draft has been created from ${doc.id}.`,
     });
-    router.push(createHref); // Navigate to create page to see the new draft (or just stay here)
+    if (doc.type === 'Estimate') {
+      router.push("/dashboard/estimates/create");
+    } else {
+      router.push("/dashboard/invoices/create");
+    }
   }
 
   const handleRevertToDraft = (docId: string) => {
@@ -157,7 +163,6 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href={getViewLink(doc)} target="_blank">View Public Page</Link></DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
                           <DropdownMenuSeparator />
                            {doc.type === 'Invoice' && doc.status === 'Sent' && (
@@ -212,7 +217,6 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href={getViewLink(doc)} target="_blank">View Public Page</Link></DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
                            <DropdownMenuSeparator />
                            {doc.type === 'Invoice' && doc.status === 'Sent' && (

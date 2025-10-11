@@ -49,7 +49,7 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
     },
   })
 
-  function onSubmit(data: ClientFormValues) {
+  async function onSubmit(data: ClientFormValues) {
     const newClientData: Omit<Client, 'totalBilled' | 'documentCount'> = {
       name: data.clientName,
       email: data.clientEmail,
@@ -57,7 +57,7 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
       phone: data.clientPhone || "",
     }
     
-    addClient(newClientData);
+    await addClient(newClientData);
     
     const newClientWithDefaults: Client = {
       ...newClientData,

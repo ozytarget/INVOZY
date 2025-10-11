@@ -160,6 +160,31 @@
         "status",
         "publicUrl"
       ]
+    },
+    "Client": {
+      "title": "Client",
+      "type": "object",
+      "description": "Represents a client of a user.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "email",
+        "address"
+      ]
     }
   },
   "auth": {
@@ -222,6 +247,26 @@
             {
               "name": "invoiceId",
               "description": "The unique identifier for the invoice."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/clients/{clientId}",
+        "definition": {
+          "entityName": "Client",
+          "schema": {
+            "$ref": "#/backend/entities/Client"
+          },
+          "description": "Stores clients created by a specific user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "clientId",
+              "description": "The unique identifier for the client."
             }
           ]
         }

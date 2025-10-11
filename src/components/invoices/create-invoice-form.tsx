@@ -40,7 +40,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useDocuments } from "@/hooks/use-documents"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Client } from "@/lib/types"
+import { Client, Document } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
 import { AiSuggestionsDialog } from "../estimates/ai-suggestions-dialog"
 
@@ -121,7 +121,7 @@ export function CreateInvoiceForm() {
     form.setValue('clientId', clientId);
   }, [clients, form]);
 
-  function onSubmit(data: InvoiceFormValues) {
+  async function onSubmit(data: InvoiceFormValues) {
     if (!selectedClient) {
       toast({
         variant: "destructive",
@@ -131,9 +131,7 @@ export function CreateInvoiceForm() {
       return;
     }
 
-    const nextId = `INV-${(documents.filter(d => d.type === 'Invoice').length + 1).toString().padStart(3, '0')}`;
-    const newInvoice = {
-      id: nextId,
+    const newInvoice: Omit<Document, 'id'> = {
       type: 'Invoice' as const,
       status: 'Draft' as const,
       clientName: selectedClient.name,
@@ -148,7 +146,7 @@ export function CreateInvoiceForm() {
       notes: data.notes || '',
       terms: data.terms || '',
     };
-    addDocument(newInvoice);
+    await addDocument(newInvoice);
     toast({
       title: "Invoice Created",
       description: `Invoice for ${selectedClient.name} has been saved as a draft.`,
