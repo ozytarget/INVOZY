@@ -10,36 +10,42 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getSuggestions } from '@/app/actions';
-import { AIPoweredEstimateSuggestionsOutput } from '@/ai/flows/ai-powered-estimate-suggestions';
+import { AIPoweredEstimateSuggestionsOutput, AIPoweredEstimateSuggestionsInput } from '@/ai/flows/ai-powered-estimate-suggestions';
 import { Wand2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { ScrollArea } from '../ui/scroll-area';
 
 type AiSuggestionsDialogProps = {
-  projectDetails: string;
-  currentPricing: string;
-  onApplySuggestions: (suggestions: Partial<AIPoweredEstimateSuggestionsOutput>) => void;
+  projectDescription: string;
+  onApplyLineItems: (lineItems: AIPoweredEstimateSuggestionsOutput['lineItems']) => void;
+  onApplyNotes: (notes: string) => void;
 };
 
 export function AiSuggestionsDialog({
-  projectDetails,
-  currentPricing,
-  onApplySuggestions,
+  projectDescription,
+  onApplyLineItems,
+  onApplyNotes
 }: AiSuggestionsDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<AIPoweredEstimateSuggestionsOutput | null>(null);
+  const [location, setLocation] = useState('');
   const { toast } = useToast();
 
   const handleGenerate = async () => {
     setIsLoading(true);
     setSuggestions(null);
 
-    const result = await getSuggestions({
-      projectDetails,
-      currentPricing,
-    });
+    const input: AIPoweredEstimateSuggestionsInput = {
+      projectDescription,
+      location,
+    };
+
+    const result = await getSuggestions(input);
 
     setIsLoading(false);
     if (result.success && result.data) {
@@ -55,75 +61,108 @@ export function AiSuggestionsDialog({
   };
 
   const handleOpen = () => {
-    if (!projectDetails.trim()) {
+    if (!projectDescription.trim()) {
         toast({
             variant: 'destructive',
-            title: 'Project Details Required',
+            title: 'Project Description Required',
             description: 'Please provide a project description before generating suggestions.',
+        });
+        return;
+    }
+    if (!location.trim()) {
+        toast({
+            variant: 'destructive',
+            title: 'Location Required',
+            description: 'Please provide a project location (e.g., city, state) for accurate labor costs.',
         });
         return;
     }
     setIsOpen(true);
     handleGenerate();
   }
+  
+  const handleApplyAndClose = () => {
+    if (suggestions) {
+      onApplyLineItems(suggestions.lineItems);
+      onApplyNotes(suggestions.notes);
+      toast({
+        title: 'Suggestions Applied',
+        description: 'Line items and notes have been added to your estimate.',
+      });
+    }
+    setIsOpen(false);
+  }
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={handleOpen}>
-        <Wand2 className="mr-2 h-4 w-4" />
-        AI-Powered Assistance
-      </Button>
+      <div className="flex flex-col gap-2">
+         <Label htmlFor="ai-location">Project Location</Label>
+         <Input 
+            id="ai-location"
+            placeholder="e.g. Austin, TX"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+        <Button type="button" variant="outline" onClick={handleOpen}>
+            <Wand2 className="mr-2 h-4 w-4" />
+            AI-Powered Estimate
+        </Button>
+      </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="font-headline">AI-Powered Suggestions</DialogTitle>
+            <DialogTitle className="font-headline">AI-Powered Estimate</DialogTitle>
             <DialogDescription>
-              Here are some suggestions to improve your estimate.
+              Here is a detailed breakdown of materials and labor for your project. Review and apply to your estimate.
             </DialogDescription>
           </DialogHeader>
           
             {isLoading && (
                 <div className="flex flex-col items-center justify-center gap-4 p-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-muted-foreground">Generating suggestions...</p>
+                    <p className="text-muted-foreground">Generating your detailed estimate...</p>
                 </div>
             )}
 
             {suggestions && (
-                <div className="grid gap-4 py-4">
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base font-medium">Suggested Pricing</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground">{suggestions.suggestedPricing}</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base font-medium">Refined Description</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <p className="text-sm text-muted-foreground">{suggestions.refinedDescription}</p>
-                            <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => onApplySuggestions({ refinedDescription: suggestions.refinedDescription })}>
-                                Apply Description
-                            </Button>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base font-medium">Potential Upsells</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground">{suggestions.potentialUpsells}</p>
-                        </CardContent>
-                    </Card>
+                <div className="flex-1 min-h-0">
+                    <ScrollArea className="h-full">
+                        <div className='pr-6'>
+                        <h3 className="font-semibold mb-2">Line Items</h3>
+                        <div className="border rounded-md">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[60%]">Description</TableHead>
+                                    <TableHead className="text-center">Qty</TableHead>
+                                    <TableHead className="text-right">Unit Price</TableHead>
+                                    <TableHead className="text-right">Total</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {suggestions.lineItems.map((item, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>{item.description}</TableCell>
+                                        <TableCell className="text-center">{item.quantity}</TableCell>
+                                        <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">${(item.quantity * item.price).toFixed(2)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                        </div>
+                        
+                        <h3 className="font-semibold mt-4 mb-2">Notes for Client</h3>
+                        <p className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50 whitespace-pre-wrap">{suggestions.notes}</p>
+                        </div>
+                    </ScrollArea>
                 </div>
             )}
           
           <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Close</Button>
+            <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
+            {suggestions && <Button type="button" onClick={handleApplyAndClose}>Apply Items & Notes</Button>}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -4,8 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
-import { CalendarIcon, Trash2, PlusCircle } from "lucide-react"
-import { useEffect, useState } from "react"
+import { CalendarIcon, Trash2 } from "lucide-react"
+import { useEffect, useState, useCallback } from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -82,10 +82,10 @@ export function CreateEstimateForm() {
   })
 
   useEffect(() => {
-    if (!form.getValues('issuedDate')) {
-        form.setValue('issuedDate', new Date());
-    }
+    // Set default dates only on the client side to avoid hydration errors
+    form.setValue('issuedDate', new Date());
   }, [form]);
+
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -97,11 +97,11 @@ export function CreateEstimateForm() {
   
   const projectDetailsForAI = `Project Title: ${form.watch('projectTitle')}\nProject Description: ${form.watch('projectDescription')}\nLine Items:\n${lineItems.map(item => `- ${item.description} (Qty: ${item.quantity}, Price: $${item.price})`).join('\n')}`;
 
-  const handleClientChange = (clientId: string) => {
+  const handleClientChange = useCallback((clientId: string) => {
     const client = clients.find(c => c.email === clientId);
     setSelectedClient(client || null);
     form.setValue('clientId', clientId);
-  }
+  }, [clients, form]);
 
   function onSubmit(data: EstimateFormValues) {
     if (!selectedClient) {
@@ -139,15 +139,18 @@ export function CreateEstimateForm() {
     router.push("/dashboard/estimates");
   }
 
-  const handleApplySuggestions = (suggestions: { refinedDescription?: string }) => {
-    if (suggestions.refinedDescription) {
-        form.setValue('projectDescription', suggestions.refinedDescription);
-        toast({
-            title: "Description Updated",
-            description: "The project description has been updated with the AI suggestion.",
-        })
+  const handleApplyLineItems = useCallback((items: { description: string; quantity: number; price: number }[]) => {
+    // Remove the initial empty item if it exists
+    if (fields.length === 1 && fields[0].description === "" && fields[0].price === 0) {
+      remove(0);
     }
-  }
+    append(items);
+  }, [append, fields, remove]);
+
+  const handleApplyNotes = useCallback((notes: string) => {
+    form.setValue('notes', notes);
+  }, [form]);
+
 
   const handleClientCreated = (newClient: Client) => {
     handleClientChange(newClient.email);
@@ -259,14 +262,7 @@ export function CreateEstimateForm() {
 
         <Card>
             <CardHeader>
-                <div className="flex items-center justify-between">
-                    <CardTitle className="font-headline">Project Scope & Line Items</CardTitle>
-                    <AiSuggestionsDialog 
-                        projectDetails={projectDetailsForAI} 
-                        currentPricing={subtotal.toFixed(2)}
-                        onApplySuggestions={handleApplySuggestions}
-                    />
-                </div>
+                <CardTitle className="font-headline">Project Scope & Line Items</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
                 <FormField
@@ -277,7 +273,7 @@ export function CreateEstimateForm() {
                         <FormLabel>Project Description</FormLabel>
                         <FormControl>
                             <Textarea
-                                placeholder="Describe the project scope, deliverables, and timeline."
+                                placeholder="Describe the project scope, deliverables, and timeline in detail. The more info you provide, the better the AI estimate will be."
                                 className="resize-y min-h-[100px]"
                                 {...field}
                             />
@@ -286,6 +282,14 @@ export function CreateEstimateForm() {
                     </FormItem>
                     )}
                 />
+
+                <div className="border-t pt-4">
+                  <AiSuggestionsDialog 
+                      projectDescription={form.watch('projectDescription')} 
+                      onApplyLineItems={handleApplyLineItems}
+                      onApplyNotes={handleApplyNotes}
+                  />
+                </div>
                 
                 <div className="border rounded-md">
                 <Table>
@@ -342,7 +346,7 @@ export function CreateEstimateForm() {
                             />
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                            ${(lineItems[index].quantity * lineItems[index].price).toFixed(2)}
+                            ${(lineItems[index]?.quantity * lineItems[index]?.price || 0).toFixed(2)}
                         </TableCell>
                         <TableCell className="text-right">
                             <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
