@@ -51,9 +51,9 @@
           "type": "string",
           "description": "Unique identifier for the Estimate entity."
         },
-        "userProfileId": {
+        "userId": {
           "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Estimate)"
+          "description": "The UID of the user who owns this estimate."
         },
         "clientName": {
           "type": "string",
@@ -75,22 +75,16 @@
         "status": {
           "type": "string",
           "description": "The current status of the estimate (e.g., draft, sent, approved, rejected)."
-        },
-        "publicUrl": {
-          "type": "string",
-          "description": "Unique URL for public read-only access to estimate.",
-          "format": "uri"
         }
       },
       "required": [
         "id",
-        "userProfileId",
+        "userId",
         "clientName",
         "description",
         "amount",
         "dateCreated",
-        "status",
-        "publicUrl"
+        "status"
       ]
     },
     "Invoice": {
@@ -103,9 +97,9 @@
           "type": "string",
           "description": "Unique identifier for the Invoice entity."
         },
-        "userProfileId": {
+        "userId": {
           "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Invoice)"
+          "description": "The UID of the user who owns this invoice."
         },
         "estimateId": {
           "type": "string",
@@ -140,16 +134,11 @@
         "status": {
           "type": "string",
           "description": "The current status of the invoice (e.g., sent, paid, overdue)."
-        },
-        "publicUrl": {
-          "type": "string",
-          "description": "Unique URL for public read-only access to invoice.",
-          "format": "uri"
         }
       },
       "required": [
         "id",
-        "userProfileId",
+        "userId",
         "estimateId",
         "invoiceNumber",
         "clientName",
@@ -157,8 +146,7 @@
         "amount",
         "dateCreated",
         "dueDate",
-        "status",
-        "publicUrl"
+        "status"
       ]
     },
     "Client": {
@@ -196,62 +184,6 @@
   "firestore": {
     "structure": [
       {
-        "path": "/user_profiles/{userProfileId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores user profile information. The 'userProfileId' is the Firebase Auth UID.",
-          "params": [
-            {
-              "name": "userProfileId",
-              "description": "The unique identifier for the user profile, which matches the Firebase Auth UID."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/estimates/{estimateId}",
-        "definition": {
-          "entityName": "Estimate",
-          "schema": {
-            "$ref": "#/backend/entities/Estimate"
-          },
-          "description": "Stores estimates created by a specific user. Includes denormalized 'userProfileId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "estimateId",
-              "description": "The unique identifier for the estimate."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/invoices/{invoiceId}",
-        "definition": {
-          "entityName": "Invoice",
-          "schema": {
-            "$ref": "#/backend/entities/Invoice"
-          },
-          "description": "Stores invoices created by a specific user. Includes denormalized 'userProfileId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "invoiceId",
-              "description": "The unique identifier for the invoice."
-            }
-          ]
-        }
-      },
-      {
         "path": "/users/{userId}/clients/{clientId}",
         "definition": {
           "entityName": "Client",
@@ -270,8 +202,40 @@
             }
           ]
         }
+      },
+      {
+        "path": "/estimates/{estimateId}",
+        "definition": {
+          "entityName": "Estimate",
+          "schema": {
+            "$ref": "#/backend/entities/Estimate"
+          },
+          "description": "Root collection for all estimates. Security rules enforce user ownership.",
+          "params": [
+            {
+              "name": "estimateId",
+              "description": "The unique identifier for the estimate."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/invoices/{invoiceId}",
+        "definition": {
+          "entityName": "Invoice",
+          "schema": {
+            "$ref": "#/backend/entities/Invoice"
+          },
+          "description": "Root collection for all invoices. Security rules enforce user ownership.",
+          "params": [
+            {
+              "name": "invoiceId",
+              "description": "The unique identifier for the invoice."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to support a multi-user estimate and invoice application with AI assistance. It focuses on security, scalability, and ease of maintenance, adhering to the principles of Authorization Independence, Structural Segregation, and Access Modeling. User profiles are stored in a dedicated collection, and estimates and invoices are organized under each user's document for clear ownership. Public URLs are supported via denormalized data, allowing view-only access. This design enables efficient querying and ensures data integrity across the application.\n\nAuthorization Independence: The structure ensures authorization independence by avoiding hierarchical `get()` calls in security rules. The `userProfileId` is included in both `Estimate` and `Invoice` documents, which eliminates the need to traverse up the hierarchy to validate ownership. The `publicUrl` enables public read access, but the rules ensure write access remains restricted to authorized users.\n\nStructural Segregation: Data with different access needs is segregated into different collections. User profiles are stored in `/user_profiles`, while user-specific estimates and invoices are stored under `/users/{userId}/estimates` and `/users/{userId}/invoices`, respectively. This segregation simplifies security rules by ensuring all documents within a collection share the same access control requirements.\n\nQAPs (Rules are not Filters): The segregation of data by user enables secure list operations. Rules can easily filter based on `request.auth.uid` to ensure users can only list estimates and invoices they own. Public read access is managed via the `publicUrl` field, which can be validated in rules.\n"
+    "reasoning": "The Firestore data structure is designed for a multi-user application with public document sharing. Estimates and invoices are in root collections to allow for public, unauthenticated reads via a direct link. Each document contains a 'userId' field to enforce ownership for write operations and private list queries. Clients are stored in a sub-collection under each user, as they are private to that user. This approach balances public accessibility with secure, user-specific data ownership."
   }
 }

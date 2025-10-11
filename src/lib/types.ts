@@ -20,6 +20,7 @@ export type DocumentType = 'Estimate' | 'Invoice';
 
 export type Document = {
   id: string;
+  userId: string; // Added to link document to a user
   type: DocumentType;
   status: DocumentStatus;
   clientName: string;

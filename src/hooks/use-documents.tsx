@@ -1,6 +1,7 @@
 
 
 
+
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
@@ -45,7 +46,7 @@ const getCombinedClients = (documents: Document[], storedClients: Client[]): Cli
 
 interface DocumentContextType {
   documents: Document[];
-  addDocument: (doc: Omit<Document, 'id'>) => Promise<string | undefined>;
+  addDocument: (doc: Omit<Document, 'id' | 'userId'>) => Promise<string | undefined>;
   deleteDocument: (docId: string) => Promise<void>;
   duplicateDocument: (docId: string) => Promise<void>;
   clients: Client[];
@@ -63,12 +64,12 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  const estimatesCollection = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'estimates') : null, [firestore, user]);
-  const invoicesCollection = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'invoices') : null, [firestore, user]);
+  const estimatesQuery = useMemoFirebase(() => user ? query(collection(firestore, 'estimates'), where('userId', '==', user.uid)) : null, [firestore, user]);
+  const invoicesQuery = useMemoFirebase(() => user ? query(collection(firestore, 'invoices'), where('userId', '==', user.uid)) : null, [firestore, user]);
   const clientsCollection = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'clients') : null, [firestore, user]);
 
-  const { data: estimates, isLoading: isLoadingEstimates } = useCollection<Document>(estimatesCollection);
-  const { data: invoices, isLoading: isLoadingInvoices } = useCollection<Document>(invoicesCollection);
+  const { data: estimates, isLoading: isLoadingEstimates } = useCollection<Document>(estimatesQuery);
+  const { data: invoices, isLoading: isLoadingInvoices } = useCollection<Document>(invoicesQuery);
   const { data: storedClients, isLoading: isLoadingClients } = useCollection<Client>(clientsCollection);
 
   const isLoading = isUserLoading || isLoadingEstimates || isLoadingInvoices || isLoadingClients;
@@ -78,30 +79,25 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     return allDocs.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
   }, [estimates, invoices]);
 
-  const addDocument = useCallback(async (docData: Omit<Document, 'id'>): Promise<string | undefined> => {
+  const addDocument = useCallback(async (docData: Omit<Document, 'id' | 'userId'>): Promise<string | undefined> => {
     if (!user) return undefined;
-    const collectionRef = docData.type === 'Estimate' ? estimatesCollection : invoicesCollection;
-    if (!collectionRef) return undefined;
-    const newDocRef = await addDoc(collectionRef, docData);
+    const collectionName = docData.type === 'Estimate' ? 'estimates' : 'invoices';
+    const collectionRef = collection(firestore, collectionName);
+    const dataToSave = { ...docData, userId: user.uid };
+    const newDocRef = await addDoc(collectionRef, dataToSave);
     return newDocRef.id;
-  }, [user, estimatesCollection, invoicesCollection]);
+  }, [user, firestore]);
 
   const deleteDocument = useCallback(async (docId: string) => {
     if (!user) return;
+    const docToDelete = documents.find(d => d.id === docId);
+    if (!docToDelete) return;
     
-    const estimateDocRef = doc(firestore, 'users', user.uid, 'estimates', docId);
-    try {
-        await deleteDoc(estimateDocRef);
-        return;
-    } catch (e) {}
+    const collectionName = docToDelete.type === 'Estimate' ? 'estimates' : 'invoices';
+    const docRef = doc(firestore, collectionName, docId);
+    await deleteDoc(docRef);
 
-    const invoiceDocRef = doc(firestore, 'users', user.uid, 'invoices', docId);
-     try {
-        await deleteDoc(invoiceDocRef);
-        return;
-    } catch (e) {}
-
-  }, [firestore, user]);
+  }, [firestore, user, documents]);
 
   const duplicateDocument = useCallback(async (docId: string) => {
     if (!user) return;
@@ -109,7 +105,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     const originalDoc = documents.find(d => d.id === docId);
     if (!originalDoc) return;
 
-    const newDoc: Omit<Document, 'id'> = {
+    const newDoc: Omit<Document, 'id' | 'userId'> = {
       ...originalDoc,
       status: 'Draft',
       issuedDate: format(new Date(), "yyyy-MM-dd"),
@@ -139,27 +135,25 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     const batch = writeBatch(firestore);
     let newInvoiceId: string | undefined = undefined;
 
-    const estimateRef = doc(firestore, 'users', user.uid, 'estimates', docId);
-    const invoiceRef = doc(firestore, 'users', user.uid, 'invoices', docId);
-    
-    const docSnap = await getDoc(estimateRef).catch(() => null);
+    const originalDoc = documents.find(d => d.id === docId);
+    if (!originalDoc) return;
 
-    if (docSnap && docSnap.exists()) { // It's an estimate
-      const originalDoc = docSnap.data() as Document;
-      
+    if (originalDoc.type === 'Estimate') {
+      const estimateRef = doc(firestore, 'estimates', docId);
       batch.update(estimateRef, {
         signature,
         isSigned: true,
         status: 'Approved',
       });
       
-      const newInvoiceRef = doc(collection(firestore, 'users', user.uid, 'invoices'));
+      const newInvoiceRef = doc(collection(firestore, 'invoices'));
       newInvoiceId = newInvoiceRef.id;
 
       const newInvoice: Omit<Document, 'id'> = {
           ...originalDoc,
           type: 'Invoice',
           status: 'Draft',
+          userId: user.uid,
           issuedDate: format(new Date(), "yyyy-MM-dd"),
           dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
           signature: undefined,
@@ -170,6 +164,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       batch.set(newInvoiceRef, newInvoice);
 
     } else { // It's an invoice
+      const invoiceRef = doc(firestore, 'invoices', docId);
       batch.update(invoiceRef, {
         signature,
         isSigned: true,
@@ -180,11 +175,11 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     await batch.commit();
     return newInvoiceId;
 
-  }, [user, firestore]);
+  }, [user, firestore, documents]);
 
   const recordPayment = useCallback(async (docId: string, payment: Omit<Payment, 'id' | 'date'>) => {
     if (!user) return;
-    const invoiceRef = doc(firestore, 'users', user.uid, 'invoices', docId);
+    const invoiceRef = doc(firestore, 'invoices', docId);
     const docSnap = await getDoc(invoiceRef);
 
     if (!docSnap.exists()) return;
@@ -217,7 +212,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   
   const revertInvoiceToDraft = useCallback(async (invoiceId: string) => {
     if (!user) return;
-    const invoiceRef = doc(firestore, 'users', user.uid, 'invoices', invoiceId);
+    const invoiceRef = doc(firestore, 'invoices', invoiceId);
     const batch = writeBatch(firestore);
     batch.update(invoiceRef, {
       status: 'Draft',
@@ -229,7 +224,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   const revertLastPayment = useCallback(async (invoiceId: string) => {
     if (!user) return;
-    const invoiceRef = doc(firestore, 'users', user.uid, 'invoices', invoiceId);
+    const invoiceRef = doc(firestore, 'invoices', invoiceId);
     const docSnap = await getDoc(invoiceRef);
     if (!docSnap.exists()) return;
     
@@ -274,5 +269,3 @@ export const useDocuments = () => {
   }
   return context;
 };
-
-    
