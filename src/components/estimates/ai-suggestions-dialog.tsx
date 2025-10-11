@@ -195,7 +195,7 @@ export function AiSuggestionsDialog({
                 </div>
             )}
           
-          <DialogFooter className="mt-auto pt-4">
+          <DialogFooter className="mt-auto pt-4 border-t">
             <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
             {suggestions && <Button type="button" onClick={handleApplyAndClose}>Apply Selected Items</Button>}
           </DialogFooter>
