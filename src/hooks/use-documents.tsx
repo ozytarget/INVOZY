@@ -64,6 +64,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
+  // Secure queries that filter by the logged-in user's UID
   const estimatesQuery = useMemoFirebase(() => user ? query(collection(firestore, 'estimates'), where('userId', '==', user.uid)) : null, [firestore, user]);
   const invoicesQuery = useMemoFirebase(() => user ? query(collection(firestore, 'invoices'), where('userId', '==', user.uid)) : null, [firestore, user]);
   const clientsCollection = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'clients') : null, [firestore, user]);
@@ -100,7 +101,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     const dataToSave: Partial<Document> & { userId: string } = { 
       ...docData, 
       userId: user.uid,
-      companyName: companySettings.companyName || 'Your Company',
+      companyName: companySettings.companyName || '',
       companyAddress: companySettings.companyAddress || '',
       companyEmail: companySettings.companyEmail || '',
       companyPhone: companySettings.companyPhone || '',
@@ -199,9 +200,10 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
       
       const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
-
+      
+      // Corrected logic: spread original doc, then override with new/correct data
       const newInvoiceData = {
-          ...originalDoc,
+          ...originalDoc, // Start with estimate data
           type: 'Invoice' as DocumentType,
           status: 'Sent' as DocumentStatus,
           userId: user.uid,
@@ -213,7 +215,8 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           payments: [],
           invoiceNumber: newInvoiceNumber,
           estimateNumber: originalDoc.estimateNumber,
-          companyName: companySettings.companyName || 'Your Company',
+          // Now, ensure company settings from localStorage are applied
+          companyName: companySettings.companyName || '',
           companyAddress: companySettings.companyAddress || '',
           companyEmail: companySettings.companyEmail || '',
           companyPhone: companySettings.companyPhone || '',
@@ -231,7 +234,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       batch.update(invoiceRef, {
         signature,
         isSigned: true,
-        status: 'Sent',
+        status: 'Sent', // If an invoice is signed, it should be considered 'Sent'
       });
     }
 

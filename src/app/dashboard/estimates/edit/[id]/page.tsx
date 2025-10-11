@@ -10,6 +10,7 @@ export default function EditEstimatePage() {
   const { documents, isLoading } = useDocuments();
   const id = typeof params.id === 'string' ? params.id : '';
 
+  // Wait for documents to be loaded before trying to find the one to edit
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -20,6 +21,7 @@ export default function EditEstimatePage() {
   
   const documentToEdit = documents.find(doc => doc.id === id && doc.type === 'Estimate');
 
+  // If after loading, the document is still not found, show a 404 page
   if (!documentToEdit) {
     return notFound();
   }

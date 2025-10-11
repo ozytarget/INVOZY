@@ -20,6 +20,7 @@ import { DeleteDocumentDialog } from "./delete-document-dialog";
 import { RecordPaymentDialog } from "./invoices/record-payment-dialog";
 import { cn } from "@/lib/utils";
 import { SendEmailDialog } from "./emails/send-email-dialog";
+import { Logo } from "./logo";
 
 type DocumentViewProps = {
   document: Document;
@@ -172,8 +173,10 @@ export function DocumentView({ document }: DocumentViewProps) {
           <CardContent className="p-0">
             <header className="flex justify-between items-start mb-8">
               <div>
-                {document.companyLogo && (
+                {document.companyLogo ? (
                     <Image src={document.companyLogo} alt={document.companyName || 'Company Logo'} width={120} height={50} className="object-contain" />
+                ) : (
+                  <Logo />
                 )}
                 <div className="mt-2 text-muted-foreground">
                     <p className="font-bold text-foreground">{document.companyName || "Your Company"}</p>
