@@ -201,9 +201,8 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       
       const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
       
-      // Corrected logic: spread original doc, then override with new/correct data
       const newInvoiceData = {
-          ...originalDoc, // Start with estimate data
+          ...originalDoc, 
           type: 'Invoice' as DocumentType,
           status: 'Sent' as DocumentStatus,
           userId: user.uid,
@@ -215,7 +214,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           payments: [],
           invoiceNumber: newInvoiceNumber,
           estimateNumber: originalDoc.estimateNumber,
-          // Now, ensure company settings from localStorage are applied
+          // Correctly override with company settings after spreading
           companyName: companySettings.companyName || '',
           companyAddress: companySettings.companyAddress || '',
           companyEmail: companySettings.companyEmail || '',
@@ -226,7 +225,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           contractorName: companySettings.contractorName || '',
           schedulingUrl: companySettings.schedulingUrl || '',
       };
-      delete newInvoiceData.id; // remove old id
+      delete (newInvoiceData as Partial<Document>).id; 
       batch.set(newInvoiceRef, newInvoiceData);
 
     } else { // It's an invoice
@@ -346,3 +345,5 @@ export const useDocuments = () => {
   }
   return context;
 };
+
+    
