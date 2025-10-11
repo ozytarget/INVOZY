@@ -38,7 +38,7 @@ interface DocumentContextType {
   duplicateDocument: (docId: string) => void;
   clients: Client[];
   addClient: (client: Omit<Client, 'totalBilled' | 'documentCount'>) => void;
-  signAndProcessDocument: (docId: string, signature: string) => void;
+  signAndProcessDocument: (docId: string, signature: string) => string | undefined;
 }
 
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
@@ -91,7 +91,9 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [documents]);
 
-  const signAndProcessDocument = useCallback((docId: string, signature: string) => {
+  const signAndProcessDocument = useCallback((docId: string, signature: string): string | undefined => {
+    let newInvoiceId: string | undefined = undefined;
+
     setDocuments(prevDocs => {
       const docsCopy = [...prevDocs];
       const docIndex = docsCopy.findIndex(d => d.id === docId);
@@ -99,34 +101,39 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
       const originalDoc = docsCopy[docIndex];
       
-      // Update the original document
-      docsCopy[docIndex] = {
-        ...originalDoc,
-        signature,
-        isSigned: true,
-        status: originalDoc.type === 'Estimate' ? 'Approved' : 'Paid',
-      };
-
-      // If it's an estimate, create a new invoice
+      // If it's an estimate, convert it to an invoice
       if (originalDoc.type === 'Estimate') {
         const invoiceCount = docsCopy.filter(d => d.type === 'Invoice').length;
+        newInvoiceId = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
+        
         const newInvoice: Document = {
           ...originalDoc,
-          id: `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`,
+          id: newInvoiceId,
           type: 'Invoice',
-          status: 'Draft', // New invoice starts as a draft
+          status: 'Draft',
           issuedDate: format(new Date(), "yyyy-MM-dd"),
           dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
-          isSigned: false, // The new invoice is not signed yet
-          signature: undefined, // No signature on the new invoice
+          signature,
+          isSigned: true,
           terms: originalDoc.terms || 'Net 30',
         };
-        // Add the new invoice to the beginning of the documents array
-        return [newInvoice, ...docsCopy];
-      }
 
-      return docsCopy;
+        // Replace the original estimate with the new invoice
+        docsCopy.splice(docIndex, 1, newInvoice);
+        return docsCopy;
+
+      } else { // If it's an invoice, just mark as paid and signed
+        docsCopy[docIndex] = {
+          ...originalDoc,
+          signature,
+          isSigned: true,
+          status: 'Paid',
+        };
+        return docsCopy;
+      }
     });
+
+    return newInvoiceId;
   }, []);
   
   const clients = useMemo(() => {

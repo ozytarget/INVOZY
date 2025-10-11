@@ -15,7 +15,7 @@ import { useDocuments } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Share2, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { DeleteDocumentDialog } from "./delete-document-dialog";
 
 
@@ -86,12 +86,16 @@ export function DocumentView({ document }: DocumentViewProps) {
       return;
     }
     const signature = sigCanvas.current!.toDataURL('image/png');
-    signAndProcessDocument(document.id, signature);
+    const newInvoiceId = signAndProcessDocument(document.id, signature);
 
     toast({
       title: `${document.type} Approved!`,
       description: `Thank you for your business. ${document.type === 'Estimate' ? 'A new invoice has been generated.' : ''}`,
     });
+
+    if (newInvoiceId) {
+      router.push(`/view/invoice/${newInvoiceId}`);
+    }
   }
 
    const handleDelete = () => {
