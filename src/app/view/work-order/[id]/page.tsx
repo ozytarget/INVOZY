@@ -10,7 +10,7 @@ import { ClipboardList, HardHat, Wrench, Loader2, User, Home } from "lucide-reac
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { getWorkOrder } from "@/app/actions";
+import { getWorkOrder } from "@/app/actions.tsx";
 import { WorkOrderOutput } from "@/ai/flows/generate-work-order";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";

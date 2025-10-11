@@ -15,7 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Document } from "@/lib/types";
-import { sendDocumentEmail } from "@/app/actions";
+import { sendDocumentEmail } from "@/app/actions.tsx";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
