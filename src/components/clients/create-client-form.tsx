@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useDocuments } from "@/hooks/use-documents"
+import { Client } from "@/lib/types"
 
 const formSchema = z.object({
   clientName: z.string().min(2, "Client name must be at least 2 characters."),
@@ -28,7 +29,12 @@ const formSchema = z.object({
 
 type ClientFormValues = z.infer<typeof formSchema>
 
-export function CreateClientForm() {
+type CreateClientFormProps = {
+  onSuccess?: (newClient: Client) => void;
+}
+
+
+export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
   const { toast } = useToast();
   const router = useRouter();
   const { addClient } = useDocuments();
@@ -44,11 +50,17 @@ export function CreateClientForm() {
   })
 
   function onSubmit(data: ClientFormValues) {
-    const newClientData = {
+    const newClientData: Omit<Client, 'totalBilled' | 'documentCount'> = {
       name: data.clientName,
       email: data.clientEmail,
       address: data.clientAddress,
       phone: data.clientPhone || "",
+    }
+    
+    const newClientWithDefaults: Client = {
+      ...newClientData,
+      totalBilled: 0,
+      documentCount: 0,
     }
 
     addClient(newClientData);
@@ -57,7 +69,12 @@ export function CreateClientForm() {
       title: "Client Created",
       description: `${data.clientName} has been added to your client list.`,
     })
-    router.push("/dashboard/clients");
+
+    if (onSuccess) {
+      onSuccess(newClientWithDefaults);
+    } else {
+      router.push("/dashboard/clients");
+    }
   }
 
   return (
@@ -122,7 +139,7 @@ export function CreateClientForm() {
         </Card>
         
         <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+            {!onSuccess && <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>}
             <Button type="submit">Save Client</Button>
         </div>
       </form>

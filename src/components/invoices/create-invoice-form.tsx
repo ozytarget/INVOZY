@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
-import { CalendarIcon, Trash2, PlusCircle, User } from "lucide-react"
+import { CalendarIcon, Trash2, PlusCircle } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { cn } from "@/lib/utils"
@@ -40,6 +40,7 @@ import { useRouter } from "next/navigation"
 import { useDocuments } from "@/hooks/use-documents"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Client } from "@/lib/types"
+import { CreateClientDialog } from "../clients/create-client-dialog"
 
 const lineItemSchema = z.object({
   description: z.string().min(1, "Description is required."),
@@ -80,7 +81,6 @@ export function CreateInvoiceForm() {
     },
   })
 
-  // Set default date on client-side to avoid hydration errors
   useEffect(() => {
     if (!form.getValues('issuedDate')) {
         form.setValue('issuedDate', new Date());
@@ -142,6 +142,10 @@ export function CreateInvoiceForm() {
     router.push("/dashboard/invoices");
   }
 
+  const handleClientCreated = (newClient: Client) => {
+    handleClientChange(newClient.email);
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -150,10 +154,7 @@ export function CreateInvoiceForm() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                       <CardTitle className="font-headline">Client Information</CardTitle>
-                      <Button variant="outline" size="sm" type="button" onClick={() => router.push('/dashboard/clients/create')}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        New Client
-                      </Button>
+                      <CreateClientDialog onClientCreated={handleClientCreated} />
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -163,7 +164,7 @@ export function CreateInvoiceForm() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Select Client</FormLabel>
-                        <Select onValueChange={handleClientChange} defaultValue={field.value}>
+                        <Select onValueChange={handleClientChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select an existing client" />
