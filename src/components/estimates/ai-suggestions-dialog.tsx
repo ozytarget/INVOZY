@@ -139,7 +139,7 @@ export function AiSuggestionsDialog({
           </DialogHeader>
           
             {isLoading && (
-                <div className="flex flex-col items-center justify-center gap-4 p-8">
+                <div className="flex flex-col items-center justify-center gap-4 p-8 flex-1">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     <p className="text-muted-foreground">Generating your detailed estimate...</p>
                 </div>
@@ -147,16 +147,16 @@ export function AiSuggestionsDialog({
 
             {suggestions && (
                 <div className="flex-1 min-h-0">
-                    <ScrollArea className="h-full">
-                        <div className='pr-6'>
-                        <h3 className="font-semibold mb-2">Line Items</h3>
+                    <ScrollArea className="h-full pr-6">
+                        <div className='space-y-4'>
+                        <h3 className="font-semibold">Line Items</h3>
                         <div className="border rounded-md">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-10">
                                       <Checkbox 
-                                        checked={selectedItems.length === suggestions.lineItems.length}
+                                        checked={suggestions.lineItems.length > 0 && selectedItems.length === suggestions.lineItems.length}
                                         onCheckedChange={handleSelectAll}
                                         aria-label="Select all items"
                                       />
@@ -187,14 +187,14 @@ export function AiSuggestionsDialog({
                         </Table>
                         </div>
                         
-                        <h3 className="font-semibold mt-4 mb-2">Notes for Client</h3>
+                        <h3 className="font-semibold mt-4">Notes for Client</h3>
                         <p className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50 whitespace-pre-wrap">{suggestions.notes}</p>
                         </div>
                     </ScrollArea>
                 </div>
             )}
           
-          <DialogFooter>
+          <DialogFooter className="mt-4">
             <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
             {suggestions && <Button type="button" onClick={handleApplyAndClose}>Apply Selected Items</Button>}
           </DialogFooter>
