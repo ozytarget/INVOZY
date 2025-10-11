@@ -43,7 +43,7 @@ export async function sendDocumentEmail({
 
     const { data, error } = await resend.emails.send({
       from: `invozzy <onboarding@resend.dev>`,
-      to: [to],
+      to: ['ozytargetcom@gmail.com'],
       subject: `${documentType} ${documentNumber} from ${companyName}`,
       html: emailHtml,
     });
