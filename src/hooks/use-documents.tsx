@@ -49,7 +49,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const addClient = useCallback((clientData: Omit<Client, 'totalBilled' | 'documentCount'>) => {
     setExtraClients(prevClients => {
       // Prevent adding duplicate clients based on email
-      if (prevClients.some(c => c.email === clientData.email) || documents.some(d => d.clientEmail === clientData.email)) {
+      if (prevClients.some(c => c.email === clientData.email) || getClientsFromDocuments(documents).some(d => d.email === clientData.email)) {
         return prevClients;
       }
       const newClient: Client = {
@@ -75,7 +75,8 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       }
     });
     
-    return Array.from(allClientsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    // Removed sorting to prevent hydration errors. Sorting will be done in the component.
+    return Array.from(allClientsMap.values());
   }, [documents, extraClients]);
 
 

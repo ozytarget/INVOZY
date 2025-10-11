@@ -25,6 +25,8 @@ export function ClientsList() {
     // TODO: Navigate to client details page
     console.log("Navigating to client:", client.name);
   };
+  
+  const sortedClients = [...clients].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <Card>
@@ -45,7 +47,7 @@ export function ClientsList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {clients.map((client) => (
+            {sortedClients.map((client) => (
               <TableRow key={`${client.email}-${client.name}`} onClick={() => handleRowClick(client)} className="cursor-pointer">
                 <TableCell className="font-medium">{client.name}</TableCell>
                 <TableCell>
