@@ -51,7 +51,9 @@ const formSchema = z.object({
   clientPhone: z.string().optional(),
   projectTitle: z.string().min(3, "Project title is required."),
   issuedDate: z.date(),
-  dueDate: z.date(),
+  dueDate: z.date({
+    required_error: "Due date is required.",
+  }),
   lineItems: z.array(lineItemSchema).min(1, "At least one line item is required."),
   notes: z.string().optional(),
   terms: z.string().optional(),
@@ -73,7 +75,6 @@ export function CreateInvoiceForm() {
       clientPhone: "",
       projectTitle: "",
       issuedDate: new Date(),
-      // dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
       lineItems: [{ description: "", quantity: 1, price: 0 }],
       notes: "",
       terms: "Net 30",
@@ -407,3 +408,5 @@ export function CreateInvoiceForm() {
     </Form>
   )
 }
+
+    

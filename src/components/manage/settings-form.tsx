@@ -16,13 +16,14 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon } from "lucide-react"
+import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon, Hash } from "lucide-react"
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 
 const settingsSchema = z.object({
   companyName: z.string().min(2, "Company name is required."),
+  taxId: z.string().optional(),
   contractorName: z.string().min(2, "Contractor name is required."),
   companyEmail: z.string().email("Invalid email address."),
   companyPhone: z.string().optional(),
@@ -53,6 +54,7 @@ export function SettingsForm() {
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       companyName: "",
+      taxId: "",
       contractorName: "",
       companyEmail: "",
       companyPhone: "",
@@ -163,6 +165,23 @@ export function SettingsForm() {
               />
               <FormField
                 control={form.control}
+                name="taxId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tax ID (e.g., EIN, RFC)</FormLabel>
+                    <FormControl>
+                       <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="XX-XXXXXXX" {...field} className="pl-10" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+             <FormField
+                control={form.control}
                 name="contractorName"
                 render={({ field }) => (
                   <FormItem>
@@ -177,7 +196,6 @@ export function SettingsForm() {
                   </FormItem>
                 )}
               />
-            </div>
              <FormField
                 control={form.control}
                 name="companyAddress"
@@ -314,3 +332,5 @@ export function SettingsForm() {
     </Form>
   )
 }
+
+    

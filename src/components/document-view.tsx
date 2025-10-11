@@ -17,6 +17,7 @@ type CompanySettings = {
     companyName: string;
     companyAddress: string;
     companyLogo: string;
+    taxId?: string;
 }
 
 const statusStyles: Record<Document['status'], string> = {
@@ -31,12 +32,17 @@ export function DocumentView({ document }: DocumentViewProps) {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const savedSettings = localStorage.getItem("companySettings");
-        if (savedSettings) {
-            setSettings(JSON.parse(savedSettings));
+    const handleStorageChange = () => {
+        if (typeof window !== 'undefined') {
+            const savedSettings = localStorage.getItem("companySettings");
+            if (savedSettings) {
+                setSettings(JSON.parse(savedSettings));
+            }
         }
     }
+    handleStorageChange();
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
 
@@ -54,7 +60,11 @@ export function DocumentView({ document }: DocumentViewProps) {
                 ) : (
                     <Logo />
                 )}
-                <p className="text-muted-foreground mt-2 whitespace-pre-line">{settings?.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
+                <div className="mt-2 text-muted-foreground">
+                    <p className="font-bold text-foreground">{settings?.companyName || "Your Company"}</p>
+                    <p className="whitespace-pre-line">{settings?.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
+                    {settings?.taxId && <p>Tax ID: {settings.taxId}</p>}
+                </div>
               </div>
               <div className="text-right">
                 <h1 className="text-4xl font-bold font-headline uppercase">{document.type}</h1>
@@ -150,3 +160,5 @@ export function DocumentView({ document }: DocumentViewProps) {
     </div>
   );
 }
+
+    
