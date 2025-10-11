@@ -1,5 +1,6 @@
 
 
+
 export type LineItem = {
   id: string;
   description: string;
@@ -24,10 +25,24 @@ export type Document = {
   userId: string; // Added to link document to a user
   type: DocumentType;
   status: DocumentStatus;
+  
+  // Company Info (embedded for public viewing)
+  companyName: string;
+  companyAddress: string;
+  companyEmail: string;
+  companyPhone: string;
+  companyLogo?: string;
+  companyWebsite?: string;
+  contractorName?: string;
+  schedulingUrl?: string;
+  
+  // Client Info
   clientName: string;
   clientEmail: string;
   clientAddress: string;
   clientPhone: string;
+  
+  // Document Details
   projectTitle: string;
   issuedDate: string;
   dueDate?: string;

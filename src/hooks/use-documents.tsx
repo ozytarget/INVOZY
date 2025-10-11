@@ -80,6 +80,10 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   const addDocument = useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'>): Promise<string | undefined> => {
     if (!user) return undefined;
+    
+    // Get company settings from local storage
+    const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
+
     const collectionName = docData.type === 'Estimate' ? 'estimates' : 'invoices';
     const collectionRef = collection(firestore, collectionName);
     
@@ -95,6 +99,14 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     const dataToSave: Partial<Document> & { userId: string } = { 
       ...docData, 
       userId: user.uid,
+      companyName: companySettings.companyName || 'Your Company',
+      companyAddress: companySettings.companyAddress || '',
+      companyEmail: companySettings.companyEmail || '',
+      companyPhone: companySettings.companyPhone || '',
+      companyLogo: companySettings.companyLogo || '',
+      companyWebsite: companySettings.companyWebsite || '',
+      contractorName: companySettings.contractorName || '',
+      schedulingUrl: companySettings.schedulingUrl || '',
     };
     
     if (collectionName === 'estimates') {

@@ -79,7 +79,15 @@
         "status": {
           "type": "string",
           "description": "The current status of the estimate (e.g., draft, sent, approved, rejected)."
-        }
+        },
+        "companyName": { "type": "string" },
+        "companyAddress": { "type": "string" },
+        "companyEmail": { "type": "string" },
+        "companyPhone": { "type": "string" },
+        "companyLogo": { "type": "string" },
+        "companyWebsite": { "type": "string" },
+        "contractorName": { "type": "string" },
+        "schedulingUrl": { "type": "string" }
       },
       "required": [
         "id",
@@ -88,7 +96,11 @@
         "description",
         "amount",
         "dateCreated",
-        "status"
+        "status",
+        "companyName",
+        "companyAddress",
+        "companyEmail",
+        "companyPhone"
       ]
     },
     "Invoice": {
@@ -138,7 +150,15 @@
         "status": {
           "type": "string",
           "description": "The current status of the invoice (e.g., sent, paid, overdue)."
-        }
+        },
+        "companyName": { "type": "string" },
+        "companyAddress": { "type": "string" },
+        "companyEmail": { "type": "string" },
+        "companyPhone": { "type": "string" },
+        "companyLogo": { "type": "string" },
+        "companyWebsite": { "type": "string" },
+        "contractorName": { "type": "string" },
+        "schedulingUrl": { "type": "string" }
       },
       "required": [
         "id",
@@ -149,7 +169,11 @@
         "amount",
         "dateCreated",
         "dueDate",
-        "status"
+        "status",
+        "companyName",
+        "companyAddress",
+        "companyEmail",
+        "companyPhone"
       ]
     },
     "Client": {

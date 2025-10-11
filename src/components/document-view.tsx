@@ -22,16 +22,8 @@ import { RecordPaymentDialog } from "./invoices/record-payment-dialog";
 import { cn } from "@/lib/utils";
 import { SendEmailDialog } from "./emails/send-email-dialog";
 
-
 type DocumentViewProps = {
   document: Document;
-}
-
-type CompanySettings = {
-    companyName: string;
-    companyAddress: string;
-    companyLogo: string;
-    taxId?: string;
 }
 
 const statusStyles: Record<Document['status'], string> = {
@@ -52,16 +44,13 @@ const FabMenuItem = ({ onClick, icon, label, variant = 'secondary', className = 
     </div>
 );
 
-
 export function DocumentView({ document }: DocumentViewProps) {
-  const [settings, setSettings] = useState<CompanySettings | null>(null);
   const sigCanvas = useRef<SignatureCanvas>(null);
   const { signAndProcessDocument, deleteDocument, recordPayment, sendDocument } = useDocuments();
   const { toast } = useToast();
   const router = useRouter();
   const [isDashboardView, setIsDashboardView] = useState(false);
   const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
-
 
   useEffect(() => {
     // A simple check to see if this view is loaded inside the main dashboard flow
@@ -71,25 +60,9 @@ export function DocumentView({ document }: DocumentViewProps) {
     }
   }, []);
 
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-        if (typeof window !== 'undefined') {
-            const savedSettings = localStorage.getItem("companySettings");
-            if (savedSettings) {
-                setSettings(JSON.parse(savedSettings));
-            }
-        }
-    }
-    handleStorageChange();
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
   const subtotal = document.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
   const amountPaid = document.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
   const balanceDue = document.amount - amountPaid;
-
 
   const clearSignature = () => {
     sigCanvas.current?.clear();
@@ -130,7 +103,7 @@ export function DocumentView({ document }: DocumentViewProps) {
     const url = window.location.href;
     try {
         await navigator.share({
-            title: `${document.type} from ${settings?.companyName || 'invozzy'}`,
+            title: `${document.type} from ${document.companyName || 'invozzy'}`,
             text: `View your ${document.type.toLowerCase()}: ${document.projectTitle}`,
             url: url,
         });
@@ -194,15 +167,15 @@ export function DocumentView({ document }: DocumentViewProps) {
           <CardContent className="p-0">
             <header className="flex justify-between items-start mb-8">
               <div>
-                {settings?.companyLogo ? (
-                    <Image src={settings.companyLogo} alt={settings.companyName || 'Company Logo'} width={120} height={50} className="object-contain" />
+                {document.companyLogo ? (
+                    <Image src={document.companyLogo} alt={document.companyName || 'Company Logo'} width={120} height={50} className="object-contain" />
                 ) : (
                     <Logo />
                 )}
                 <div className="mt-2 text-muted-foreground">
-                    <p className="font-bold text-foreground">{settings?.companyName || "Your Company"}</p>
-                    <p className="whitespace-pre-line">{settings?.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
-                    {settings?.taxId && <p>Tax ID: {settings.taxId}</p>}
+                    <p className="font-bold text-foreground">{document.companyName || "Your Company"}</p>
+                    <p className="whitespace-pre-line">{document.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
+                    {document.taxId && <p>Tax ID: {document.taxId}</p>}
                 </div>
               </div>
               <div className="text-right">
@@ -386,7 +359,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                             )}
                              <SendEmailDialog 
                                 document={document} 
-                                companyName={settings?.companyName || "Your Company"}
+                                companyName={document.companyName || "Your Company"}
                                 onEmailSent={handleEmailSent}
                             >
                                 <FabMenuItem 
@@ -437,6 +410,3 @@ export function DocumentView({ document }: DocumentViewProps) {
     </div>
   );
 }
-
-    
-
