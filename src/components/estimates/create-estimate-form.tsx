@@ -44,6 +44,7 @@ import { useDocuments } from "@/hooks/use-documents"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Client, Document } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
+import { Separator } from "../ui/separator"
 
 const lineItemSchema = z.object({
   id: z.string().optional(), // Keep id for existing items
@@ -68,6 +69,7 @@ type EstimateFormValues = z.infer<typeof formSchema>
 
 type CompanySettings = {
     companyAddress?: string;
+    taxRate?: number;
 };
 
 type CreateEstimateFormProps = {
@@ -79,7 +81,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
   const router = useRouter();
   const { addDocument, updateDocument, clients } = useDocuments();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [companyLocation, setCompanyLocation] = useState('');
+  const [companySettings, setCompanySettings] = useState<CompanySettings>({});
   
   const isEditMode = !!documentToEdit;
 
@@ -119,7 +121,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
         const savedSettings = localStorage.getItem("companySettings");
         if (savedSettings) {
             const parsedSettings: CompanySettings = JSON.parse(savedSettings);
-            setCompanyLocation(parsedSettings.companyAddress || '');
+            setCompanySettings(parsedSettings);
         }
     }
   }, [form, isEditMode, documentToEdit, clients]);
@@ -132,6 +134,9 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
   
   const lineItems = form.watch("lineItems");
   const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+  const taxRate = documentToEdit?.taxRate ?? companySettings.taxRate ?? 0;
+  const taxAmount = subtotal * (taxRate / 100);
+  const totalAmount = subtotal + taxAmount;
   
   const handleClientChange = useCallback((clientId: string) => {
     form.setValue('clientId', clientId, { shouldValidate: true });
@@ -157,7 +162,8 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       clientPhone: client.phone || '',
       projectTitle: data.projectTitle,
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
-      amount: subtotal,
+      amount: totalAmount,
+      taxRate: taxRate,
       lineItems: data.lineItems.map((item, index) => ({ ...item, id: item.id || `${Date.now()}-${index}` })),
       notes: data.notes || '',
       terms: data.terms || '',
@@ -334,7 +340,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
                            <div className="absolute bottom-2 right-2">
                             <AiSuggestionsDialog 
                                 projectDescription={form.watch('projectDescription') || ''} 
-                                projectLocation={companyLocation}
+                                projectLocation={companySettings.companyAddress || ''}
                                 onApplyLineItems={handleApplyLineItems}
                                 onApplyNotes={handleApplyNotes}
                             />
@@ -412,8 +418,20 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
                       </TableBody>
                       <TableFooter>
                           <TableRow>
-                              <TableCell colSpan={3} className="text-right font-bold">Total</TableCell>
-                              <TableCell className="text-right font-bold">${subtotal.toFixed(2)}</TableCell>
+                              <TableCell colSpan={3} className="text-right">Subtotal</TableCell>
+                              <TableCell className="text-right font-medium">${subtotal.toFixed(2)}</TableCell>
+                              <TableCell></TableCell>
+                          </TableRow>
+                          {taxRate > 0 && (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-right">Tax ({taxRate}%)</TableCell>
+                                <TableCell className="text-right font-medium">${taxAmount.toFixed(2)}</TableCell>
+                                <TableCell></TableCell>
+                            </TableRow>
+                          )}
+                           <TableRow>
+                              <TableCell colSpan={3} className="text-right font-bold text-lg">Total</TableCell>
+                              <TableCell className="text-right font-bold text-lg">${totalAmount.toFixed(2)}</TableCell>
                               <TableCell></TableCell>
                           </TableRow>
                       </TableFooter>
@@ -472,9 +490,22 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
                         </Button>
                     </div>
                   ))}
-                   <div className="flex justify-between items-center pt-4 border-t mt-4">
-                        <span className="text-lg font-bold">Total</span>
-                        <span className="text-lg font-bold">${subtotal.toFixed(2)}</span>
+                   <div className="pt-4 mt-4 border-t space-y-2">
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Subtotal</span>
+                            <span className="font-medium">${subtotal.toFixed(2)}</span>
+                        </div>
+                        {taxRate > 0 && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+                                <span className="font-medium">${taxAmount.toFixed(2)}</span>
+                            </div>
+                        )}
+                        <Separator />
+                        <div className="flex justify-between items-center text-lg font-bold">
+                            <span>Total</span>
+                            <span>${totalAmount.toFixed(2)}</span>
+                        </div>
                     </div>
                 </div>
 

@@ -1,6 +1,5 @@
 
 
-
 export type LineItem = {
   id: string;
   description: string;
@@ -46,11 +45,12 @@ export type Document = {
   projectTitle: string;
   issuedDate: string;
   dueDate?: string;
-  amount: number;
+  amount: number; // This is the TOTAL amount, including tax
+  taxRate?: number; // The percentage tax rate applied
   lineItems: LineItem[];
   notes: string;
   terms: string;
-  taxId?: string;
+  taxId?: string; // Kept for legacy or other ID purposes, but not for rate
   signature?: string;
   isSigned?: boolean;
   payments?: Payment[];

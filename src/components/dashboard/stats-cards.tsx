@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -7,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useDocuments } from "@/hooks/use-documents"
-import { DollarSign, FileText, FileSignature, TrendingUp, Construction } from "lucide-react"
+import { DollarSign, FileText, FileSignature, TrendingUp, Construction, Percent } from "lucide-react"
 
 export function StatsCards() {
   const { documents } = useDocuments();
@@ -16,13 +17,15 @@ export function StatsCards() {
     (doc) => doc.type === 'Invoice' && doc.status === 'Paid'
   );
 
-  const totalRevenue = paidInvoices.reduce((sum, doc) => sum + doc.amount, 0);
-
-  const { grossProfit, materialsCost } = paidInvoices.reduce(
+  const { totalRevenue, grossProfit, materialsCost, taxesCollected } = paidInvoices.reduce(
     (acc, invoice) => {
+      const subtotal = invoice.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const taxAmount = invoice.taxRate ? subtotal * (invoice.taxRate / 100) : 0;
+      acc.totalRevenue += subtotal + taxAmount;
+      acc.taxesCollected += taxAmount;
+
       invoice.lineItems.forEach((item) => {
         const itemTotal = item.quantity * item.price;
-        // A simple heuristic: if "labor" is in the description, it's profit. Otherwise, it's material cost.
         if (item.description.toLowerCase().includes('labor')) {
           acc.grossProfit += itemTotal;
         } else {
@@ -31,7 +34,7 @@ export function StatsCards() {
       });
       return acc;
     },
-    { grossProfit: 0, materialsCost: 0 }
+    { totalRevenue: 0, grossProfit: 0, materialsCost: 0, taxesCollected: 0 }
   );
 
   const invoiceCount = documents.filter(doc => doc.type === 'Invoice').length;
@@ -46,10 +49,10 @@ export function StatsCards() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            ${totalRevenue.toLocaleString()}
+            ${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-xs text-muted-foreground">
-            from paid invoices
+            from paid invoices (incl. tax)
           </p>
         </CardContent>
       </Card>
@@ -60,7 +63,7 @@ export function StatsCards() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            ${grossProfit.toLocaleString()}
+            ${grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-xs text-muted-foreground">
             Estimated earnings from labor charges.
@@ -74,10 +77,24 @@ export function StatsCards() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            ${materialsCost.toLocaleString()}
+            ${materialsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-xs text-muted-foreground">
             Estimated cost of materials from paid invoices.
+          </p>
+        </CardContent>
+      </Card>
+       <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Taxes Collected</CardTitle>
+          <Percent className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            ${taxesCollected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            From paid invoices.
           </p>
         </CardContent>
       </Card>

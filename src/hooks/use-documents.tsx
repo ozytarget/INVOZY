@@ -106,7 +106,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       companyPhone: companySettings.companyPhone || '',
       companyLogo: companySettings.companyLogo || '',
       companyWebsite: companySettings.companyWebsite || '',
-      taxId: companySettings.taxId || '',
+      taxRate: companySettings.taxRate || 0, // Ensure taxRate is saved
       contractorName: companySettings.contractorName || '',
       schedulingUrl: companySettings.schedulingUrl || '',
     };
@@ -222,7 +222,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
           companyPhone: companySettings.companyPhone || '',
           companyLogo: companySettings.companyLogo || '',
           companyWebsite: companySettings.companyWebsite || '',
-          taxId: companySettings.taxId || '',
+          taxRate: companySettings.taxRate || 0,
           contractorName: companySettings.contractorName || '',
           schedulingUrl: companySettings.schedulingUrl || '',
       };

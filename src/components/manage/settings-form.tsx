@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon, Hash } from "lucide-react"
+import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon, Percent } from "lucide-react"
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
@@ -26,7 +26,7 @@ import { signOut } from "firebase/auth"
 
 const settingsSchema = z.object({
   companyName: z.string().min(2, "Company name is required."),
-  taxId: z.string().optional(),
+  taxRate: z.coerce.number().min(0, "Tax rate must be a positive number.").optional(),
   contractorName: z.string().min(2, "Contractor name is required."),
   companyEmail: z.string().email("Invalid email address."),
   companyPhone: z.string().optional(),
@@ -57,7 +57,7 @@ export function SettingsForm() {
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       companyName: "",
-      taxId: "",
+      taxRate: 0,
       contractorName: "",
       companyEmail: "",
       companyPhone: "",
@@ -178,14 +178,14 @@ export function SettingsForm() {
               />
               <FormField
                 control={form.control}
-                name="taxId"
+                name="taxRate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tax ID (e.g., EIN, RFC)</FormLabel>
+                    <FormLabel>State Tax Rate (%)</FormLabel>
                     <FormControl>
                        <div className="relative">
-                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="XX-XXXXXXX" {...field} className="pl-10" />
+                        <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type="number" step="0.01" placeholder="e.g., 8.25" {...field} className="pl-10" />
                       </div>
                     </FormControl>
                     <FormMessage />

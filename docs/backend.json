@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -71,6 +72,10 @@
           "type": "number",
           "description": "The total estimated amount."
         },
+        "taxRate": {
+            "type": "number",
+            "description": "The tax rate percentage applied to the estimate."
+        },
         "dateCreated": {
           "type": "string",
           "description": "The date the estimate was created.",
@@ -136,6 +141,10 @@
         "amount": {
           "type": "number",
           "description": "The total amount due on the invoice."
+        },
+         "taxRate": {
+            "type": "number",
+            "description": "The tax rate percentage applied to the invoice."
         },
         "dateCreated": {
           "type": "string",

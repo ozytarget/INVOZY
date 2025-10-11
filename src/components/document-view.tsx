@@ -60,8 +60,10 @@ export function DocumentView({ document }: DocumentViewProps) {
   }, []);
 
   const subtotal = document.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+  const taxAmount = document.taxRate ? subtotal * (document.taxRate / 100) : 0;
+  const totalAmount = subtotal + taxAmount;
   const amountPaid = document.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
-  const balanceDue = document.amount - amountPaid;
+  const balanceDue = totalAmount - amountPaid;
 
   const clearSignature = () => {
     sigCanvas.current?.clear();
@@ -249,8 +251,19 @@ export function DocumentView({ document }: DocumentViewProps) {
                         <span className="text-muted-foreground">Subtotal</span>
                         <span>${subtotal.toFixed(2)}</span>
                     </div>
+                    {taxAmount > 0 && (
+                       <div className="flex justify-between">
+                            <span className="text-muted-foreground">Tax ({document.taxRate}%)</span>
+                            <span>${taxAmount.toFixed(2)}</span>
+                        </div>
+                    )}
                      {document.type === 'Invoice' && (
                         <>
+                           <Separator />
+                           <div className="flex justify-between font-bold text-lg">
+                                <span>Total</span>
+                                <span>${totalAmount.toFixed(2)}</span>
+                            </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Paid</span>
                                 <span className="text-green-600">-${amountPaid.toFixed(2)}</span>
@@ -267,7 +280,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                             <Separator />
                             <div className="flex justify-between font-bold text-lg">
                                 <span>Total</span>
-                                <span>${document.amount.toFixed(2)}</span>
+                                <span>${totalAmount.toFixed(2)}</span>
                             </div>
                         </>
                     )}
