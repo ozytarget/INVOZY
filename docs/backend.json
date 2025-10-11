@@ -1,0 +1,232 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user profile within the InvoiceAI Pro application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "companyName": {
+          "type": "string",
+          "description": "The name of the company the user is associated with."
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user within the application (e.g., admin, contractor)."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "companyName",
+        "role"
+      ]
+    },
+    "Estimate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Estimate",
+      "type": "object",
+      "description": "Represents an estimate created within the InvoiceAI Pro application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Estimate entity."
+        },
+        "userProfileId": {
+          "type": "string",
+          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Estimate)"
+        },
+        "clientName": {
+          "type": "string",
+          "description": "The name of the client receiving the estimate."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the estimate."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The total estimated amount."
+        },
+        "dateCreated": {
+          "type": "string",
+          "description": "The date the estimate was created.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the estimate (e.g., draft, sent, approved, rejected)."
+        },
+        "publicUrl": {
+          "type": "string",
+          "description": "Unique URL for public read-only access to estimate.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "userProfileId",
+        "clientName",
+        "description",
+        "amount",
+        "dateCreated",
+        "status",
+        "publicUrl"
+      ]
+    },
+    "Invoice": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Invoice",
+      "type": "object",
+      "description": "Represents an invoice generated from an estimate within the InvoiceAI Pro application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Invoice entity."
+        },
+        "userProfileId": {
+          "type": "string",
+          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Invoice)"
+        },
+        "estimateId": {
+          "type": "string",
+          "description": "Reference to Estimate. (Relationship: Estimate 1:1 Invoice)"
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "description": "The unique invoice number."
+        },
+        "clientName": {
+          "type": "string",
+          "description": "The name of the client being invoiced."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the invoice."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The total amount due on the invoice."
+        },
+        "dateCreated": {
+          "type": "string",
+          "description": "The date the invoice was created.",
+          "format": "date-time"
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "The date the invoice is due.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the invoice (e.g., sent, paid, overdue)."
+        },
+        "publicUrl": {
+          "type": "string",
+          "description": "Unique URL for public read-only access to invoice.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "userProfileId",
+        "estimateId",
+        "invoiceNumber",
+        "clientName",
+        "description",
+        "amount",
+        "dateCreated",
+        "dueDate",
+        "status",
+        "publicUrl"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/user_profiles/{userProfileId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profile information. The 'userProfileId' is the Firebase Auth UID.",
+          "params": [
+            {
+              "name": "userProfileId",
+              "description": "The unique identifier for the user profile, which matches the Firebase Auth UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/estimates/{estimateId}",
+        "definition": {
+          "entityName": "Estimate",
+          "schema": {
+            "$ref": "#/backend/entities/Estimate"
+          },
+          "description": "Stores estimates created by a specific user. Includes denormalized 'userProfileId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "estimateId",
+              "description": "The unique identifier for the estimate."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/invoices/{invoiceId}",
+        "definition": {
+          "entityName": "Invoice",
+          "schema": {
+            "$ref": "#/backend/entities/Invoice"
+          },
+          "description": "Stores invoices created by a specific user. Includes denormalized 'userProfileId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "invoiceId",
+              "description": "The unique identifier for the invoice."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support a multi-user estimate and invoice application with AI assistance. It focuses on security, scalability, and ease of maintenance, adhering to the principles of Authorization Independence, Structural Segregation, and Access Modeling. User profiles are stored in a dedicated collection, and estimates and invoices are organized under each user's document for clear ownership. Public URLs are supported via denormalized data, allowing view-only access. This design enables efficient querying and ensures data integrity across the application.\n\nAuthorization Independence: The structure ensures authorization independence by avoiding hierarchical `get()` calls in security rules. The `userProfileId` is included in both `Estimate` and `Invoice` documents, which eliminates the need to traverse up the hierarchy to validate ownership. The `publicUrl` enables public read access, but the rules ensure write access remains restricted to authorized users.\n\nStructural Segregation: Data with different access needs is segregated into different collections. User profiles are stored in `/user_profiles`, while user-specific estimates and invoices are stored under `/users/{userId}/estimates` and `/users/{userId}/invoices`, respectively. This segregation simplifies security rules by ensuring all documents within a collection share the same access control requirements.\n\nQAPs (Rules are not Filters): The segregation of data by user enables secure list operations. Rules can easily filter based on `request.auth.uid` to ensure users can only list estimates and invoices they own. Public read access is managed via the `publicUrl` field, which can be validated in rules.\n"
+  }
+}

@@ -1,0 +1,109 @@
+/**
+ * @file Firestore Security Rules for InvoiceAI Pro.
+ *
+ * @core_philosophy This ruleset enforces a strict user-ownership model. Each user has full control over their own profile, estimates, and invoices.
+ * @data_structure
+ *   - /user_profiles/{userProfileId}: Stores user profile information, where userProfileId is the Firebase Auth UID.
+ *   - /users/{userId}/estimates/{estimateId}: Stores estimates created by a specific user.
+ *   - /users/{userId}/invoices/{invoiceId}: Stores invoices created by a specific user.
+ *
+ * @key_security_decisions
+ *   - User profiles can only be created, read, updated, and deleted by the owning user.
+ *   - Estimates and invoices are scoped to individual users and can only be accessed by the owner.
+ *   - Listing of user profiles is denied to prevent unauthorized access to user data.
+ *   - The rules rely on the `userProfileId` field within estimates and invoices to enforce ownership, enabling authorization independence.
+ *   - Public read access to invoices and estimates via `publicUrl` field is not implemented in this ruleset version.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Defines a helper function to check if the current user is signed in.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Defines a helper function to check if the authenticated user ID matches the provided user ID.
+     * @param {string} userId - The user ID to compare against the authenticated user ID.
+     * @return {boolean} True if the user is signed in and the provided user ID matches the authenticated user ID.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Defines a helper function to check if the authenticated user is the existing owner of a document.
+     * @param {string} userId - The user ID to compare against the authenticated user ID.
+     * @return {boolean} True if the user is signed in, the provided user ID matches the authenticated user ID, and the resource exists.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Security rules for the /user_profiles collection.
+     * @path /user_profiles/{userProfileId}
+     * @allow (create) User with UID 'user_abc' can create a profile with ID 'user_abc'.
+     * @allow (get) User with UID 'user_abc' can read their own profile.
+     * @allow (update) User with UID 'user_abc' can update their own profile.
+     * @allow (delete) User with UID 'user_abc' can delete their own profile.
+     * @deny (create) User with UID 'user_xyz' cannot create a profile with ID 'user_abc'.
+     * @deny (get) User with UID 'user_xyz' cannot read the profile of user 'user_abc'.
+     * @deny (update) User with UID 'user_xyz' cannot update the profile of user 'user_abc'.
+     * @deny (delete) User with UID 'user_xyz' cannot delete the profile of user 'user_abc'.
+     * @principle Enforces document ownership for all operations on user profiles.
+     */
+    match /user_profiles/{userProfileId} {
+      allow get: if isOwner(userProfileId);
+      allow list: if false;
+      allow create: if isOwner(userProfileId) && request.resource.data.id == userProfileId;
+      allow update: if isExistingOwner(userProfileId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userProfileId);
+    }
+
+    /**
+     * @description Security rules for the /users/{userId}/estimates collection.
+     * @path /users/{userId}/estimates/{estimateId}
+     * @allow (create) User with UID 'user_abc' can create an estimate under /users/user_abc/estimates.
+     * @allow (get) User with UID 'user_abc' can read an estimate under /users/user_abc/estimates.
+     * @allow (update) User with UID 'user_abc' can update an estimate under /users/user_abc/estimates.
+     * @allow (delete) User with UID 'user_abc' can delete an estimate under /users/user_abc/estimates.
+     * @deny (create) User with UID 'user_xyz' cannot create an estimate under /users/user_abc/estimates.
+     * @deny (get) User with UID 'user_xyz' cannot read an estimate under /users/user_abc/estimates.
+     * @deny (update) User with UID 'user_xyz' cannot update an estimate under /users/user_abc/estimates.
+     * @deny (delete) User with UID 'user_xyz' cannot delete an estimate under /users/user_abc/estimates.
+     * @principle Enforces document ownership for all operations on estimates.
+     */
+    match /users/{userId}/estimates/{estimateId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userProfileId == resource.data.userProfileId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Security rules for the /users/{userId}/invoices collection.
+     * @path /users/{userId}/invoices/{invoiceId}
+     * @allow (create) User with UID 'user_abc' can create an invoice under /users/user_abc/invoices.
+     * @allow (get) User with UID 'user_abc' can read an invoice under /users/user_abc/invoices.
+     * @allow (update) User with UID 'user_abc' can update an invoice under /users/user_abc/invoices.
+     * @allow (delete) User with UID 'user_abc' can delete an invoice under /users/user_abc/invoices.
+     * @deny (create) User with UID 'user_xyz' cannot create an invoice under /users/user_abc/invoices.
+     * @deny (get) User with UID 'user_xyz' cannot read an invoice under /users/user_abc/invoices.
+     * @deny (update) User with UID 'user_xyz' cannot update an invoice under /users/user_abc/invoices.
+     * @deny (delete) User with UID 'user_xyz' cannot delete an invoice under /users/user_abc/invoices.
+     * @principle Enforces document ownership for all operations on invoices.
+     */
+    match /users/{userId}/invoices/{invoiceId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userProfileId == resource.data.userProfileId;
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}
