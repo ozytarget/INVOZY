@@ -1,11 +1,5 @@
 
 
-
-
-
-
-
-
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
@@ -59,6 +53,7 @@ interface DocumentContextType {
   recordPayment: (docId: string, payment: Omit<Payment, 'id' | 'date'>) => Promise<void>;
   revertInvoiceToDraft: (invoiceId: string) => Promise<void>;
   revertLastPayment: (invoiceId: string) => Promise<void>;
+  sendDocument: (docId: string, type: DocumentType) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -89,22 +84,28 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     const collectionRef = collection(firestore, collectionName);
     
     // Generate sequential number
-    const userDocs = collectionName === 'estimates' ? estimates : invoices;
-    const docCount = userDocs?.length || 0;
+    const userDocsQuery = query(collectionRef, where('userId', '==', user.uid));
+    const userDocsSnapshot = await getDocs(userDocsQuery);
+    const docCount = userDocsSnapshot.size;
+    
     const prefix = collectionName === 'estimates' ? 'EST' : 'INV';
     const number = (docCount + 1).toString().padStart(3, '0');
     const docNumber = `${prefix}-${number}`;
 
-    const dataToSave = { 
+    const dataToSave: Partial<Document> & { userId: string } = { 
       ...docData, 
       userId: user.uid,
-      ...(collectionName === 'estimates' && { estimateNumber: docNumber }),
-      ...(collectionName === 'invoices' && { invoiceNumber: docNumber }),
     };
+    
+    if (collectionName === 'estimates') {
+        dataToSave.estimateNumber = docNumber;
+    } else {
+        dataToSave.invoiceNumber = docNumber;
+    }
 
     const newDocRef = await addDoc(collectionRef, dataToSave);
     return newDocRef.id;
-  }, [user, firestore, estimates, invoices]);
+  }, [user, firestore]);
 
   const deleteDocument = useCallback(async (docId: string) => {
     if (!user) return;
@@ -167,7 +168,9 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       const newInvoiceRef = doc(collection(firestore, 'invoices'));
       newInvoiceId = newInvoiceRef.id;
 
-      const invoiceCount = invoices?.length || 0;
+      const userInvoicesQuery = query(collection(firestore, 'invoices'), where('userId', '==', user.uid));
+      const userInvoicesSnapshot = await getDocs(userInvoicesQuery);
+      const invoiceCount = userInvoicesSnapshot.size;
       const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
 
       const newInvoice: Omit<Document, 'id'> = {
@@ -198,7 +201,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     await batch.commit();
     return newInvoiceId;
 
-  }, [user, firestore, documents, invoices]);
+  }, [user, firestore, documents]);
 
   const recordPayment = useCallback(async (docId: string, payment: Omit<Payment, 'id' | 'date'>) => {
     if (!user) return;
@@ -273,13 +276,24 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, firestore]);
 
+  const sendDocument = useCallback(async (docId: string, type: DocumentType) => {
+    if (!user) return;
+    const collectionName = type === 'Estimate' ? 'estimates' : 'invoices';
+    const docRef = doc(firestore, collectionName, docId);
+    
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists() && docSnap.data().status === 'Draft') {
+      await updateDoc(docRef, { status: 'Sent' });
+    }
+  }, [user, firestore]);
+
   const clients = useMemo(() => {
     return getCombinedClients(documents, storedClients || []);
   }, [documents, storedClients]);
 
 
   return (
-    <DocumentContext.Provider value={{ documents, addDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, isLoading }}>
+    <DocumentContext.Provider value={{ documents, addDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, sendDocument, isLoading }}>
       {children}
     </DocumentContext.Provider>
   );

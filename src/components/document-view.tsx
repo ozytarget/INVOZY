@@ -14,12 +14,13 @@ import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
 import { useDocuments } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X } from "lucide-react";
+import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeleteDocumentDialog } from "./delete-document-dialog";
 import { RecordPaymentDialog } from "./invoices/record-payment-dialog";
 import { cn } from "@/lib/utils";
+import { SendEmailDialog } from "./emails/send-email-dialog";
 
 
 type DocumentViewProps = {
@@ -42,7 +43,7 @@ const statusStyles: Record<Document['status'], string> = {
   Approved: "border-green-500 text-green-500",
 }
 
-const FabMenuItem = ({ onClick, icon, label, variant = 'secondary', className = '' }: { onClick: () => void, icon: React.ReactNode, label: string, variant?: "secondary" | "destructive" | "default", className?: string }) => (
+const FabMenuItem = ({ onClick, icon, label, variant = 'secondary', className = '' }: { onClick: () => void, icon: React.ReactNode, label: string, variant?: "secondary" | "destructive" | "default" | "outline", className?: string }) => (
     <div className="flex items-center justify-end gap-4">
         <span className="text-sm font-medium bg-background/80 text-foreground px-3 py-1 rounded-md shadow-lg">{label}</span>
         <Button size="icon" variant={variant} onClick={onClick} className={cn("rounded-full h-12 w-12 shadow-lg", className)}>
@@ -55,7 +56,7 @@ const FabMenuItem = ({ onClick, icon, label, variant = 'secondary', className = 
 export function DocumentView({ document }: DocumentViewProps) {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const sigCanvas = useRef<SignatureCanvas>(null);
-  const { signAndProcessDocument, deleteDocument, recordPayment } = useDocuments();
+  const { signAndProcessDocument, deleteDocument, recordPayment, sendDocument } = useDocuments();
   const { toast } = useToast();
   const router = useRouter();
   const [isDashboardView, setIsDashboardView] = useState(false);
@@ -149,6 +150,11 @@ export function DocumentView({ document }: DocumentViewProps) {
       title: "Payment Recorded",
       description: `A payment of $${payment.amount.toFixed(2)} has been recorded.`
     })
+  }
+
+  const handleEmailSent = () => {
+    sendDocument(document.id, document.type);
+    setIsFabMenuOpen(false);
   }
 
   const documentNumber = document.type === 'Estimate' ? document.estimateNumber : document.invoiceNumber;
@@ -360,6 +366,19 @@ export function DocumentView({ document }: DocumentViewProps) {
                                     />
                                 </RecordPaymentDialog>
                             )}
+                             <SendEmailDialog 
+                                document={document} 
+                                companyName={settings?.companyName || "Your Company"}
+                                onEmailSent={handleEmailSent}
+                            >
+                                <FabMenuItem 
+                                    onClick={() => {}} 
+                                    icon={<Mail className="h-6 w-6" />}
+                                    label="Email to Client"
+                                    variant="outline"
+                                    className="bg-background"
+                                />
+                            </SendEmailDialog>
                             <FabMenuItem 
                                 onClick={() => {}} 
                                 icon={<Edit className="h-6 w-6" />}
