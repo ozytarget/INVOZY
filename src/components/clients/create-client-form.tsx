@@ -44,14 +44,14 @@ export function CreateClientForm() {
   })
 
   function onSubmit(data: ClientFormValues) {
-    const newClient = {
-      ...data,
-      // These are added to conform to the Client type for display
-      totalBilled: 0,
-      documentCount: 0,
+    const newClientData = {
+      name: data.clientName,
+      email: data.clientEmail,
+      address: data.clientAddress,
+      phone: data.clientPhone || "",
     }
 
-    addClient(newClient);
+    addClient(newClientData);
     
     toast({
       title: "Client Created",
