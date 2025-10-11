@@ -10,7 +10,7 @@ export default function Home() {
       <header className="p-4 md:px-6 flex items-center justify-between">
         <Logo />
         <Button variant="ghost" asChild>
-          <Link href="/dashboard">Login</Link>
+          <Link href="/login">Login</Link>
         </Button>
       </header>
       <main className="flex-1">

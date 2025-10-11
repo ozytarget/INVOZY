@@ -22,6 +22,8 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/firebase"
+import { signOut } from "firebase/auth"
 
 const settingsSchema = z.object({
   companyName: z.string().min(2, "Company name is required."),
@@ -50,6 +52,7 @@ const fileToDataUrl = (file: File): Promise<string> => {
 export function SettingsForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const auth = useAuth();
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   
@@ -139,14 +142,20 @@ export function SettingsForm() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [form]);
 
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.clear();
-      window.dispatchEvent(new Event('storage')); // Notify other components
-      router.push('/');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // localStorage.clear(); // Optional: clear local storage on logout
+      router.push('/login');
       toast({
         title: "Logged Out",
         description: "You have been successfully logged out.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Logout Failed",
+        description: "An error occurred while logging out.",
       });
     }
   };
@@ -328,7 +337,7 @@ export function SettingsForm() {
                             </AvatarFallback>
                           </Avatar>
                           <FormControl>
-                             <Input id="userAvatarInput" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'userAvatar', setAvatarPreview)} className="file:text-primary file:font-medium" />
+                             <Input id="userAvatarInput" type="file" accept="image_/*" onChange={(e) => handleFileChange(e, 'userAvatar', setAvatarPreview)} className="file:text-primary file:font-medium" />
                           </FormControl>
                         </div>
                         <FormMessage />
@@ -349,5 +358,3 @@ export function SettingsForm() {
     </Form>
   )
 }
-
-    

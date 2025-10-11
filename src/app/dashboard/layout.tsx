@@ -1,12 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { FileText, User, Users, CreditCard, Settings, Search, Bell } from "lucide-react"
-import { usePathname } from "next/navigation"
+import { FileText, User, Users, CreditCard, Settings, Search, Bell, Loader2 } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { UserNav } from "@/components/user-nav"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useUser } from "@/firebase"
 
 export default function DashboardLayout({
   children,
@@ -14,6 +15,8 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
 
   // Updated nav items based on the image
   const navItems = [
@@ -25,11 +28,34 @@ export default function DashboardLayout({
   ]
 
   const getTitle = () => {
+    // Handle dashboard root
+    if (pathname === "/dashboard") return "Dashboard";
+
+    // Handle create pages
+    if (pathname.includes('/create')) {
+        const type = pathname.split('/')[2]; // estimates or invoices
+        return `Create ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+    }
+    
+    // Find matching nav item for other pages
     const currentNavItem = navItems.find(item => pathname.startsWith(item.href));
     if (currentNavItem) return currentNavItem.label;
-    if (pathname === '/dashboard') return "Dashboard";
-    if (pathname.startsWith('/dashboard/estimates/create')) return "Create Estimate";
-    return "Dashboard"
+
+    return "Dashboard";
+  }
+
+  React.useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
   
   return (
@@ -45,6 +71,7 @@ export default function DashboardLayout({
           <Button variant="ghost" size="icon" className="text-current hover:bg-white/10 hover:text-white">
             <Bell className="h-5 w-5" />
           </Button>
+          <UserNav />
         </div>
       </header>
       <main className="flex-1 flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 pb-24">

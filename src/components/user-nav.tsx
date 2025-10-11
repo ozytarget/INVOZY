@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { User } from "lucide-react";
+import { User as UserIcon } from "lucide-react";
+import { useAuth, useUser } from "@/firebase";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 type UserSettings = {
     contractorName: string;
@@ -22,9 +26,15 @@ type UserSettings = {
 }
 
 export function UserNav() {
+  const { user } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
   const [settings, setSettings] = useState<UserSettings | null>(null);
 
   useEffect(() => {
+    // This component now relies on the user object from Firebase,
+    // but we can still pull settings from localStorage for display purposes.
     if (typeof window !== 'undefined') {
         const savedSettings = localStorage.getItem("companySettings");
         if (savedSettings) {
@@ -33,14 +43,33 @@ export function UserNav() {
     }
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // localStorage.clear(); // Optional: clear local storage on logout
+      router.push('/login');
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Logout Failed",
+        description: "An error occurred while logging out.",
+      });
+    }
+  };
+
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            {settings?.userAvatar && <AvatarImage src={settings.userAvatar} alt="User avatar" />}
+            <AvatarImage src={user?.photoURL || settings?.userAvatar} alt="User avatar" />
             <AvatarFallback>
-                {settings?.contractorName ? settings.contractorName.charAt(0).toUpperCase() : <User />}
+                {user?.displayName ? user.displayName.charAt(0).toUpperCase() : (user?.email?.charAt(0).toUpperCase() || <UserIcon />)}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -48,9 +77,9 @@ export function UserNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{settings?.contractorName || "Contractor"}</p>
+            <p className="text-sm font-medium leading-none">{user?.displayName || settings?.contractorName || "Contractor"}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {settings?.companyEmail || "contractor@example.com"}
+              {user?.email || "contractor@example.com"}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -61,8 +90,8 @@ export function UserNav() {
             </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/">Log out</Link>
+        <DropdownMenuItem onClick={handleLogout}>
+          Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
