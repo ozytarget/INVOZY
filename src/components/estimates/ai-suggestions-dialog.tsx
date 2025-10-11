@@ -122,7 +122,6 @@ export function AiSuggestionsDialog({
     }
   };
 
-
   return (
     <>
       <Button type="button" variant="outline" size="sm" onClick={handleOpen}>
@@ -136,7 +135,7 @@ export function AiSuggestionsDialog({
             <DialogTitle className="font-headline">AI-Powered Estimate</DialogTitle>
             <DialogDescription>
               Review and select the items to add to your estimate.
-            </Dialog-Description>
+            </DialogDescription>
           </DialogHeader>
           
             {isLoading && (
