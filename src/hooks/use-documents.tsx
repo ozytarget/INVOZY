@@ -189,9 +189,9 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
 
       const newInvoice: Omit<Document, 'id'> = {
-          ...(originalDoc as any), // This is a bit unsafe, but it's the easiest way to copy fields
+          ...(originalDoc as any),
           type: 'Invoice',
-          status: 'Sent', // The new invoice is now 'Sent' because it's approved
+          status: 'Sent',
           userId: user.uid,
           issuedDate: format(new Date(), "yyyy-MM-dd"),
           dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
@@ -200,7 +200,8 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           terms: originalDoc.terms || 'Net 30',
           payments: [],
           invoiceNumber: newInvoiceNumber,
-          estimateNumber: originalDoc.estimateNumber, // Keep original estimate number
+          estimateNumber: originalDoc.estimateNumber,
+          // Overwrite with company settings last to ensure they are current
           companyName: companySettings.companyName || 'Your Company',
           companyAddress: companySettings.companyAddress || '',
           companyEmail: companySettings.companyEmail || '',

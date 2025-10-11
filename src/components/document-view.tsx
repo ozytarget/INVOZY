@@ -6,7 +6,6 @@ import { Document, Payment } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
-import { Logo } from "./logo";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
@@ -116,6 +115,12 @@ export function DocumentView({ document }: DocumentViewProps) {
         });
     }
   };
+  
+  const handleEdit = () => {
+    const editUrl = `/dashboard/${document.type.toLowerCase()}s/edit/${document.id}`;
+    router.push(editUrl);
+    setIsFabMenuOpen(false);
+  }
 
   const handleSms = () => {
     if (!document.clientPhone) {
@@ -376,7 +381,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                                 className="bg-background"
                             />
                             <FabMenuItem 
-                                onClick={() => {}} 
+                                onClick={handleEdit} 
                                 icon={<Edit className="h-6 w-6" />}
                                 label="Edit"
                             />
