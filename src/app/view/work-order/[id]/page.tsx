@@ -6,11 +6,11 @@ import { notFound, useParams } from "next/navigation";
 import type { Document } from "@/lib/types";
 import { doc } from "firebase/firestore";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { ClipboardList, HardHat, Wrench, Loader2, User, Home } from "lucide-react";
+import { ClipboardList, HardHat, Wrench, Loader2, User, Home, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { getWorkOrder } from "@/app/actions.tsx";
+import { getWorkOrder } from "@/app/actions";
 import { WorkOrderOutput } from "@/ai/flows/generate-work-order";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -110,6 +110,23 @@ export default function WorkOrderViewPage() {
       generate();
     }
   }, [document, toast]);
+  
+  const handleSms = () => {
+    if (!document?.clientPhone) {
+        toast({
+            variant: "destructive",
+            title: "No Phone Number",
+            description: "This client does not have a phone number on file.",
+        });
+        return;
+    }
+
+    const url = window.location.href;
+    const message = `View your work order for: ${document.projectTitle}\n${url}`;
+    const smsUrl = `sms:${document.clientPhone}?body=${encodeURIComponent(message)}`;
+    
+    window.open(smsUrl, '_blank');
+  };
 
   if (isLoadingDocument) {
     return (
@@ -126,7 +143,11 @@ export default function WorkOrderViewPage() {
   return (
     <div className="bg-background min-h-screen pb-32">
         <div className="max-w-4xl mx-auto p-4 sm:p-8">
-            <div className="sticky top-4 z-20 mb-4 flex justify-end">
+            <div className="sticky top-4 z-20 mb-4 flex justify-end gap-2">
+                 <Button onClick={handleSms} variant="outline" className="bg-background/80 backdrop-blur-sm">
+                    <MessageSquare className="mr-2" />
+                    Send SMS
+                </Button>
                 <Button asChild variant="outline" className="bg-background/80 backdrop-blur-sm">
                     <Link href={`/view/invoice/${id}`}>
                         <Home className="mr-2" />
