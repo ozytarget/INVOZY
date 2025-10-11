@@ -2,6 +2,7 @@
 'use server';
 
 import { getAIPoweredEstimateSuggestions, AIPoweredEstimateSuggestionsInput } from "@/ai/flows/ai-powered-estimate-suggestions";
+import { generateWorkOrder, WorkOrderInput } from "@/ai/flows/generate-work-order";
 import { Resend } from 'resend';
 import DocumentEmail from '@/components/emails/document-email';
 import { render } from '@react-email/components';
@@ -17,6 +18,17 @@ export async function getSuggestions(input: AIPoweredEstimateSuggestionsInput) {
     return { success: false, error: 'Failed to get AI suggestions.' };
   }
 }
+
+export async function getWorkOrder(input: WorkOrderInput) {
+  try {
+    const output = await generateWorkOrder(input);
+    return { success: true, data: output };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: 'Failed to generate work order.' };
+  }
+}
+
 
 export async function sendDocumentEmail({
   to,

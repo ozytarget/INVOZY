@@ -13,7 +13,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
 import { useDocuments } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail, MessageSquare } from "lucide-react";
+import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail, MessageSquare, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeleteDocumentDialog } from "./delete-document-dialog";
@@ -121,6 +121,11 @@ export function DocumentView({ document }: DocumentViewProps) {
     router.push(editUrl);
     setIsFabMenuOpen(false);
   }
+  
+  const handleGenerateWorkOrder = () => {
+    router.push(`/view/work-order/${document.id}`);
+    setIsFabMenuOpen(false);
+  };
 
   const handleSms = () => {
     if (!document.clientPhone) {
@@ -350,6 +355,14 @@ export function DocumentView({ document }: DocumentViewProps) {
                 <div className="relative z-50 flex flex-col items-end gap-4">
                     {isFabMenuOpen && (
                         <div className="flex flex-col items-end gap-4 transition-all duration-300">
+                             {document.type === 'Invoice' && document.isSigned && (
+                                <FabMenuItem 
+                                    onClick={handleGenerateWorkOrder}
+                                    icon={<ClipboardList className="h-6 w-6" />}
+                                    label="Generar Orden de Trabajo"
+                                    variant="default"
+                                />
+                            )}
                              {document.type === 'Invoice' && document.status !== 'Paid' && (
                                 <RecordPaymentDialog document={document} onRecordPayment={handleRecordPayment}>
                                     <FabMenuItem 
