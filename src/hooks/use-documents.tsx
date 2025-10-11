@@ -5,6 +5,7 @@
 
 
 
+
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
