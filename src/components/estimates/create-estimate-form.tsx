@@ -305,80 +305,139 @@ export function CreateEstimateForm() {
                     )}
                 />
                 
-                <div className="border rounded-md">
-                <Table>
-                    <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-[60%]">Description</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead><span className="sr-only">Actions</span></TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {fields.map((field, index) => (
-                        <TableRow key={field.id}>
-                        <TableCell>
-                            <FormField
+                <div className="hidden md:block border rounded-md">
+                  <Table>
+                      <TableHeader>
+                      <TableRow>
+                          <TableHead className="w-[55%]">Description</TableHead>
+                          <TableHead className="w-[15%]">Quantity</TableHead>
+                          <TableHead className="w-[15%]">Price</TableHead>
+                          <TableHead className="text-right w-[15%]">Total</TableHead>
+                          <TableHead><span className="sr-only">Actions</span></TableHead>
+                      </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                      {fields.map((field, index) => (
+                          <TableRow key={field.id}>
+                          <TableCell>
+                              <FormField
+                              control={form.control}
+                              name={`lineItems.${index}.description`}
+                              render={({ field }) => (
+                                  <FormItem>
+                                  <FormControl>
+                                      <Input placeholder="e.g., UI/UX Design" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                  </FormItem>
+                              )}
+                              />
+                          </TableCell>
+                          <TableCell>
+                              <FormField
+                              control={form.control}
+                              name={`lineItems.${index}.quantity`}
+                              render={({ field }) => (
+                                  <FormItem>
+                                  <FormControl>
+                                      <Input type="number" placeholder="1" {...field} />
+                                  </FormControl>
+                                  </FormItem>
+                              )}
+                              />
+                          </TableCell>
+                          <TableCell>
+                              <FormField
+                              control={form.control}
+                              name={`lineItems.${index}.price`}
+                              render={({ field }) => (
+                                  <FormItem>
+                                  <FormControl>
+                                      <Input type="number" placeholder="1200" {...field} />
+                                  </FormControl>
+                                  </FormItem>
+                              )}
+                              />
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                              ${(lineItems[index]?.quantity * lineItems[index]?.price || 0).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                              <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                                  <Trash2 className="h-4 w-4" />
+                              </Button>
+                          </TableCell>
+                          </TableRow>
+                      ))}
+                      </TableBody>
+                      <TableFooter>
+                          <TableRow>
+                              <TableCell colSpan={3} className="text-right font-bold">Total</TableCell>
+                              <TableCell className="text-right font-bold">${subtotal.toFixed(2)}</TableCell>
+                              <TableCell></TableCell>
+                          </TableRow>
+                      </TableFooter>
+                  </Table>
+                </div>
+
+                {/* Mobile view */}
+                <div className="md:hidden space-y-4">
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="border rounded-lg p-4 space-y-4 relative">
+                        <FormField
                             control={form.control}
                             name={`lineItems.${index}.description`}
                             render={({ field }) => (
                                 <FormItem>
-                                <FormControl>
-                                    <Input placeholder="e.g., UI/UX Design" {...field} />
-                                </FormControl>
-                                <FormMessage />
+                                    <FormLabel>Description</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder="e.g., UI/UX Design" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
                                 </FormItem>
                             )}
-                            />
-                        </TableCell>
-                        <TableCell>
+                        />
+                        <div className="grid grid-cols-2 gap-4">
                             <FormField
-                            control={form.control}
-                            name={`lineItems.${index}.quantity`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormControl>
-                                    <Input type="number" placeholder="1" {...field} />
-                                </FormControl>
-                                </FormItem>
-                            )}
+                                control={form.control}
+                                name={`lineItems.${index}.quantity`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Quantity</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="1" {...field} />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
                             />
-                        </TableCell>
-                         <TableCell>
                             <FormField
-                            control={form.control}
-                            name={`lineItems.${index}.price`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormControl>
-                                    <Input type="number" placeholder="1200" {...field} />
-                                </FormControl>
-                                </FormItem>
-                            )}
+                                control={form.control}
+                                name={`lineItems.${index}.price`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Price</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="1200" {...field} />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
                             />
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                            ${(lineItems[index]?.quantity * lineItems[index]?.price || 0).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </TableCell>
-                        </TableRow>
-                    ))}
-                    </TableBody>
-                    <TableFooter>
-                        <TableRow>
-                            <TableCell colSpan={3} className="text-right font-bold">Total</TableCell>
-                            <TableCell className="text-right font-bold">${subtotal.toFixed(2)}</TableCell>
-                            <TableCell></TableCell>
-                        </TableRow>
-                    </TableFooter>
-                </Table>
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t">
+                            <span className="font-medium">Total</span>
+                            <span className="font-bold">${(lineItems[index]?.quantity * lineItems[index]?.price || 0).toFixed(2)}</span>
+                        </div>
+                         <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1} className="absolute top-2 right-2">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                  ))}
+                   <div className="flex justify-between items-center pt-4 border-t mt-4">
+                        <span className="text-lg font-bold">Total</span>
+                        <span className="text-lg font-bold">${subtotal.toFixed(2)}</span>
+                    </div>
                 </div>
+
                 <Button
                     type="button"
                     variant="outline"
