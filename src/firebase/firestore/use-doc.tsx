@@ -44,7 +44,7 @@ export function useDoc<T = any>(
   type StateDataType = WithId<T> | null;
 
   const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Start loading immediately
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
@@ -57,19 +57,21 @@ export function useDoc<T = any>(
 
     setIsLoading(true);
     setError(null);
-    // Optional: setData(null); // Clear previous data instantly
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
       (snapshot: DocumentSnapshot<DocumentData>) => {
         if (snapshot.exists()) {
           setData({ ...(snapshot.data() as T), id: snapshot.id });
+          setIsLoading(false); // Stop loading only when doc is found
         } else {
-          // Document does not exist
+          // Document does not exist, but we don't set loading to false.
+          // We keep waiting in case it's a replication delay.
+          // If it's truly a not-found error after a timeout, another mechanism would be needed,
+          // but for creation-redirect flows, this handles it.
           setData(null);
         }
-        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
-        setIsLoading(false);
+        setError(null);
       },
       (error: FirestoreError) => {
         const contextualError = new FirestorePermissionError({
@@ -88,6 +90,20 @@ export function useDoc<T = any>(
 
     return () => unsubscribe();
   }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
+
+  // This logic is for when a document is truly not found after a while.
+  useEffect(() => {
+      if (!data && isLoading) {
+          const timer = setTimeout(() => {
+              // If still loading after 5 seconds and no data, assume it's not found
+              if (!data) {
+                  setIsLoading(false);
+              }
+          }, 5000); // 5 second timeout
+          return () => clearTimeout(timer);
+      }
+  }, [data, isLoading]);
+
 
   return { data, isLoading, error };
 }
