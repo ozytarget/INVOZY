@@ -56,6 +56,7 @@ export type Document = {
   payments?: Payment[];
   estimateNumber?: string;
   invoiceNumber?: string;
+  search_field: string;
 };
 
 export type Client = {

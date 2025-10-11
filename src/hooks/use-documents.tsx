@@ -95,7 +95,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     const number = (docCount + 1).toString().padStart(3, '0');
     const docNumber = `${prefix}-${number}`;
 
-    const dataToSave: Partial<Document> & { userId: string } = {
+    const dataToSave: Partial<Document> & { userId: string, search_field: string } = {
       // First, apply all the data from the form
       ...docData,
       // Then, ensure company and user data is correctly set, overwriting if necessary
@@ -109,6 +109,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       taxRate: companySettings.taxRate || 0, // Ensure taxRate is saved
       contractorName: companySettings.contractorName || '',
       schedulingUrl: companySettings.schedulingUrl || '',
+      search_field: `${docData.clientName} ${docData.projectTitle} ${docNumber}`.toLowerCase(),
     };
     
     if (collectionName === 'estimates') {
@@ -128,7 +129,17 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     
     const collectionName = originalDoc.type === 'Estimate' ? 'estimates' : 'invoices';
     const docRef = doc(firestore, collectionName, docId);
-    await updateDoc(docRef, docData);
+    
+    const docNumber = originalDoc.type === 'Estimate' ? originalDoc.estimateNumber : originalDoc.invoiceNumber;
+    const clientName = docData.clientName || originalDoc.clientName;
+    const projectTitle = docData.projectTitle || originalDoc.projectTitle;
+
+    const updatedData = {
+        ...docData,
+        search_field: `${clientName} ${projectTitle} ${docNumber}`.toLowerCase(),
+    };
+
+    await updateDoc(docRef, updatedData);
   }, [user, firestore, documents]);
 
 
@@ -225,6 +236,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
           taxRate: companySettings.taxRate || 0,
           contractorName: companySettings.contractorName || '',
           schedulingUrl: companySettings.schedulingUrl || '',
+          search_field: `${originalDoc.clientName} ${originalDoc.projectTitle} ${newInvoiceNumber}`.toLowerCase(),
       };
       delete (newInvoiceData as Partial<Document>).id; 
       batch.set(newInvoiceRef, newInvoiceData);

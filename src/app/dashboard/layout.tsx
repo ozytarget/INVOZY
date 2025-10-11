@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useUser } from "@/firebase"
 import { useDocuments } from "@/hooks/use-documents"
+import { SearchDialog } from "@/components/search-dialog"
 
 export default function DashboardLayout({
   children,
@@ -68,9 +69,11 @@ export default function DashboardLayout({
           {getTitle()}
         </h1>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-current hover:bg-white/10 hover:text-white">
-            <Search className="h-5 w-5" />
-          </Button>
+          <SearchDialog>
+            <Button variant="ghost" size="icon" className="text-current hover:bg-white/10 hover:text-white">
+              <Search className="h-5 w-5" />
+            </Button>
+          </SearchDialog>
           <Button variant="ghost" size="icon" className="text-current hover:bg-white/10 hover:text-white">
             <Bell className="h-5 w-5" />
           </Button>
