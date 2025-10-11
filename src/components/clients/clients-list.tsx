@@ -26,7 +26,7 @@ export function ClientsList() {
     console.log("Navigating to client:", client.name);
   };
   
-  const sortedClients = [...clients].sort((a, b) => a.name.localeCompare(b.name));
+  const sortedClients = [...clients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   return (
     <Card>
