@@ -46,7 +46,7 @@ export function ClientsList() {
           </TableHeader>
           <TableBody>
             {clients.map((client) => (
-              <TableRow key={client.email} onClick={() => handleRowClick(client)} className="cursor-pointer">
+              <TableRow key={`${client.email}-${client.name}`} onClick={() => handleRowClick(client)} className="cursor-pointer">
                 <TableCell className="font-medium">{client.name}</TableCell>
                 <TableCell>
                   <div className="text-sm text-muted-foreground">{client.email}</div>
