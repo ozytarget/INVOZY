@@ -1,3 +1,4 @@
+
 'use client'
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -321,33 +322,33 @@ export function CreateInvoiceForm() {
                 <CardTitle className="font-headline">Project Scope & Line Items</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <FormField
-                      control={form.control}
-                      name="projectDescription"
-                      render={({ field }) => (
-                      <FormItem>
-                          <FormLabel>Project Description</FormLabel>
+                <FormField
+                    control={form.control}
+                    name="projectDescription"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Project Description</FormLabel>
+                        <div className="relative">
                           <FormControl>
                               <Textarea
                                   placeholder="Describe the project scope, deliverables, and timeline in detail. The more info you provide, the better the AI estimate will be."
-                                  className="resize-y min-h-[100px]"
+                                  className="resize-y min-h-[120px] pr-12"
                                   {...field}
                               />
                           </FormControl>
-                          <FormMessage />
-                      </FormItem>
-                      )}
-                  />
-                  <div className="flex justify-end">
-                    <AiSuggestionsDialog 
-                        projectDescription={form.watch('projectDescription') || ''} 
-                        projectLocation={companyLocation}
-                        onApplyLineItems={handleApplyLineItems}
-                        onApplyNotes={handleApplyNotes}
-                    />
-                  </div>
-                </div>
+                           <div className="absolute bottom-2 right-2">
+                            <AiSuggestionsDialog 
+                                projectDescription={form.watch('projectDescription') || ''} 
+                                projectLocation={companyLocation}
+                                onApplyLineItems={handleApplyLineItems}
+                                onApplyNotes={handleApplyNotes}
+                            />
+                          </div>
+                        </div>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
                 
                 <div className="border rounded-md">
                 <Table>
@@ -478,5 +479,3 @@ export function CreateInvoiceForm() {
     </Form>
   )
 }
-
-    
