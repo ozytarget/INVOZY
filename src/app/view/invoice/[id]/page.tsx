@@ -2,11 +2,31 @@
 
 import { DocumentView } from "@/components/document-view";
 import { useDocuments } from "@/hooks/use-documents";
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import type { Document } from "@/lib/types";
 
-export default function PublicInvoiceViewPage({ params }: { params: { id: string } }) {
+
+export default function PublicInvoiceViewPage() {
+  const params = useParams();
   const { documents } = useDocuments();
-  const document = documents.find(doc => doc.id === params.id && doc.type === 'Invoice');
+  const [document, setDocument] = useState<Document | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  const id = typeof params.id === 'string' ? params.id : '';
+
+  useEffect(() => {
+    const foundDocument = documents.find(doc => doc.id === id && doc.type === 'Invoice');
+    if (foundDocument) {
+      setDocument(foundDocument);
+    }
+    setLoading(false);
+  }, [id, documents]);
+
+  if (loading) {
+    // You can return a loading spinner here
+    return <div>Loading...</div>;
+  }
 
   if (!document) {
     notFound();
