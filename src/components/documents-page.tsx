@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
 import { useDocuments } from "@/hooks/use-documents"
+import { useRouter } from "next/navigation"
 
 const statusStyles: Record<DocumentStatus, string> = {
   Paid: "text-primary bg-primary/10",
@@ -43,6 +44,7 @@ type DocumentsPageProps = {
 
 export function DocumentsPage({ type }: DocumentsPageProps) {
   const { documents } = useDocuments();
+  const router = useRouter();
   const title = type === "Estimate" ? "Estimates" : "Invoices"
   const createHref = type === "Estimate" ? "/dashboard/estimates/create" : "/dashboard/invoices/create"
   
@@ -51,6 +53,10 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
   const getViewLink = (doc: Document) => {
     const docType = doc.type.toLowerCase();
     return `/view/${docType}/${doc.id}`;
+  }
+
+  const handleRowClick = (doc: Document) => {
+    router.push(getViewLink(doc));
   }
 
   return (
@@ -87,7 +93,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
             </TableHeader>
             <TableBody>
               {filteredDocuments.map((doc) => (
-                <TableRow key={doc.id}>
+                <TableRow key={doc.id} onClick={() => handleRowClick(doc)} className="cursor-pointer">
                   <TableCell className="font-medium">{doc.clientName}</TableCell>
                   <TableCell className="text-center">
                     <Badge className={statusStyles[doc.status]} variant="outline">
@@ -100,12 +106,12 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                           <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem>Edit</DropdownMenuItem>
                         <DropdownMenuItem asChild><Link href={getViewLink(doc)} target="_blank">View Public Page</Link></DropdownMenuItem>

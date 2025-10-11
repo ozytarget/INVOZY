@@ -48,6 +48,11 @@ export function ClientsList() {
 
   const clients = Array.from(clientsMap.values())
 
+  const handleRowClick = (client: Client) => {
+    // TODO: Navigate to client details page
+    console.log("Navigating to client:", client.name);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -68,7 +73,7 @@ export function ClientsList() {
           </TableHeader>
           <TableBody>
             {clients.map((client) => (
-              <TableRow key={client.email}>
+              <TableRow key={client.email} onClick={() => handleRowClick(client)} className="cursor-pointer">
                 <TableCell className="font-medium">{client.name}</TableCell>
                 <TableCell className="text-muted-foreground">
                   {client.email}
