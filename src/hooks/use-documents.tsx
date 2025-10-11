@@ -210,7 +210,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       
       const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
       
-      const newInvoiceData = {
+      const newInvoiceData: Omit<Document, 'id'> & { id?: string } = {
           // First, spread the original document
           ...originalDoc, 
           // Then, override fields for the new invoice
@@ -237,7 +237,10 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
           schedulingUrl: companySettings.schedulingUrl || '',
           search_field: `${originalDoc.clientName} ${originalDoc.projectTitle} ${newInvoiceNumber}`.toLowerCase(),
       };
-      delete (newInvoiceData as Partial<Document> & { id?: string }).id; 
+      
+      // CRITICAL FIX: Delete the old ID before creating the new document
+      delete newInvoiceData.id; 
+      
       batch.set(newInvoiceRef, newInvoiceData);
 
     } else { // It's an invoice
