@@ -2,7 +2,7 @@
 
 import { Document, Client } from '@/lib/types';
 import { initialDocuments } from '@/lib/data';
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 
 // This function extracts unique clients from documents
 const getClientsFromDocuments = (documents: Document[]): Client[] => {
@@ -42,35 +42,40 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const [documents, setDocuments] = useState<Document[]>(initialDocuments);
   const [extraClients, setExtraClients] = useState<Client[]>([]);
 
-  const addDocument = (doc: Document) => {
+  const addDocument = useCallback((doc: Document) => {
     setDocuments(prevDocs => [doc, ...prevDocs]);
-  };
+  }, []);
   
-  const addClient = (client: Omit<Client, 'totalBilled' | 'documentCount'>) => {
-    const newClient: Client = {
-      ...client,
-      totalBilled: 0,
-      documentCount: 0,
-    };
-    setExtraClients(prev => [...prev, newClient]);
-  };
+  const addClient = useCallback((clientData: Omit<Client, 'totalBilled' | 'documentCount'>) => {
+    setExtraClients(prevClients => {
+      // Prevent adding duplicate clients based on email
+      if (prevClients.some(c => c.email === clientData.email) || documents.some(d => d.clientEmail === clientData.email)) {
+        return prevClients;
+      }
+      const newClient: Client = {
+        ...clientData,
+        totalBilled: 0,
+        documentCount: 0,
+      };
+      return [...prevClients, newClient];
+    });
+  }, [documents]);
   
   const clients = useMemo(() => {
     const clientsFromDocs = getClientsFromDocuments(documents);
     const allClientsMap = new Map<string, Client>();
 
-    // Add clients from documents first
+    // Add clients from documents first, as they contain billing info
     clientsFromDocs.forEach(c => allClientsMap.set(c.email, c));
 
-    // Add manually created clients, updating existing ones if necessary
+    // Add manually created clients, only if they don't already exist from docs
     extraClients.forEach(c => {
-      const existing = allClientsMap.get(c.email);
-      if (!existing) {
+      if (!allClientsMap.has(c.email)) {
         allClientsMap.set(c.email, c);
       }
     });
     
-    return Array.from(allClientsMap.values());
+    return Array.from(allClientsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [documents, extraClients]);
 
 

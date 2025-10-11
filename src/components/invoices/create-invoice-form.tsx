@@ -4,8 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
-import { CalendarIcon, Trash2 } from "lucide-react"
-import { useEffect } from "react"
+import { CalendarIcon, Trash2, PlusCircle, User } from "lucide-react"
+import { useEffect, useState } from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useDocuments } from "@/hooks/use-documents"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { Client } from "@/lib/types"
 
 const lineItemSchema = z.object({
   description: z.string().min(1, "Description is required."),
@@ -46,10 +48,7 @@ const lineItemSchema = z.object({
 })
 
 const formSchema = z.object({
-  clientName: z.string().min(2, "Client name must be at least 2 characters."),
-  clientEmail: z.string().email("Invalid email address."),
-  clientAddress: z.string().min(3, "Client address is required."),
-  clientPhone: z.string().optional(),
+  clientId: z.string().min(1, "Please select a client."),
   projectTitle: z.string().min(3, "Project title is required."),
   issuedDate: z.date({
     required_error: "Issued date is required.",
@@ -67,15 +66,13 @@ type InvoiceFormValues = z.infer<typeof formSchema>
 export function CreateInvoiceForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const { documents, addDocument } = useDocuments();
+  const { documents, addDocument, clients } = useDocuments();
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      clientName: "",
-      clientEmail: "",
-      clientAddress: "",
-      clientPhone: "",
+      clientId: "",
       projectTitle: "",
       lineItems: [{ description: "", quantity: 1, price: 0 }],
       notes: "",
@@ -88,6 +85,11 @@ export function CreateInvoiceForm() {
     if (!form.getValues('issuedDate')) {
         form.setValue('issuedDate', new Date());
     }
+    if (!form.getValues('dueDate')) {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 30);
+      form.setValue('dueDate', futureDate);
+    }
   }, [form]);
 
 
@@ -99,16 +101,31 @@ export function CreateInvoiceForm() {
   const lineItems = form.watch("lineItems");
   const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
 
+  const handleClientChange = (clientId: string) => {
+    const client = clients.find(c => c.email === clientId);
+    setSelectedClient(client || null);
+    form.setValue('clientId', clientId);
+  }
+
   function onSubmit(data: InvoiceFormValues) {
+    if (!selectedClient) {
+      toast({
+        variant: "destructive",
+        title: "Client not selected",
+        description: "Please select a client before saving.",
+      });
+      return;
+    }
+
     const nextId = `INV-${(documents.filter(d => d.type === 'Invoice').length + 1).toString().padStart(3, '0')}`;
     const newInvoice = {
       id: nextId,
       type: 'Invoice' as const,
       status: 'Draft' as const,
-      clientName: data.clientName,
-      clientEmail: data.clientEmail,
-      clientAddress: data.clientAddress,
-      clientPhone: data.clientPhone || '',
+      clientName: selectedClient.name,
+      clientEmail: selectedClient.email,
+      clientAddress: selectedClient.address,
+      clientPhone: selectedClient.phone || '',
       projectTitle: data.projectTitle,
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
       dueDate: format(data.dueDate, "yyyy-MM-dd"),
@@ -120,7 +137,7 @@ export function CreateInvoiceForm() {
     addDocument(newInvoice);
     toast({
       title: "Invoice Created",
-      description: `Invoice for ${data.clientName} has been saved as a draft.`,
+      description: `Invoice for ${selectedClient.name} has been saved as a draft.`,
     })
     router.push("/dashboard/invoices");
   }
@@ -130,60 +147,48 @@ export function CreateInvoiceForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid lg:grid-cols-2 gap-8">
             <Card>
-                <CardHeader><CardTitle className="font-headline">Client Information</CardTitle></CardHeader>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                      <CardTitle className="font-headline">Client Information</CardTitle>
+                      <Button variant="outline" size="sm" type="button" onClick={() => router.push('/dashboard/clients/create')}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        New Client
+                      </Button>
+                  </div>
+                </CardHeader>
                 <CardContent className="space-y-4">
-                <FormField
+                  <FormField
                     control={form.control}
-                    name="clientName"
+                    name="clientId"
                     render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Client Name</FormLabel>
-                        <FormControl>
-                        <Input placeholder="Acme Inc." {...field} />
-                        </FormControl>
+                      <FormItem>
+                        <FormLabel>Select Client</FormLabel>
+                        <Select onValueChange={handleClientChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select an existing client" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {clients.map(client => (
+                              <SelectItem key={client.email} value={client.email}>
+                                {client.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
-                    </FormItem>
+                      </FormItem>
                     )}
-                />
-                <FormField
-                    control={form.control}
-                    name="clientEmail"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Client Email</FormLabel>
-                        <FormControl>
-                        <Input placeholder="contact@acme.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="clientAddress"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Client Address</FormLabel>
-                        <FormControl>
-                        <Textarea placeholder="123 Main St, Anytown, USA" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="clientPhone"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Client Phone</FormLabel>
-                        <FormControl>
-                        <Input placeholder="(123) 456-7890" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
+                  />
+                  {selectedClient && (
+                    <div className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50 space-y-1">
+                        <p className="font-bold text-foreground">{selectedClient.name}</p>
+                        <p>{selectedClient.address}</p>
+                        <p>{selectedClient.email}</p>
+                        <p>{selectedClient.phone}</p>
+                    </div>
+                  )}
                 </CardContent>
             </Card>
             <Card>

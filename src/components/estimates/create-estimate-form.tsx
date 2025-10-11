@@ -4,8 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
-import { CalendarIcon, Trash2 } from "lucide-react"
-import { useEffect } from "react"
+import { CalendarIcon, Trash2, PlusCircle, User } from "lucide-react"
+import { useEffect, useState } from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -39,6 +39,8 @@ import { AiSuggestionsDialog } from "./ai-suggestions-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useDocuments } from "@/hooks/use-documents"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { Client } from "@/lib/types"
 
 const lineItemSchema = z.object({
   description: z.string().min(1, "Description is required."),
@@ -47,10 +49,7 @@ const lineItemSchema = z.object({
 })
 
 const formSchema = z.object({
-  clientName: z.string().min(2, "Client name must be at least 2 characters."),
-  clientEmail: z.string().email("Invalid email address."),
-  clientAddress: z.string().min(3, "Client address is required."),
-  clientPhone: z.string().optional(),
+  clientId: z.string().min(1, "Please select a client."),
   projectTitle: z.string().min(3, "Project title is required."),
   projectDescription: z.string().optional(),
   issuedDate: z.date({
@@ -66,15 +65,13 @@ type EstimateFormValues = z.infer<typeof formSchema>
 export function CreateEstimateForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const { addDocument, documents } = useDocuments();
+  const { addDocument, documents, clients } = useDocuments();
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   
   const form = useForm<EstimateFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      clientName: "",
-      clientEmail: "",
-      clientAddress: "",
-      clientPhone: "",
+      clientId: "",
       projectTitle: "",
       projectDescription: "",
       lineItems: [{ description: "", quantity: 1, price: 0 }],
@@ -85,7 +82,9 @@ export function CreateEstimateForm() {
 
   // Set default date on client-side to avoid hydration errors
   useEffect(() => {
-    form.setValue('issuedDate', new Date());
+    if (!form.getValues('issuedDate')) {
+        form.setValue('issuedDate', new Date());
+    }
   }, [form]);
 
   const { fields, append, remove } = useFieldArray({
@@ -98,17 +97,31 @@ export function CreateEstimateForm() {
   
   const projectDetailsForAI = `Project Title: ${form.watch('projectTitle')}\nProject Description: ${form.watch('projectDescription')}\nLine Items:\n${lineItems.map(item => `- ${item.description} (Qty: ${item.quantity}, Price: $${item.price})`).join('\n')}`;
 
+  const handleClientChange = (clientId: string) => {
+    const client = clients.find(c => c.email === clientId); // Using email as a unique ID for now
+    setSelectedClient(client || null);
+    form.setValue('clientId', clientId);
+  }
 
   function onSubmit(data: EstimateFormValues) {
+    if (!selectedClient) {
+      toast({
+        variant: "destructive",
+        title: "Client not selected",
+        description: "Please select a client before saving.",
+      });
+      return;
+    }
+
     const nextId = `EST-${(documents.filter(d => d.type === 'Estimate').length + 1).toString().padStart(3, '0')}`;
     const newEstimate = {
       id: nextId,
       type: 'Estimate' as const,
       status: 'Draft' as const,
-      clientName: data.clientName,
-      clientEmail: data.clientEmail,
-      clientAddress: data.clientAddress,
-      clientPhone: data.clientPhone || '',
+      clientName: selectedClient.name,
+      clientEmail: selectedClient.email,
+      clientAddress: selectedClient.address,
+      clientPhone: selectedClient.phone || '',
       projectTitle: data.projectTitle,
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
       amount: subtotal,
@@ -121,7 +134,7 @@ export function CreateEstimateForm() {
     
     toast({
       title: "Estimate Created",
-      description: `Estimate for ${data.clientName} has been saved as a draft.`,
+      description: `Estimate for ${selectedClient.name} has been saved as a draft.`,
     })
     router.push("/dashboard/estimates");
   }
@@ -141,60 +154,48 @@ export function CreateEstimateForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid lg:grid-cols-2 gap-8">
             <Card>
-                <CardHeader><CardTitle className="font-headline">Client Information</CardTitle></CardHeader>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="font-headline">Client Information</CardTitle>
+                    <Button variant="outline" size="sm" type="button" onClick={() => router.push('/dashboard/clients/create')}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      New Client
+                    </Button>
+                  </div>
+                </CardHeader>
                 <CardContent className="space-y-4">
                 <FormField
-                    control={form.control}
-                    name="clientName"
-                    render={({ field }) => (
+                  control={form.control}
+                  name="clientId"
+                  render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Client Name</FormLabel>
+                      <FormLabel>Select Client</FormLabel>
+                      <Select onValueChange={handleClientChange} defaultValue={field.value}>
                         <FormControl>
-                        <Input placeholder="Acme Inc." {...field} />
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an existing client" />
+                          </SelectTrigger>
                         </FormControl>
-                        <FormMessage />
+                        <SelectContent>
+                          {clients.map(client => (
+                            <SelectItem key={client.email} value={client.email}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
                     </FormItem>
-                    )}
+                  )}
                 />
-                <FormField
-                    control={form.control}
-                    name="clientEmail"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Client Email</FormLabel>
-                        <FormControl>
-                        <Input placeholder="contact@acme.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="clientAddress"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Client Address</FormLabel>
-                        <FormControl>
-                        <Textarea placeholder="123 Main St, Anytown, USA" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="clientPhone"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Client Phone</FormLabel>
-                        <FormControl>
-                        <Input placeholder="(123) 456-7890" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
+                {selectedClient && (
+                  <div className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50 space-y-1">
+                      <p className="font-bold text-foreground">{selectedClient.name}</p>
+                      <p>{selectedClient.address}</p>
+                      <p>{selectedClient.email}</p>
+                      <p>{selectedClient.phone}</p>
+                  </div>
+                )}
                 </CardContent>
             </Card>
             <Card>
