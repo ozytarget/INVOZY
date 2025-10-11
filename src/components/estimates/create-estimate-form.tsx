@@ -108,8 +108,6 @@ export function CreateEstimateForm() {
   const lineItems = form.watch("lineItems");
   const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
   
-  const projectDetailsForAI = `Project Title: ${form.watch('projectTitle')}\nProject Description: ${form.watch('projectDescription')}\nLine Items:\n${lineItems.map(item => `- ${item.description} (Qty: ${item.quantity}, Price: $${item.price})`).join('\n')}`;
-
   const handleClientChange = useCallback((clientId: string) => {
     const client = clients.find(c => c.email === clientId);
     setSelectedClient(client || null);
@@ -278,31 +276,32 @@ export function CreateEstimateForm() {
                 <CardTitle className="font-headline">Project Scope & Line Items</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="projectDescription"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Project Description</FormLabel>
-                        <FormControl>
-                            <Textarea
-                                placeholder="Describe the project scope, deliverables, and timeline in detail. The more info you provide, the better the AI estimate will be."
-                                className="resize-y min-h-[100px]"
-                                {...field}
-                            />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-
-                <div className="border-t pt-4">
-                  <AiSuggestionsDialog 
-                      projectDescription={form.watch('projectDescription')} 
-                      projectLocation={companyLocation}
-                      onApplyLineItems={handleApplyLineItems}
-                      onApplyNotes={handleApplyNotes}
+                <div className="space-y-2">
+                  <FormField
+                      control={form.control}
+                      name="projectDescription"
+                      render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Project Description</FormLabel>
+                          <FormControl>
+                              <Textarea
+                                  placeholder="Describe the project scope, deliverables, and timeline in detail. The more info you provide, the better the AI estimate will be."
+                                  className="resize-y min-h-[100px]"
+                                  {...field}
+                              />
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                      )}
                   />
+                  <div className="flex justify-end">
+                    <AiSuggestionsDialog 
+                        projectDescription={form.watch('projectDescription')} 
+                        projectLocation={companyLocation}
+                        onApplyLineItems={handleApplyLineItems}
+                        onApplyNotes={handleApplyNotes}
+                    />
+                  </div>
                 </div>
                 
                 <div className="border rounded-md">
