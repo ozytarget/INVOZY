@@ -18,11 +18,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { ScrollArea } from '../ui/scroll-area';
 import { Checkbox } from '../ui/checkbox';
+import type { LineItem } from '@/lib/types';
 
 type AiSuggestionsDialogProps = {
   projectDescription: string;
   projectLocation: string;
-  onApplyLineItems: (lineItems: AIPoweredEstimateSuggestionsOutput['lineItems']) => void;
+  onApplyLineItems: (lineItems: Omit<LineItem, 'id'>[]) => void;
   onApplyNotes: (notes: string) => void;
 };
 
@@ -36,12 +37,14 @@ export function AiSuggestionsDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<AIPoweredEstimateSuggestionsOutput | null>(null);
   const { toast } = useToast();
-  const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  const [selectedMaterials, setSelectedMaterials] = useState<number[]>([]);
+  const [selectedLabor, setSelectedLabor] = useState<number[]>([]);
 
   useEffect(() => {
     if (suggestions) {
       // By default, select all items when they are loaded.
-      setSelectedItems(suggestions.lineItems.map((_, index) => index));
+      setSelectedMaterials(suggestions.materialLineItems.map((_, index) => index));
+      setSelectedLabor(suggestions.laborLineItems.map((_, index) => index));
     }
   }, [suggestions]);
 
@@ -93,7 +96,10 @@ export function AiSuggestionsDialog({
   
   const handleApplyAndClose = () => {
     if (suggestions) {
-      const itemsToApply = suggestions.lineItems.filter((_, index) => selectedItems.includes(index));
+      const materialsToApply = suggestions.materialLineItems.filter((_, index) => selectedMaterials.includes(index));
+      const laborToApply = suggestions.laborLineItems.filter((_, index) => selectedLabor.includes(index));
+      const itemsToApply = [...materialsToApply, ...laborToApply];
+
       if (itemsToApply.length > 0) {
         onApplyLineItems(itemsToApply);
       }
@@ -106,21 +112,71 @@ export function AiSuggestionsDialog({
     setIsOpen(false);
   }
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked && suggestions) {
-      setSelectedItems(suggestions.lineItems.map((_, index) => index));
-    } else {
-      setSelectedItems([]);
+  const handleSelectAll = (type: 'material' | 'labor', checked: boolean) => {
+    if (type === 'material' && suggestions) {
+        setSelectedMaterials(checked ? suggestions.materialLineItems.map((_, index) => index) : []);
+    } else if (type === 'labor' && suggestions) {
+        setSelectedLabor(checked ? suggestions.laborLineItems.map((_, index) => index) : []);
     }
   };
 
-  const handleSelectItem = (index: number, checked: boolean) => {
-    if (checked) {
-      setSelectedItems(prev => [...prev, index]);
-    } else {
-      setSelectedItems(prev => prev.filter(itemIndex => itemIndex !== index));
-    }
+  const handleSelectItem = (type: 'material' | 'labor', index: number, checked: boolean) => {
+    const setter = type === 'material' ? setSelectedMaterials : setSelectedLabor;
+    setter(prev => {
+        if (checked) {
+            return [...prev, index];
+        } else {
+            return prev.filter(itemIndex => itemIndex !== index);
+        }
+    });
   };
+
+  const renderTable = (
+    title: string,
+    items: AIPoweredEstimateSuggestionsOutput['materialLineItems'],
+    selected: number[],
+    type: 'material' | 'labor'
+  ) => (
+    <div>
+        <h3 className="font-semibold mb-2">{title}</h3>
+        <div className="border rounded-md">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-10">
+                            <Checkbox 
+                                checked={items.length > 0 && selected.length === items.length}
+                                onCheckedChange={(checked) => handleSelectAll(type, !!checked)}
+                                aria-label={`Select all ${type} items`}
+                            />
+                        </TableHead>
+                        <TableHead className="w-[55%]">Description</TableHead>
+                        <TableHead className="text-center">Qty</TableHead>
+                        <TableHead className="text-right">Unit Price</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {items.map((item, index) => (
+                        <TableRow key={index}>
+                            <TableCell>
+                                <Checkbox
+                                    checked={selected.includes(index)}
+                                    onCheckedChange={(checked) => handleSelectItem(type, index, !!checked)}
+                                    aria-label={`Select item ${index + 1}`}
+                                />
+                            </TableCell>
+                            <TableCell>{item.description}</TableCell>
+                            <TableCell className="text-center">{item.quantity}</TableCell>
+                            <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">${(item.quantity * item.price).toFixed(2)}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    </div>
+  );
 
   return (
     <>
@@ -128,7 +184,6 @@ export function AiSuggestionsDialog({
         <Wand2 className="mr-2 h-4 w-4" />
         Generate
       </Button>
-
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
           <DialogHeader>
@@ -148,47 +203,12 @@ export function AiSuggestionsDialog({
             {suggestions && (
                 <div className="flex-1 overflow-hidden">
                     <ScrollArea className="h-full pr-6">
-                        <div className='space-y-4'>
-                        <h3 className="font-semibold">Line Items</h3>
-                        <div className="border rounded-md">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-10">
-                                      <Checkbox 
-                                        checked={suggestions.lineItems.length > 0 && selectedItems.length === suggestions.lineItems.length}
-                                        onCheckedChange={handleSelectAll}
-                                        aria-label="Select all items"
-                                      />
-                                    </TableHead>
-                                    <TableHead className="w-[55%]">Description</TableHead>
-                                    <TableHead className="text-center">Qty</TableHead>
-                                    <TableHead className="text-right">Unit Price</TableHead>
-                                    <TableHead className="text-right">Total</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {suggestions.lineItems.map((item, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell>
-                                          <Checkbox
-                                            checked={selectedItems.includes(index)}
-                                            onCheckedChange={(checked) => handleSelectItem(index, !!checked)}
-                                            aria-label={`Select item ${index + 1}`}
-                                          />
-                                        </TableCell>
-                                        <TableCell>{item.description}</TableCell>
-                                        <TableCell className="text-center">{item.quantity}</TableCell>
-                                        <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
-                                        <TableCell className="text-right">${(item.quantity * item.price).toFixed(2)}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        </div>
-                        
-                        <h3 className="font-semibold mt-4">Notes for Client</h3>
-                        <p className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50 whitespace-pre-wrap">{suggestions.notes}</p>
+                        <div className='space-y-6'>
+                            {renderTable('Materials', suggestions.materialLineItems, selectedMaterials, 'material')}
+                            {renderTable('Labor', suggestions.laborLineItems, selectedLabor, 'labor')}
+                            
+                            <h3 className="font-semibold mt-4">Notes for Client</h3>
+                            <p className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50 whitespace-pre-wrap">{suggestions.notes}</p>
                         </div>
                     </ScrollArea>
                 </div>
