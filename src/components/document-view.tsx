@@ -13,9 +13,10 @@ import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
 import { useDocuments } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Share2, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { DeleteDocumentDialog } from "./delete-document-dialog";
 
 
 type DocumentViewProps = {
@@ -41,14 +42,14 @@ const statusStyles: Record<Document['status'], string> = {
 export function DocumentView({ document }: DocumentViewProps) {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const sigCanvas = useRef<SignatureCanvas>(null);
-  const { signAndProcessDocument } = useDocuments();
+  const { signAndProcessDocument, deleteDocument } = useDocuments();
   const { toast } = useToast();
-  const pathname = usePathname();
+  const router = useRouter();
   const [isDashboardView, setIsDashboardView] = useState(false);
 
   useEffect(() => {
-    // Check if we're viewing this page from inside the dashboard for UI changes
-    // A better way might be a query param, but this works for now.
+    // A simple check to see if this view is loaded inside the main dashboard flow
+    // or as a standalone public page.
     if (window.self !== window.top) {
         setIsDashboardView(true);
     }
@@ -93,17 +94,46 @@ export function DocumentView({ document }: DocumentViewProps) {
     });
   }
 
+   const handleDelete = () => {
+    deleteDocument(document.id);
+    toast({
+      title: "Document Deleted",
+      description: `The document has been successfully deleted.`,
+    });
+    router.push('/dashboard');
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+        await navigator.share({
+            title: `${document.type} from ${settings?.companyName || 'invozzy'}`,
+            text: `View your ${document.type.toLowerCase()}: ${document.projectTitle}`,
+            url: url,
+        });
+    } catch (error) {
+        // Fallback to clipboard if share API fails or is not available
+        await navigator.clipboard.writeText(url);
+        toast({
+            title: "Link Copied",
+            description: "The public link has been copied to your clipboard.",
+        });
+    }
+  };
+
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-background min-h-screen pb-32">
        <div className="max-w-4xl mx-auto p-4 sm:p-8">
-        <div className="sticky top-4 z-20 mb-4">
-            <Button asChild variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
-                <Link href="/dashboard">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Dashboard
-                </Link>
-            </Button>
-        </div>
+        {isDashboardView && (
+            <div className="sticky top-4 z-20 mb-4">
+                <Button asChild variant="outline" size="icon" className="bg-background/80 backdrop-blur-sm">
+                    <Link href="/dashboard">
+                        <ArrowLeft />
+                        <span className="sr-only">Back to Dashboard</span>
+                    </Link>
+                </Button>
+            </div>
+        )}
         <Card className="p-8 shadow-lg">
           <CardContent className="p-0">
             <header className="flex justify-between items-start mb-8">
@@ -234,6 +264,25 @@ export function DocumentView({ document }: DocumentViewProps) {
           </CardContent>
         </Card>
       </div>
+       {isDashboardView && (
+            <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 backdrop-blur-sm">
+                <div className="container mx-auto flex h-20 items-center justify-center gap-4">
+                     <Button variant="outline" size="lg" disabled>
+                        <Edit className="mr-2 h-4 w-4" /> Edit
+                    </Button>
+                    <Button variant="outline" size="lg" onClick={handleShare}>
+                        <Share2 className="mr-2 h-4 w-4" /> Share
+                    </Button>
+                    <DeleteDocumentDialog onDelete={handleDelete}>
+                        <Button variant="destructive" size="lg">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </Button>
+                    </DeleteDocumentDialog>
+                </div>
+            </div>
+        )}
     </div>
   );
 }
+
+    

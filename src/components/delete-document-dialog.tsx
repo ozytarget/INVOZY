@@ -36,7 +36,7 @@ export function DeleteDocumentDialog({ onDelete, children }: DeleteDocumentDialo
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+          <AlertDialogAction onClick={onDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -65,3 +65,4 @@ export function DeleteDocumentMenuItem({ onDelete }: { onDelete: () => void }) {
     );
 }
 
+    
