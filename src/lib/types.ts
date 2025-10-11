@@ -5,7 +5,7 @@ export type LineItem = {
   price: number;
 };
 
-export type DocumentStatus = 'Draft' | 'Sent' | 'Paid' | 'Partial' | 'Overdue';
+export type DocumentStatus = 'Draft' | 'Sent' | 'Paid' | 'Partial' | 'Overdue' | 'Approved';
 export type DocumentType = 'Estimate' | 'Invoice';
 
 export type Document = {
@@ -24,6 +24,8 @@ export type Document = {
   notes: string;
   terms: string;
   taxId?: string;
+  signature?: string;
+  isSigned?: boolean;
 };
 
 export type Client = {

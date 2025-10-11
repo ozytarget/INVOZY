@@ -36,6 +36,7 @@ const statusStyles: Record<DocumentStatus, string> = {
   Draft: "text-muted-foreground bg-muted",
   Overdue: "text-destructive-foreground bg-destructive/80",
   Partial: "text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/50",
+  Approved: "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/50",
 }
 
 type DocumentsPageProps = {

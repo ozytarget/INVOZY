@@ -1,13 +1,17 @@
 'use client'
 
 import { Document } from "@/lib/types";
-import { Card, CardContent } from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import { Logo } from "./logo";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
+import SignatureCanvas from 'react-signature-canvas';
+import { Button } from "./ui/button";
+import { useDocuments } from "@/hooks/use-documents";
+import { useToast } from "@/hooks/use-toast";
 
 type DocumentViewProps = {
   document: Document;
@@ -26,10 +30,14 @@ const statusStyles: Record<Document['status'], string> = {
   Draft: "border-gray-500 text-gray-500",
   Overdue: "border-destructive text-destructive",
   Partial: "border-orange-500 text-orange-500",
+  Approved: "border-green-500 text-green-500",
 }
 
 export function DocumentView({ document }: DocumentViewProps) {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
+  const sigCanvas = useRef<SignatureCanvas>(null);
+  const { signAndProcessDocument } = useDocuments();
+  const { toast } = useToast();
 
   useEffect(() => {
     const handleStorageChange = () => {
@@ -45,8 +53,29 @@ export function DocumentView({ document }: DocumentViewProps) {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-
   const subtotal = document.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+
+  const clearSignature = () => {
+    sigCanvas.current?.clear();
+  }
+
+  const handleSignAndApprove = () => {
+    if (sigCanvas.current?.isEmpty()) {
+      toast({
+        variant: "destructive",
+        title: "Signature Required",
+        description: "Please provide a signature before approving.",
+      });
+      return;
+    }
+    const signature = sigCanvas.current!.toDataURL('image/png');
+    signAndProcessDocument(document.id, signature);
+
+    toast({
+      title: `${document.type} Approved!`,
+      description: `Thank you for your business. ${document.type === 'Estimate' ? 'A new invoice has been generated.' : ''}`,
+    });
+  }
 
   return (
     <div className="bg-background min-h-screen">
@@ -138,6 +167,30 @@ export function DocumentView({ document }: DocumentViewProps) {
             </section>
 
             <Separator className="my-8" />
+
+            <section className="mb-8">
+                <h3 className="font-semibold mb-2">Client Signature</h3>
+                {document.isSigned && document.signature ? (
+                    <div>
+                        <p className="text-sm text-muted-foreground mb-2">Approved and signed by the client:</p>
+                        <Image src={document.signature} alt="Client Signature" width={200} height={100} className="rounded-md border bg-white" />
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        <div className="border rounded-md w-full h-[200px] bg-gray-50">
+                            <SignatureCanvas 
+                                ref={sigCanvas}
+                                penColor='black'
+                                canvasProps={{ className: 'w-full h-full' }} 
+                            />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                            <Button variant="ghost" onClick={clearSignature}>Clear</Button>
+                            <Button onClick={handleSignAndApprove}>Sign & Approve</Button>
+                        </div>
+                    </div>
+                )}
+            </section>
             
             <footer className="space-y-4">
                 {document.notes && (
@@ -160,5 +213,3 @@ export function DocumentView({ document }: DocumentViewProps) {
     </div>
   );
 }
-
-    

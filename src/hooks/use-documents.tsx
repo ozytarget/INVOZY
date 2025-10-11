@@ -1,8 +1,9 @@
 'use client';
 
-import { Document, Client } from '@/lib/types';
+import { Document, Client, DocumentStatus } from '@/lib/types';
 import { initialDocuments } from '@/lib/data';
 import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
+import { format } from 'date-fns';
 
 // This function extracts unique clients from documents
 const getClientsFromDocuments = (documents: Document[]): Client[] => {
@@ -34,6 +35,7 @@ interface DocumentContextType {
   addDocument: (doc: Document) => void;
   clients: Client[];
   addClient: (client: Omit<Client, 'totalBilled' | 'documentCount'>) => void;
+  signAndProcessDocument: (docId: string, signature: string) => void;
 }
 
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
@@ -60,6 +62,44 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       return [...prevClients, newClient];
     });
   }, [documents]);
+
+  const signAndProcessDocument = useCallback((docId: string, signature: string) => {
+    setDocuments(prevDocs => {
+      const docsCopy = [...prevDocs];
+      const docIndex = docsCopy.findIndex(d => d.id === docId);
+      if (docIndex === -1) return prevDocs;
+
+      const originalDoc = docsCopy[docIndex];
+      
+      // Update the original document
+      docsCopy[docIndex] = {
+        ...originalDoc,
+        signature,
+        isSigned: true,
+        status: originalDoc.type === 'Estimate' ? 'Approved' : 'Paid',
+      };
+
+      // If it's an estimate, create a new invoice
+      if (originalDoc.type === 'Estimate') {
+        const invoiceCount = docsCopy.filter(d => d.type === 'Invoice').length;
+        const newInvoice: Document = {
+          ...originalDoc,
+          id: `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`,
+          type: 'Invoice',
+          status: 'Draft', // New invoice starts as a draft
+          issuedDate: format(new Date(), "yyyy-MM-dd"),
+          dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
+          isSigned: false, // The new invoice is not signed yet
+          signature: undefined, // No signature on the new invoice
+          terms: originalDoc.terms || 'Net 30',
+        };
+        // Add the new invoice to the beginning of the documents array
+        return [newInvoice, ...docsCopy];
+      }
+
+      return docsCopy;
+    });
+  }, []);
   
   const clients = useMemo(() => {
     const clientsFromDocs = getClientsFromDocuments(documents);
@@ -81,7 +121,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
 
   return (
-    <DocumentContext.Provider value={{ documents, addDocument, clients, addClient }}>
+    <DocumentContext.Provider value={{ documents, addDocument, clients, addClient, signAndProcessDocument }}>
       {children}
     </DocumentContext.Provider>
   );
