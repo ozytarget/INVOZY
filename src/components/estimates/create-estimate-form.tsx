@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -141,13 +142,18 @@ export function CreateEstimateForm() {
       terms: data.terms || '',
     }
 
-    await addDocument(newEstimate);
+    const newDocId = await addDocument(newEstimate);
     
     toast({
       title: "Estimate Created",
       description: `Estimate for ${client.name} has been saved as a draft.`,
     })
-    router.push("/dashboard/estimates");
+    
+    if (newDocId) {
+      router.push(`/view/estimate/${newDocId}`);
+    } else {
+      router.push("/dashboard/estimates");
+    }
   }
 
   const handleApplyLineItems = useCallback((items: { description: string; quantity: number; price: number }[]) => {
@@ -492,3 +498,5 @@ export function CreateEstimateForm() {
     </Form>
   )
 }
+
+    

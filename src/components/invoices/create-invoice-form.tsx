@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -147,12 +148,17 @@ export function CreateInvoiceForm() {
       notes: data.notes || '',
       terms: data.terms || '',
     };
-    await addDocument(newInvoice);
+    const newDocId = await addDocument(newInvoice);
     toast({
       title: "Invoice Created",
       description: `Invoice for ${client.name} has been saved as a draft.`,
     })
-    router.push("/dashboard/invoices");
+    
+    if (newDocId) {
+      router.push(`/view/invoice/${newDocId}`);
+    } else {
+      router.push("/dashboard/invoices");
+    }
   }
 
   const handleClientCreated = (newClient: Client) => {
@@ -537,3 +543,5 @@ export function CreateInvoiceForm() {
     </Form>
   )
 }
+
+    

@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
@@ -44,7 +45,7 @@ const getCombinedClients = (documents: Document[], storedClients: Client[]): Cli
 
 interface DocumentContextType {
   documents: Document[];
-  addDocument: (doc: Omit<Document, 'id'>) => Promise<void>;
+  addDocument: (doc: Omit<Document, 'id'>) => Promise<string | undefined>;
   deleteDocument: (docId: string) => Promise<void>;
   duplicateDocument: (docId: string) => Promise<void>;
   clients: Client[];
@@ -77,11 +78,12 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     return allDocs.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
   }, [estimates, invoices]);
 
-  const addDocument = useCallback(async (docData: Omit<Document, 'id'>) => {
-    if (!user) return;
+  const addDocument = useCallback(async (docData: Omit<Document, 'id'>): Promise<string | undefined> => {
+    if (!user) return undefined;
     const collectionRef = docData.type === 'Estimate' ? estimatesCollection : invoicesCollection;
-    if (!collectionRef) return;
-    await addDoc(collectionRef, docData);
+    if (!collectionRef) return undefined;
+    const newDocRef = await addDoc(collectionRef, docData);
+    return newDocRef.id;
   }, [user, estimatesCollection, invoicesCollection]);
 
   const deleteDocument = useCallback(async (docId: string) => {
@@ -272,3 +274,5 @@ export const useDocuments = () => {
   }
   return context;
 };
+
+    
