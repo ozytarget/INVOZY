@@ -90,7 +90,7 @@ export function SettingsForm() {
         });
         // This will force a re-render of components that depend on localStorage
         window.dispatchEvent(new Event("storage"));
-        router.push('/dashboard');
+        // No need to push router, it will be reloaded
     } catch (error) {
         toast({
             variant: "destructive",
@@ -136,7 +136,7 @@ export function SettingsForm() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.push('/login');
+      router.push('/');
       toast({
         title: "Logged Out",
         description: "You have been successfully logged out.",

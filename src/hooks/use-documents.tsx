@@ -105,6 +105,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       companyPhone: companySettings.companyPhone || '',
       companyLogo: companySettings.companyLogo || '',
       companyWebsite: companySettings.companyWebsite || '',
+      taxId: companySettings.taxId || '',
       contractorName: companySettings.contractorName || '',
       schedulingUrl: companySettings.schedulingUrl || '',
     };
@@ -184,6 +185,8 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       const userInvoicesSnapshot = await getDocs(userInvoicesQuery);
       const invoiceCount = userInvoicesSnapshot.size;
       const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
+      
+      const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
 
       const newInvoice: Omit<Document, 'id'> = {
           ...(originalDoc as any), // This is a bit unsafe, but it's the easiest way to copy fields
@@ -192,12 +195,21 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           userId: user.uid,
           issuedDate: format(new Date(), "yyyy-MM-dd"),
           dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
-          signature: signature, // Carry over the signature
-          isSigned: true, // Mark as signed
+          signature: signature,
+          isSigned: true,
           terms: originalDoc.terms || 'Net 30',
           payments: [],
           invoiceNumber: newInvoiceNumber,
           estimateNumber: originalDoc.estimateNumber, // Keep original estimate number
+          companyName: companySettings.companyName || 'Your Company',
+          companyAddress: companySettings.companyAddress || '',
+          companyEmail: companySettings.companyEmail || '',
+          companyPhone: companySettings.companyPhone || '',
+          companyLogo: companySettings.companyLogo || '',
+          companyWebsite: companySettings.companyWebsite || '',
+          taxId: companySettings.taxId || '',
+          contractorName: companySettings.contractorName || '',
+          schedulingUrl: companySettings.schedulingUrl || '',
         };
       batch.set(newInvoiceRef, newInvoice);
 
