@@ -44,7 +44,7 @@ const getCombinedClients = (documents: Document[], storedClients: Client[]): Cli
 
 interface DocumentContextType {
   documents: Document[];
-  addDocument: (doc: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'>) => Promise<string | undefined>;
+  addDocument: (doc: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber' | 'search_field'>) => Promise<string | undefined>;
   updateDocument: (docId: string, docData: Partial<Document>) => Promise<void>;
   deleteDocument: (docId: string) => Promise<void>;
   duplicateDocument: (docId: string) => Promise<void>;
@@ -80,16 +80,16 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     return allDocs.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
   }, [estimates, invoices]);
 
-  const addDocument = React.useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'>): Promise<string | undefined> => {
+  const addDocument = React.useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber' | 'search_field'>): Promise<string | undefined> => {
     if (!user) return undefined;
     
     const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
     const collectionName = docData.type === 'Estimate' ? 'estimates' : 'invoices';
     const collectionRef = collection(firestore, collectionName);
     
-    const userDocsQuery = query(collectionRef, where('userId', '==', user.uid));
-    const userDocsSnapshot = await getDocs(userDocsQuery);
-    const docCount = userDocsSnapshot.size;
+    // Instead of getting all docs, we get them once in the provider and filter here.
+    const userDocs = (collectionName === 'estimates' ? estimates : invoices) || [];
+    const docCount = userDocs.length;
     
     const prefix = collectionName === 'estimates' ? 'EST' : 'INV';
     const number = (docCount + 1).toString().padStart(3, '0');
@@ -120,7 +120,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
     const newDocRef = await addDoc(collectionRef, dataToSave);
     return newDocRef.id;
-  }, [user, firestore]);
+  }, [user, firestore, estimates, invoices]);
 
   const updateDocument = React.useCallback(async (docId: string, docData: Partial<Document>) => {
     if (!user) return;
@@ -160,7 +160,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     const originalDoc = documents.find(d => d.id === docId);
     if (!originalDoc) return;
 
-    const newDoc: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'> = {
+    const newDoc: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber' | 'search_field'> = {
       ...originalDoc,
       status: 'Draft',
       issuedDate: format(new Date(), "yyyy-MM-dd"),
@@ -204,10 +204,9 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       const newInvoiceRef = doc(collection(firestore, 'invoices'));
       newInvoiceId = newInvoiceRef.id;
 
-      const userInvoicesQuery = query(collection(firestore, 'invoices'), where('userId', '==', user.uid));
-      const userInvoicesSnapshot = await getDocs(userInvoicesQuery);
-      const invoiceCount = userInvoicesSnapshot.size;
-      const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
+      // Correctly get invoice count for the new number
+      const userInvoices = invoices || [];
+      const newInvoiceNumber = `INV-${(userInvoices.length + 1).toString().padStart(3, '0')}`;
       
       const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
       
@@ -238,7 +237,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
           schedulingUrl: companySettings.schedulingUrl || '',
           search_field: `${originalDoc.clientName} ${originalDoc.projectTitle} ${newInvoiceNumber}`.toLowerCase(),
       };
-      delete (newInvoiceData as Partial<Document>).id; 
+      delete (newInvoiceData as Partial<Document> & { id?: string }).id; 
       batch.set(newInvoiceRef, newInvoiceData);
 
     } else { // It's an invoice
@@ -253,7 +252,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     await batch.commit();
     return newInvoiceId;
 
-  }, [user, firestore, documents]);
+  }, [user, firestore, documents, invoices]);
 
   const recordPayment = React.useCallback(async (docId: string, payment: Omit<Payment, 'id' | 'date'>) => {
     if (!user) return;
@@ -358,3 +357,4 @@ export const useDocuments = () => {
   }
   return context;
 };
+
