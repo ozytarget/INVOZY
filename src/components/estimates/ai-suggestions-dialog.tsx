@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -130,12 +131,12 @@ export function AiSuggestionsDialog({
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="font-headline">AI-Powered Estimate</DialogTitle>
             <DialogDescription>
               Review and select the items to add to your estimate.
-            </DialogDescription>
+            </Dialog-Description>
           </DialogHeader>
           
             {isLoading && (
@@ -146,7 +147,7 @@ export function AiSuggestionsDialog({
             )}
 
             {suggestions && (
-                <div className="flex-1 min-h-0">
+                <div className="flex-1 overflow-hidden">
                     <ScrollArea className="h-full pr-6">
                         <div className='space-y-4'>
                         <h3 className="font-semibold">Line Items</h3>
@@ -194,7 +195,7 @@ export function AiSuggestionsDialog({
                 </div>
             )}
           
-          <DialogFooter className="mt-4">
+          <DialogFooter className="mt-auto pt-4">
             <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
             {suggestions && <Button type="button" onClick={handleApplyAndClose}>Apply Selected Items</Button>}
           </DialogFooter>
