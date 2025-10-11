@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { User as UserIcon } from "lucide-react";
+import { User as UserIcon, Settings } from "lucide-react";
 import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -22,7 +23,6 @@ import { useToast } from "@/hooks/use-toast";
 type UserSettings = {
     contractorName: string;
     companyEmail: string;
-    userAvatar: string;
 }
 
 export function UserNav() {
@@ -46,7 +46,6 @@ export function UserNav() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // localStorage.clear(); // Optional: clear local storage on logout
       router.push('/login');
       toast({
         title: "Logged Out",
@@ -67,7 +66,7 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user?.photoURL || settings?.userAvatar} alt="User avatar" />
+            <AvatarImage src={user?.photoURL || ''} alt="User avatar" />
             <AvatarFallback>
                 {user?.displayName ? user.displayName.charAt(0).toUpperCase() : (user?.email?.charAt(0).toUpperCase() || <UserIcon />)}
             </AvatarFallback>
@@ -86,7 +85,10 @@ export function UserNav() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
            <DropdownMenuItem asChild>
-                <Link href="/dashboard/manage">Settings</Link>
+                <Link href="/dashboard/manage">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                </Link>
             </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

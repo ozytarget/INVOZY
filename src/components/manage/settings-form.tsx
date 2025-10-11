@@ -20,7 +20,6 @@ import { useToast } from "@/hooks/use-toast"
 import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon, Hash } from "lucide-react"
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/firebase"
 import { signOut } from "firebase/auth"
@@ -35,7 +34,6 @@ const settingsSchema = z.object({
   companyWebsite: z.string().optional(),
   schedulingUrl: z.string().optional(),
   companyLogo: z.string().optional(),
-  userAvatar: z.string().optional(),
 })
 
 type SettingsFormValues = z.infer<typeof settingsSchema>
@@ -54,7 +52,6 @@ export function SettingsForm() {
   const router = useRouter();
   const auth = useAuth();
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -68,7 +65,6 @@ export function SettingsForm() {
       companyWebsite: "",
       schedulingUrl: "",
       companyLogo: "",
-      userAvatar: "",
     },
   })
 
@@ -80,9 +76,6 @@ export function SettingsForm() {
             form.reset(parsedSettings);
             if (parsedSettings.companyLogo) {
                 setLogoPreview(parsedSettings.companyLogo);
-            }
-            if (parsedSettings.userAvatar) {
-                setAvatarPreview(parsedSettings.userAvatar);
             }
         }
     }
@@ -97,6 +90,7 @@ export function SettingsForm() {
         });
         // This will force a re-render of components that depend on localStorage
         window.dispatchEvent(new Event("storage"));
+        router.push('/dashboard');
     } catch (error) {
         toast({
             variant: "destructive",
@@ -106,7 +100,7 @@ export function SettingsForm() {
     }
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'companyLogo' | 'userAvatar', setPreview: (url: string) => void) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'companyLogo', setPreview: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
         if (file.size > 2 * 1024 * 1024) { // 2MB limit
@@ -133,9 +127,6 @@ export function SettingsForm() {
          if (parsed.companyLogo) {
           setLogoPreview(parsed.companyLogo);
         }
-        if (parsed.userAvatar) {
-          setAvatarPreview(parsed.userAvatar);
-        }
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -145,7 +136,6 @@ export function SettingsForm() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // localStorage.clear(); // Optional: clear local storage on logout
       router.push('/login');
       toast({
         title: "Logged Out",
@@ -300,7 +290,7 @@ export function SettingsForm() {
                     )}
                 />
             </div>
-            <div className="grid md:grid-cols-2 gap-8 items-start">
+            <div className="grid grid-cols-1 gap-8 items-start">
                 <FormField
                     control={form.control}
                     name="companyLogo"
@@ -317,27 +307,6 @@ export function SettingsForm() {
                           </div>
                           <FormControl>
                             <Input id="companyLogoInput" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'companyLogo', setLogoPreview)} className="file:text-primary file:font-medium" />
-                          </FormControl>
-                        </div>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="userAvatar"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>User Avatar</FormLabel>
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-20 w-20">
-                            {avatarPreview && <AvatarImage src={avatarPreview} alt="User avatar preview" />}
-                            <AvatarFallback className="text-3xl">
-                              <User />
-                            </AvatarFallback>
-                          </Avatar>
-                          <FormControl>
-                             <Input id="userAvatarInput" type="file" accept="image_/*" onChange={(e) => handleFileChange(e, 'userAvatar', setAvatarPreview)} className="file:text-primary file:font-medium" />
                           </FormControl>
                         </div>
                         <FormMessage />
