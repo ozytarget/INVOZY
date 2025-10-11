@@ -48,6 +48,8 @@ const lineItemSchema = z.object({
 const formSchema = z.object({
   clientName: z.string().min(2, "Client name must be at least 2 characters."),
   clientEmail: z.string().email("Invalid email address."),
+  clientAddress: z.string().min(3, "Client address is required."),
+  clientPhone: z.string().optional(),
   projectTitle: z.string().min(3, "Project title is required."),
   projectDescription: z.string().optional(),
   issuedDate: z.date(),
@@ -68,6 +70,8 @@ export function CreateEstimateForm() {
     defaultValues: {
       clientName: "",
       clientEmail: "",
+      clientAddress: "",
+      clientPhone: "",
       projectTitle: "",
       projectDescription: "",
       issuedDate: new Date(),
@@ -96,6 +100,8 @@ export function CreateEstimateForm() {
       status: 'Draft' as const,
       clientName: data.clientName,
       clientEmail: data.clientEmail,
+      clientAddress: data.clientAddress,
+      clientPhone: data.clientPhone || '',
       projectTitle: data.projectTitle,
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
       amount: subtotal,
@@ -151,6 +157,32 @@ export function CreateEstimateForm() {
                         <FormLabel>Client Email</FormLabel>
                         <FormControl>
                         <Input placeholder="contact@acme.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="clientAddress"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Client Address</FormLabel>
+                        <FormControl>
+                        <Textarea placeholder="123 Main St, Anytown, USA" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="clientPhone"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Client Phone</FormLabel>
+                        <FormControl>
+                        <Input placeholder="(123) 456-7890" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>

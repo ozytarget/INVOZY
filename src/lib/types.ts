@@ -14,6 +14,8 @@ export type Document = {
   status: DocumentStatus;
   clientName: string;
   clientEmail: string;
+  clientAddress: string;
+  clientPhone: string;
   projectTitle: string;
   issuedDate: string;
   dueDate?: string;

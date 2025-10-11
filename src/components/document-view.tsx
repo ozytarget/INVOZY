@@ -69,7 +69,9 @@ export function DocumentView({ document }: DocumentViewProps) {
               <div>
                 <h2 className="text-sm font-semibold text-muted-foreground mb-2">BILLED TO</h2>
                 <p className="font-bold">{document.clientName}</p>
-                <p>{document.clientEmail}</p>
+                <p className="whitespace-pre-line text-sm">{document.clientAddress}</p>
+                <p className="text-sm">{document.clientEmail}</p>
+                <p className="text-sm">{document.clientPhone}</p>
               </div>
               <div className="text-right">
                 <div className="grid grid-cols-2">

@@ -20,6 +20,8 @@ import { useDocuments } from "@/hooks/use-documents"
 type Client = {
   name: string
   email: string
+  phone: string;
+  address: string;
   totalBilled: number
   documentCount: number
 }
@@ -35,6 +37,8 @@ export function ClientsList() {
       client = {
         name: doc.clientName,
         email: doc.clientEmail,
+        phone: doc.clientPhone,
+        address: doc.clientAddress,
         totalBilled: 0,
         documentCount: 0,
       }
@@ -66,7 +70,7 @@ export function ClientsList() {
           <TableHeader>
             <TableRow>
               <TableHead>Client Name</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Contact</TableHead>
               <TableHead>Documents</TableHead>
               <TableHead className="text-right">Total Billed</TableHead>
             </TableRow>
@@ -75,8 +79,9 @@ export function ClientsList() {
             {clients.map((client) => (
               <TableRow key={client.email} onClick={() => handleRowClick(client)} className="cursor-pointer">
                 <TableCell className="font-medium">{client.name}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {client.email}
+                <TableCell>
+                  <div className="text-sm text-muted-foreground">{client.email}</div>
+                  <div className="text-sm text-muted-foreground">{client.phone}</div>
                 </TableCell>
                 <TableCell>{client.documentCount}</TableCell>
                 <TableCell className="text-right">
