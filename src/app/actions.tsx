@@ -55,7 +55,9 @@ export async function sendDocumentEmail({
 
     const { data, error } = await resend.emails.send({
       from: `invozzy <onboarding@resend.dev>`,
-      to: [to],
+      // NOTE: In Resend's sandbox mode, emails can only be sent TO the verified address.
+      // Hardcoding to your verified email for testing purposes.
+      to: ['ozytargetcom@gmail.com'],
       subject: `${documentType} ${documentNumber} from ${companyName}`,
       html: emailHtml,
     });
