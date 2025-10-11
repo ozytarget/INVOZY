@@ -3,7 +3,7 @@
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
-import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback, useEffect } from 'react';
+import React, from 'react';
 import { format } from 'date-fns';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, doc, addDoc, deleteDoc, writeBatch, getDocs, query, where, getDoc, updateDoc } from 'firebase/firestore';
@@ -58,9 +58,9 @@ interface DocumentContextType {
   isLoading: boolean;
 }
 
-const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
+const DocumentContext = React.createContext<DocumentContextType | undefined>(undefined);
 
-export const DocumentProvider = ({ children }: { children: ReactNode }) => {
+export const DocumentProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
@@ -75,12 +75,12 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   const isLoading = isUserLoading || isLoadingEstimates || isLoadingInvoices || isLoadingClients;
   
-  const documents = useMemo(() => {
+  const documents = React.useMemo(() => {
     const allDocs = [...(estimates || []), ...(invoices || [])];
     return allDocs.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
   }, [estimates, invoices]);
 
-  const addDocument = useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'>): Promise<string | undefined> => {
+  const addDocument = React.useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'>): Promise<string | undefined> => {
     if (!user) return undefined;
     
     const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
@@ -95,8 +95,10 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     const number = (docCount + 1).toString().padStart(3, '0');
     const docNumber = `${prefix}-${number}`;
 
-    const dataToSave: Partial<Document> & { userId: string } = { 
-      ...docData, 
+    const dataToSave: Partial<Document> & { userId: string } = {
+      // First, apply all the data from the form
+      ...docData,
+      // Then, ensure company and user data is correctly set, overwriting if necessary
       userId: user.uid,
       companyName: companySettings.companyName || '',
       companyAddress: companySettings.companyAddress || '',
@@ -119,7 +121,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     return newDocRef.id;
   }, [user, firestore]);
 
-  const updateDocument = useCallback(async (docId: string, docData: Partial<Document>) => {
+  const updateDocument = React.useCallback(async (docId: string, docData: Partial<Document>) => {
     if (!user) return;
     const originalDoc = documents.find(d => d.id === docId);
     if (!originalDoc) return;
@@ -130,7 +132,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   }, [user, firestore, documents]);
 
 
-  const deleteDocument = useCallback(async (docId: string) => {
+  const deleteDocument = React.useCallback(async (docId: string) => {
     if (!user) return;
     const docToDelete = documents.find(d => d.id === docId);
     if (!docToDelete) return;
@@ -141,7 +143,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   }, [firestore, user, documents]);
 
-  const duplicateDocument = useCallback(async (docId: string) => {
+  const duplicateDocument = React.useCallback(async (docId: string) => {
     if (!user) return;
 
     const originalDoc = documents.find(d => d.id === docId);
@@ -159,7 +161,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     await addDocument(newDoc);
   }, [user, documents, addDocument]);
   
-  const addClient = useCallback(async (clientData: Omit<Client, 'totalBilled' | 'documentCount'>) => {
+  const addClient = React.useCallback(async (clientData: Omit<Client, 'totalBilled' | 'documentCount'>) => {
      if (!user || !clientsCollection) return;
     // Check if client already exists
     const q = query(clientsCollection, where("email", "==", clientData.email));
@@ -171,7 +173,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     await addDoc(clientsCollection, clientData);
   }, [user, clientsCollection]);
 
- const signAndProcessDocument = useCallback(async (docId: string, signature: string): Promise<string | undefined> => {
+ const signAndProcessDocument = React.useCallback(async (docId: string, signature: string): Promise<string | undefined> => {
     if (!user || !firestore) return;
     
     const batch = writeBatch(firestore);
@@ -199,7 +201,9 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
       
       const newInvoiceData = {
+          // First, spread the original document
           ...originalDoc, 
+          // Then, override fields for the new invoice
           type: 'Invoice' as DocumentType,
           status: 'Sent' as DocumentStatus,
           userId: user.uid,
@@ -211,7 +215,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           payments: [],
           invoiceNumber: newInvoiceNumber,
           estimateNumber: originalDoc.estimateNumber,
-          // Correctly override with company settings after spreading
+          // Finally, ensure company settings are applied and have the last word
           companyName: companySettings.companyName || '',
           companyAddress: companySettings.companyAddress || '',
           companyEmail: companySettings.companyEmail || '',
@@ -239,7 +243,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   }, [user, firestore, documents]);
 
-  const recordPayment = useCallback(async (docId: string, payment: Omit<Payment, 'id' | 'date'>) => {
+  const recordPayment = React.useCallback(async (docId: string, payment: Omit<Payment, 'id' | 'date'>) => {
     if (!user) return;
     const invoiceRef = doc(firestore, 'invoices', docId);
     const docSnap = await getDoc(invoiceRef);
@@ -272,7 +276,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   }, [user, firestore]);
   
-  const revertInvoiceToDraft = useCallback(async (invoiceId: string) => {
+  const revertInvoiceToDraft = React.useCallback(async (invoiceId: string) => {
     if (!user) return;
     const invoiceRef = doc(firestore, 'invoices', invoiceId);
     const batch = writeBatch(firestore);
@@ -284,7 +288,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     await batch.commit();
   }, [user, firestore]);
 
-  const revertLastPayment = useCallback(async (invoiceId: string) => {
+  const revertLastPayment = React.useCallback(async (invoiceId: string) => {
     if (!user) return;
     const invoiceRef = doc(firestore, 'invoices', invoiceId);
     const docSnap = await getDoc(invoiceRef);
@@ -312,7 +316,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, firestore]);
 
-  const sendDocument = useCallback(async (docId: string, type: DocumentType) => {
+  const sendDocument = React.useCallback(async (docId: string, type: DocumentType) => {
     if (!user) return;
     const collectionName = type === 'Estimate' ? 'estimates' : 'invoices';
     const docRef = doc(firestore, collectionName, docId);
@@ -323,7 +327,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, firestore]);
 
-  const clients = useMemo(() => {
+  const clients = React.useMemo(() => {
     return getCombinedClients(documents, storedClients || []);
   }, [documents, storedClients]);
 
@@ -336,11 +340,9 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useDocuments = () => {
-  const context = useContext(DocumentContext);
+  const context = React.useContext(DocumentContext);
   if (context === undefined) {
     throw new Error('useDocuments must be used within a DocumentProvider');
   }
   return context;
 };
-
-    
