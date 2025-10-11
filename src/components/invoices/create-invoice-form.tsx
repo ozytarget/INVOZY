@@ -73,7 +73,7 @@ export function CreateInvoiceForm() {
       clientPhone: "",
       projectTitle: "",
       issuedDate: new Date(),
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
+      // dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
       lineItems: [{ description: "", quantity: 1, price: 0 }],
       notes: "",
       terms: "Net 30",
