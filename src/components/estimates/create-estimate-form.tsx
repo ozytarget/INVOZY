@@ -63,11 +63,16 @@ const formSchema = z.object({
 
 type EstimateFormValues = z.infer<typeof formSchema>
 
+type CompanySettings = {
+    companyAddress?: string;
+};
+
 export function CreateEstimateForm() {
   const { toast } = useToast();
   const router = useRouter();
   const { addDocument, documents, clients } = useDocuments();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [companyLocation, setCompanyLocation] = useState('');
   
   const form = useForm<EstimateFormValues>({
     resolver: zodResolver(formSchema),
@@ -84,6 +89,14 @@ export function CreateEstimateForm() {
   useEffect(() => {
     // Set default dates only on the client side to avoid hydration errors
     form.setValue('issuedDate', new Date());
+
+    if (typeof window !== 'undefined') {
+        const savedSettings = localStorage.getItem("companySettings");
+        if (savedSettings) {
+            const parsedSettings: CompanySettings = JSON.parse(savedSettings);
+            setCompanyLocation(parsedSettings.companyAddress || '');
+        }
+    }
   }, [form]);
 
 
@@ -286,6 +299,7 @@ export function CreateEstimateForm() {
                 <div className="border-t pt-4">
                   <AiSuggestionsDialog 
                       projectDescription={form.watch('projectDescription')} 
+                      defaultLocation={companyLocation}
                       onApplyLineItems={handleApplyLineItems}
                       onApplyNotes={handleApplyNotes}
                   />

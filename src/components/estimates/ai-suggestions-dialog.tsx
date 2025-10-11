@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -21,20 +21,26 @@ import { ScrollArea } from '../ui/scroll-area';
 
 type AiSuggestionsDialogProps = {
   projectDescription: string;
+  defaultLocation: string;
   onApplyLineItems: (lineItems: AIPoweredEstimateSuggestionsOutput['lineItems']) => void;
   onApplyNotes: (notes: string) => void;
 };
 
 export function AiSuggestionsDialog({
   projectDescription,
+  defaultLocation,
   onApplyLineItems,
   onApplyNotes
 }: AiSuggestionsDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<AIPoweredEstimateSuggestionsOutput | null>(null);
-  const [location, setLocation] = useState('');
+  const [location, setLocation] = useState(defaultLocation);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setLocation(defaultLocation);
+  }, [defaultLocation]);
 
   const handleGenerate = async () => {
     setIsLoading(true);
@@ -96,7 +102,7 @@ export function AiSuggestionsDialog({
   return (
     <>
       <div className="flex flex-col gap-2">
-         <Label htmlFor="ai-location">Project Location</Label>
+         <Label htmlFor="ai-location">Project Location (for AI labor costs)</Label>
          <Input 
             id="ai-location"
             placeholder="e.g. Austin, TX"
