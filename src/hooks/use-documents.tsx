@@ -3,6 +3,7 @@
 
 
 
+
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
@@ -174,7 +175,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           userId: user.uid,
           issuedDate: format(new Date(), "yyyy-MM-dd"),
           dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
-          signature: undefined,
+          signature: null,
           isSigned: false,
           terms: originalDoc.terms || 'Net 30',
           payments: [],
