@@ -69,11 +69,15 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     if (user) { // Logged-in user
       const savedDocs = localStorage.getItem(getLocalStorageKey(user.uid, 'documents'));
       const savedClients = localStorage.getItem(getLocalStorageKey(user.uid, 'clients'));
+      // A new user will have no saved docs, so they start with an empty array.
       userDocs = savedDocs ? JSON.parse(savedDocs) : [];
       userClients = savedClients ? JSON.parse(savedClients) : [];
     } else { // Guest user
-      userDocs = initialDocuments; // Use sample data for guests
-      userClients = [];
+       // Guests see the initial sample data.
+      const savedDocs = localStorage.getItem('invozzy_guest_documents');
+      userDocs = savedDocs ? JSON.parse(savedDocs) : initialDocuments;
+      const savedClients = localStorage.getItem('invozzy_guest_clients');
+      userClients = savedClients ? JSON.parse(savedClients) : [];
     }
 
     setDocuments(userDocs);
@@ -83,9 +87,15 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   }, [user, isUserLoading, getLocalStorageKey]);
 
   useEffect(() => {
-    if (user && !isLoading) {
+    // Prevent saving empty arrays on initial load before user is determined
+    if (isLoading) return;
+
+    if (user) {
       localStorage.setItem(getLocalStorageKey(user.uid, 'documents'), JSON.stringify(documents));
       localStorage.setItem(getLocalStorageKey(user.uid, 'clients'), JSON.stringify(extraClients));
+    } else {
+      localStorage.setItem('invozzy_guest_documents', JSON.stringify(documents));
+      localStorage.setItem('invozzy_guest_clients', JSON.stringify(extraClients));
     }
   }, [documents, extraClients, user, isLoading, getLocalStorageKey]);
   
@@ -137,7 +147,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     let newInvoiceId: string | undefined = undefined;
 
     setDocuments(prevDocs => {
-      const docsCopy = [...prevDocs];
+      let docsCopy = [...prevDocs];
       const docIndex = docsCopy.findIndex(d => d.id === docId);
       if (docIndex === -1) return prevDocs;
 
@@ -169,10 +179,11 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           payments: [],
         };
         // Add the new invoice to the documents list
-        return [newInvoice, ...docsCopy];
+        docsCopy = [newInvoice, ...docsCopy];
+        return docsCopy;
 
       } else if (originalDoc.type === 'Invoice') { 
-        // Sign and send the invoice
+        // Sign and "send" the invoice
         docsCopy[docIndex] = {
           ...originalDoc,
           signature,
