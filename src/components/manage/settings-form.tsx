@@ -1,3 +1,4 @@
+
 'use client'
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -20,6 +21,7 @@ import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon, Hash 
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { useRouter } from "next/navigation"
 
 const settingsSchema = z.object({
   companyName: z.string().min(2, "Company name is required."),
@@ -47,6 +49,7 @@ const fileToDataUrl = (file: File): Promise<string> => {
 
 export function SettingsForm() {
   const { toast } = useToast();
+  const router = useRouter();
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   
@@ -136,6 +139,17 @@ export function SettingsForm() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [form]);
 
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      window.dispatchEvent(new Event('storage')); // Notify other components
+      router.push('/');
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+    }
+  };
 
   return (
     <Form {...form}>
@@ -325,7 +339,10 @@ export function SettingsForm() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end">
+        <div className="flex justify-between">
+          <Button type="button" variant="destructive" onClick={handleLogout}>
+            Log Out
+          </Button>
           <Button type="submit">Save Settings</Button>
         </div>
       </form>
