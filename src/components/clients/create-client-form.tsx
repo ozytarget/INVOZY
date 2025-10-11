@@ -57,14 +57,14 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
       phone: data.clientPhone || "",
     }
     
+    addClient(newClientData);
+    
     const newClientWithDefaults: Client = {
       ...newClientData,
       totalBilled: 0,
       documentCount: 0,
     }
 
-    addClient(newClientData);
-    
     toast({
       title: "Client Created",
       description: `${data.clientName} has been added to your client list.`,

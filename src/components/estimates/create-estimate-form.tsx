@@ -296,7 +296,7 @@ export function CreateEstimateForm() {
                   />
                   <div className="flex justify-end">
                     <AiSuggestionsDialog 
-                        projectDescription={form.watch('projectDescription')} 
+                        projectDescription={form.watch('projectDescription') || ''} 
                         projectLocation={companyLocation}
                         onApplyLineItems={handleApplyLineItems}
                         onApplyNotes={handleApplyNotes}

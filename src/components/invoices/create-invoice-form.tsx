@@ -5,7 +5,7 @@ import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
 import { CalendarIcon, Trash2, PlusCircle } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -82,14 +82,11 @@ export function CreateInvoiceForm() {
   })
 
   useEffect(() => {
-    if (!form.getValues('issuedDate')) {
-        form.setValue('issuedDate', new Date());
-    }
-    if (!form.getValues('dueDate')) {
-      const futureDate = new Date();
-      futureDate.setDate(futureDate.getDate() + 30);
-      form.setValue('dueDate', futureDate);
-    }
+    // Set default dates only on client to avoid hydration errors
+    form.setValue('issuedDate', new Date());
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 30);
+    form.setValue('dueDate', futureDate);
   }, [form]);
 
 
@@ -101,11 +98,11 @@ export function CreateInvoiceForm() {
   const lineItems = form.watch("lineItems");
   const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
 
-  const handleClientChange = (clientId: string) => {
+  const handleClientChange = useCallback((clientId: string) => {
     const client = clients.find(c => c.email === clientId);
     setSelectedClient(client || null);
     form.setValue('clientId', clientId);
-  }
+  }, [clients, form]);
 
   function onSubmit(data: InvoiceFormValues) {
     if (!selectedClient) {
@@ -350,7 +347,7 @@ export function CreateInvoiceForm() {
                             />
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                            ${(lineItems[index].quantity * lineItems[index].price).toFixed(2)}
+                            ${(lineItems[index]?.quantity * lineItems[index]?.price || 0).toFixed(2)}
                         </TableCell>
                         <TableCell className="text-right">
                             <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
