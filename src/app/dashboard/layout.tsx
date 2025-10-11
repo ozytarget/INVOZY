@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -8,6 +9,7 @@ import { UserNav } from "@/components/user-nav"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useUser } from "@/firebase"
+import { useDocuments } from "@/hooks/use-documents"
 
 export default function DashboardLayout({
   children,
@@ -16,6 +18,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const { user, isUserLoading } = useUser();
+  const { isLoading: isLoadingDocuments } = useDocuments();
   const router = useRouter();
 
   // Updated nav items based on the image
@@ -50,7 +53,7 @@ export default function DashboardLayout({
     }
   }, [user, isUserLoading, router]);
 
-  if (isUserLoading || !user) {
+  if (isUserLoading || isLoadingDocuments || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -3,8 +3,9 @@
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
 import { initialDocuments } from '@/lib/data';
-import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback, useEffect } from 'react';
 import { format } from 'date-fns';
+import { useUser } from '@/firebase';
 
 // This function extracts unique clients from documents
 const getClientsFromDocuments = (documents: Document[]): Client[] => {
@@ -40,13 +41,51 @@ interface DocumentContextType {
   addClient: (client: Omit<Client, 'totalBilled' | 'documentCount'>) => void;
   signAndProcessDocument: (docId: string, signature: string) => string | undefined;
   recordPayment: (docId: string, payment: Omit<Payment, 'id' | 'date'>) => void;
+  isLoading: boolean;
 }
 
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
 
 export const DocumentProvider = ({ children }: { children: ReactNode }) => {
-  const [documents, setDocuments] = useState<Document[]>(initialDocuments);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [extraClients, setExtraClients] = useState<Client[]>([]);
+  const { user, isUserLoading } = useUser();
+  const [isLoading, setIsLoading] = useState(true);
+
+  const getLocalStorageKey = useCallback((userId: string, key: string) => `invozzy_${userId}_${key}`, []);
+
+  useEffect(() => {
+    if (isUserLoading) {
+      setIsLoading(true);
+      return;
+    };
+
+    let userDocs: Document[] = [];
+    let userClients: Client[] = [];
+
+    if (user) { // Logged-in user
+      const savedDocs = localStorage.getItem(getLocalStorageKey(user.uid, 'documents'));
+      const savedClients = localStorage.getItem(getLocalStorageKey(user.uid, 'clients'));
+      userDocs = savedDocs ? JSON.parse(savedDocs) : [];
+      userClients = savedClients ? JSON.parse(savedClients) : [];
+    } else { // Guest user
+      userDocs = initialDocuments; // Use sample data for guests
+      userClients = [];
+    }
+
+    setDocuments(userDocs);
+    setExtraClients(userClients);
+    setIsLoading(false);
+    
+  }, [user, isUserLoading, getLocalStorageKey]);
+
+  useEffect(() => {
+    if (user && !isLoading) {
+      localStorage.setItem(getLocalStorageKey(user.uid, 'documents'), JSON.stringify(documents));
+      localStorage.setItem(getLocalStorageKey(user.uid, 'clients'), JSON.stringify(extraClients));
+    }
+  }, [documents, extraClients, user, isLoading, getLocalStorageKey]);
+  
 
   const addDocument = useCallback((doc: Document) => {
     setDocuments(prevDocs => [doc, ...prevDocs]);
@@ -79,7 +118,6 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   
   const addClient = useCallback((clientData: Omit<Client, 'totalBilled' | 'documentCount'>) => {
     setExtraClients(prevClients => {
-      // Prevent adding duplicate clients based on email
       if (prevClients.some(c => c.email === clientData.email) || getClientsFromDocuments(documents).some(d => d.email === clientData.email)) {
         return prevClients;
       }
@@ -102,7 +140,6 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
       const originalDoc = docsCopy[docIndex];
       
-      // If it's an estimate, convert it to an invoice
       if (originalDoc.type === 'Estimate') {
         const invoiceCount = docsCopy.filter(d => d.type === 'Invoice').length;
         newInvoiceId = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
@@ -120,11 +157,10 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           payments: []
         };
 
-        // Replace the original estimate with the new invoice
         docsCopy.splice(docIndex, 1, newInvoice);
         return docsCopy;
 
-      } else { // If it's an invoice, just mark as paid and signed
+      } else { 
         docsCopy[docIndex] = {
           ...originalDoc,
           signature,
@@ -175,23 +211,20 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     const clientsFromDocs = getClientsFromDocuments(documents);
     const allClientsMap = new Map<string, Client>();
 
-    // Add clients from documents first, as they contain billing info
     clientsFromDocs.forEach(c => allClientsMap.set(c.email, c));
 
-    // Add manually created clients, only if they don't already exist from docs
     extraClients.forEach(c => {
       if (!allClientsMap.has(c.email)) {
         allClientsMap.set(c.email, c);
       }
     });
     
-    // Removed sorting to prevent hydration errors. Sorting will be done in the component.
     return Array.from(allClientsMap.values());
   }, [documents, extraClients]);
 
 
   return (
-    <DocumentContext.Provider value={{ documents, addDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument, recordPayment }}>
+    <DocumentContext.Provider value={{ documents, addDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument, recordPayment, isLoading }}>
       {children}
     </DocumentContext.Provider>
   );
