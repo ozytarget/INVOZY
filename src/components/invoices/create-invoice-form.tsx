@@ -116,13 +116,14 @@ export function CreateInvoiceForm() {
   const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
 
   const handleClientChange = useCallback((clientId: string) => {
+    form.setValue('clientId', clientId, { shouldValidate: true });
     const client = clients.find(c => c.email === clientId);
     setSelectedClient(client || null);
-    form.setValue('clientId', clientId);
   }, [clients, form]);
 
   async function onSubmit(data: InvoiceFormValues) {
-    if (!selectedClient) {
+    const client = clients.find(c => c.email === data.clientId);
+    if (!client) {
       toast({
         variant: "destructive",
         title: "Client not selected",
@@ -134,10 +135,10 @@ export function CreateInvoiceForm() {
     const newInvoice: Omit<Document, 'id'> = {
       type: 'Invoice' as const,
       status: 'Draft' as const,
-      clientName: selectedClient.name,
-      clientEmail: selectedClient.email,
-      clientAddress: selectedClient.address,
-      clientPhone: selectedClient.phone || '',
+      clientName: client.name,
+      clientEmail: client.email,
+      clientAddress: client.address,
+      clientPhone: client.phone || '',
       projectTitle: data.projectTitle,
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
       dueDate: format(data.dueDate, "yyyy-MM-dd"),
@@ -149,7 +150,7 @@ export function CreateInvoiceForm() {
     await addDocument(newInvoice);
     toast({
       title: "Invoice Created",
-      description: `Invoice for ${selectedClient.name} has been saved as a draft.`,
+      description: `Invoice for ${client.name} has been saved as a draft.`,
     })
     router.push("/dashboard/invoices");
   }
