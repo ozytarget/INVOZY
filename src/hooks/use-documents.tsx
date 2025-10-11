@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Document, Client, DocumentStatus, DocumentType } from '@/lib/types';
+import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
 import { initialDocuments } from '@/lib/data';
 import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
@@ -39,6 +39,7 @@ interface DocumentContextType {
   clients: Client[];
   addClient: (client: Omit<Client, 'totalBilled' | 'documentCount'>) => void;
   signAndProcessDocument: (docId: string, signature: string) => string | undefined;
+  recordPayment: (docId: string, payment: Omit<Payment, 'id' | 'date'>) => void;
 }
 
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
@@ -116,6 +117,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           signature,
           isSigned: true,
           terms: originalDoc.terms || 'Net 30',
+          payments: []
         };
 
         // Replace the original estimate with the new invoice
@@ -134,6 +136,39 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return newInvoiceId;
+  }, []);
+
+  const recordPayment = useCallback((docId: string, payment: Omit<Payment, 'id' | 'date'>) => {
+    setDocuments(prevDocs => {
+      const docsCopy = [...prevDocs];
+      const docIndex = docsCopy.findIndex(d => d.id === docId && d.type === 'Invoice');
+      if (docIndex === -1) return prevDocs;
+
+      const docToUpdate = docsCopy[docIndex];
+      
+      const newPayment: Payment = {
+        ...payment,
+        id: new Date().toISOString(),
+        date: format(new Date(), "yyyy-MM-dd"),
+      };
+
+      const existingPayments = docToUpdate.payments || [];
+      const updatedPayments = [...existingPayments, newPayment];
+      const totalPaid = updatedPayments.reduce((acc, p) => acc + p.amount, 0);
+
+      let newStatus: DocumentStatus = 'Partial';
+      if (totalPaid >= docToUpdate.amount) {
+        newStatus = 'Paid';
+      }
+
+      docsCopy[docIndex] = {
+        ...docToUpdate,
+        payments: updatedPayments,
+        status: newStatus,
+      };
+
+      return docsCopy;
+    });
   }, []);
   
   const clients = useMemo(() => {
@@ -156,7 +191,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
 
   return (
-    <DocumentContext.Provider value={{ documents, addDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument }}>
+    <DocumentContext.Provider value={{ documents, addDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument, recordPayment }}>
       {children}
     </DocumentContext.Provider>
   );

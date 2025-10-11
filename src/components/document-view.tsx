@@ -1,7 +1,7 @@
 
 'use client'
 
-import { Document } from "@/lib/types";
+import { Document, Payment } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
@@ -13,10 +13,11 @@ import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
 import { useDocuments } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Share2, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Share2, Edit, Trash2, DollarSign } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeleteDocumentDialog } from "./delete-document-dialog";
+import { RecordPaymentDialog } from "./invoices/record-payment-dialog";
 
 
 type DocumentViewProps = {
@@ -42,7 +43,7 @@ const statusStyles: Record<Document['status'], string> = {
 export function DocumentView({ document }: DocumentViewProps) {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const sigCanvas = useRef<SignatureCanvas>(null);
-  const { signAndProcessDocument, deleteDocument } = useDocuments();
+  const { signAndProcessDocument, deleteDocument, recordPayment } = useDocuments();
   const { toast } = useToast();
   const router = useRouter();
   const [isDashboardView, setIsDashboardView] = useState(false);
@@ -71,6 +72,9 @@ export function DocumentView({ document }: DocumentViewProps) {
   }, []);
 
   const subtotal = document.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+  const amountPaid = document.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
+  const balanceDue = document.amount - amountPaid;
+
 
   const clearSignature = () => {
     sigCanvas.current?.clear();
@@ -125,6 +129,14 @@ export function DocumentView({ document }: DocumentViewProps) {
     }
   };
 
+  const handleRecordPayment = (payment: Omit<Payment, 'id' | 'date'>) => {
+    recordPayment(document.id, payment);
+    toast({
+      title: "Payment Recorded",
+      description: `A payment of $${payment.amount.toFixed(2)} has been recorded.`
+    })
+  }
+
   return (
     <div className="bg-background min-h-screen pb-32">
        <div className="max-w-4xl mx-auto p-4 sm:p-8">
@@ -133,7 +145,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                 <Button asChild variant="outline" size="icon" className="bg-background/80 backdrop-blur-sm">
                     <Link href="/dashboard">
                         <ArrowLeft />
-                        <span className="sr-only">Back to Dashboard</span>
+                        <span className="sr-only">Back</span>
                     </Link>
                 </Button>
             </div>
@@ -216,15 +228,58 @@ export function DocumentView({ document }: DocumentViewProps) {
                         <span className="text-muted-foreground">Subtotal</span>
                         <span>${subtotal.toFixed(2)}</span>
                     </div>
-                    <Separator />
-                    <div className="flex justify-between font-bold text-lg">
-                        <span>Total</span>
-                        <span>${document.amount.toFixed(2)}</span>
-                    </div>
+                     {document.type === 'Invoice' && (
+                        <>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Paid</span>
+                                <span className="text-green-600">-${amountPaid.toFixed(2)}</span>
+                            </div>
+                            <Separator />
+                            <div className="flex justify-between font-bold text-lg">
+                                <span>Balance Due</span>
+                                <span>${balanceDue.toFixed(2)}</span>
+                            </div>
+                        </>
+                    )}
+                    {document.type === 'Estimate' && (
+                         <>
+                            <Separator />
+                            <div className="flex justify-between font-bold text-lg">
+                                <span>Total</span>
+                                <span>${document.amount.toFixed(2)}</span>
+                            </div>
+                        </>
+                    )}
                 </div>
             </section>
 
             <Separator className="my-8" />
+
+            {document.type === 'Invoice' && document.payments && document.payments.length > 0 && (
+              <section className="mb-8">
+                  <h3 className="font-semibold mb-2">Payment History</h3>
+                  <div className="border rounded-md">
+                      <Table>
+                          <TableHeader>
+                              <TableRow>
+                                  <TableHead>Date</TableHead>
+                                  <TableHead>Method</TableHead>
+                                  <TableHead className="text-right">Amount</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {document.payments.map(payment => (
+                                  <TableRow key={payment.id}>
+                                      <TableCell>{payment.date}</TableCell>
+                                      <TableCell>{payment.method}</TableCell>
+                                      <TableCell className="text-right">${payment.amount.toFixed(2)}</TableCell>
+                                  </TableRow>
+                              ))}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </section>
+            )}
 
             <section className="mb-8">
                 <h3 className="font-semibold mb-2">Client Signature</h3>
@@ -271,6 +326,13 @@ export function DocumentView({ document }: DocumentViewProps) {
        {isDashboardView && (
             <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 backdrop-blur-sm">
                 <div className="container mx-auto flex h-20 items-center justify-center gap-4">
+                    {document.type === 'Invoice' && document.status !== 'Paid' && (
+                        <RecordPaymentDialog document={document} onRecordPayment={handleRecordPayment}>
+                             <Button variant="default" size="lg">
+                                <DollarSign className="mr-2 h-4 w-4" /> Record Payment
+                            </Button>
+                        </RecordPaymentDialog>
+                    )}
                      <Button variant="outline" size="lg" disabled>
                         <Edit className="mr-2 h-4 w-4" /> Edit
                     </Button>
@@ -288,5 +350,3 @@ export function DocumentView({ document }: DocumentViewProps) {
     </div>
   );
 }
-
-    

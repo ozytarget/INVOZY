@@ -1,9 +1,19 @@
+
 export type LineItem = {
   id: string;
   description: string;
   quantity: number;
   price: number;
 };
+
+export type PaymentMethod = "Cash" | "Bank Transfer" | "Credit Card" | "Debit Card";
+
+export type Payment = {
+  id: string;
+  amount: number;
+  date: string;
+  method: PaymentMethod;
+}
 
 export type DocumentStatus = 'Draft' | 'Sent' | 'Paid' | 'Partial' | 'Overdue' | 'Approved';
 export type DocumentType = 'Estimate' | 'Invoice';
@@ -26,6 +36,7 @@ export type Document = {
   taxId?: string;
   signature?: string;
   isSigned?: boolean;
+  payments?: Payment[];
 };
 
 export type Client = {
