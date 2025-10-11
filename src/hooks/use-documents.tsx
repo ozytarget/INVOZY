@@ -83,13 +83,10 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const addDocument = useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'>): Promise<string | undefined> => {
     if (!user) return undefined;
     
-    // Get company settings from local storage
     const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
-
     const collectionName = docData.type === 'Estimate' ? 'estimates' : 'invoices';
     const collectionRef = collection(firestore, collectionName);
     
-    // Generate sequential number
     const userDocsQuery = query(collectionRef, where('userId', '==', user.uid));
     const userDocsSnapshot = await getDocs(userDocsQuery);
     const docCount = userDocsSnapshot.size;
