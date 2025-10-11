@@ -14,11 +14,12 @@ import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
 import { useDocuments } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Share2, Edit, Trash2, DollarSign } from "lucide-react";
+import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeleteDocumentDialog } from "./delete-document-dialog";
 import { RecordPaymentDialog } from "./invoices/record-payment-dialog";
+import { cn } from "@/lib/utils";
 
 
 type DocumentViewProps = {
@@ -41,6 +42,16 @@ const statusStyles: Record<Document['status'], string> = {
   Approved: "border-green-500 text-green-500",
 }
 
+const FabMenuItem = ({ onClick, icon, label, variant = 'secondary', className = '' }: { onClick: () => void, icon: React.ReactNode, label: string, variant?: "secondary" | "destructive" | "default", className?: string }) => (
+    <div className="flex items-center justify-end gap-4">
+        <span className="text-sm font-medium bg-background/80 text-foreground px-3 py-1 rounded-md shadow-lg">{label}</span>
+        <Button size="icon" variant={variant} onClick={onClick} className={cn("rounded-full h-12 w-12 shadow-lg", className)}>
+            {icon}
+        </Button>
+    </div>
+);
+
+
 export function DocumentView({ document }: DocumentViewProps) {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const sigCanvas = useRef<SignatureCanvas>(null);
@@ -48,6 +59,8 @@ export function DocumentView({ document }: DocumentViewProps) {
   const { toast } = useToast();
   const router = useRouter();
   const [isDashboardView, setIsDashboardView] = useState(false);
+  const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
+
 
   useEffect(() => {
     // A simple check to see if this view is loaded inside the main dashboard flow
@@ -327,29 +340,58 @@ export function DocumentView({ document }: DocumentViewProps) {
         </Card>
       </div>
        {isDashboardView && (
-            <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 backdrop-blur-sm">
-                <div className="container mx-auto flex h-20 items-center justify-center gap-2 sm:gap-4 flex-wrap px-4">
-                    {document.type === 'Invoice' && document.status !== 'Paid' && (
-                        <RecordPaymentDialog document={document} onRecordPayment={handleRecordPayment}>
-                             <Button variant="default" size="lg" className="flex-1 sm:flex-none">
-                                <DollarSign className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Record Payment</span>
-                            </Button>
-                        </RecordPaymentDialog>
+            <div className="fixed bottom-6 right-6 z-30">
+                {isFabMenuOpen && (
+                    <div 
+                        className="fixed inset-0 bg-black/40 z-40" 
+                        onClick={() => setIsFabMenuOpen(false)}
+                    />
+                )}
+                <div className="relative z-50 flex flex-col items-end gap-4">
+                    {isFabMenuOpen && (
+                        <div className="flex flex-col items-end gap-4 transition-all duration-300">
+                             {document.type === 'Invoice' && document.status !== 'Paid' && (
+                                <RecordPaymentDialog document={document} onRecordPayment={handleRecordPayment}>
+                                    <FabMenuItem 
+                                        onClick={() => {}} 
+                                        icon={<DollarSign className="h-6 w-6" />}
+                                        label="Record Payment"
+                                        variant="default"
+                                    />
+                                </RecordPaymentDialog>
+                            )}
+                            <FabMenuItem 
+                                onClick={() => {}} 
+                                icon={<Edit className="h-6 w-6" />}
+                                label="Edit"
+                            />
+                            <FabMenuItem 
+                                onClick={handleShare} 
+                                icon={<Share2 className="h-6 w-6" />}
+                                label="Share"
+                            />
+                            <DeleteDocumentDialog onDelete={handleDelete}>
+                                <FabMenuItem 
+                                    onClick={() => {}} 
+                                    icon={<Trash2 className="h-6 w-6" />}
+                                    label="Delete"
+                                    variant="destructive"
+                                />
+                            </DeleteDocumentDialog>
+                        </div>
                     )}
-                     <Button variant="outline" size="lg" disabled className="flex-1 sm:flex-none">
-                        <Edit className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Edit</span>
+                    <Button 
+                        size="icon" 
+                        className="rounded-full h-16 w-16 shadow-xl"
+                        onClick={() => setIsFabMenuOpen(!isFabMenuOpen)}
+                    >
+                       {isFabMenuOpen ? <X className="h-7 w-7" /> : <MoreVertical className="h-7 w-7" />}
                     </Button>
-                    <Button variant="outline" size="lg" onClick={handleShare} className="flex-1 sm:flex-none">
-                        <Share2 className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Share</span>
-                    </Button>
-                    <DeleteDocumentDialog onDelete={handleDelete}>
-                        <Button variant="destructive" size="lg" className="flex-1 sm:flex-none">
-                            <Trash2 className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Delete</span>
-                        </Button>
-                    </DeleteDocumentDialog>
                 </div>
             </div>
         )}
     </div>
   );
 }
+
+    
