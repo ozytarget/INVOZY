@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import { Document, Payment } from "@/lib/types";
@@ -97,8 +98,8 @@ export function DocumentView({ document }: DocumentViewProps) {
       description: `Thank you for your business. ${document.type === 'Estimate' ? 'A new invoice has been generated.' : ''}`,
     });
 
-    if (newInvoiceId) {
-      router.push(`/view/invoice/${newInvoiceId}`);
+    if (document.type === 'Estimate' && newInvoiceId) {
+        router.push(`/view/invoice/${newInvoiceId}`);
     }
   }
 

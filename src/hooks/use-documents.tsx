@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
@@ -130,7 +131,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [documents]);
 
-  const signAndProcessDocument = useCallback((docId: string, signature: string): string | undefined => {
+ const signAndProcessDocument = useCallback((docId: string, signature: string): string | undefined => {
     let newInvoiceId: string | undefined = undefined;
 
     setDocuments(prevDocs => {
@@ -141,6 +142,15 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       const originalDoc = docsCopy[docIndex];
       
       if (originalDoc.type === 'Estimate') {
+        // Mark the estimate as approved
+        docsCopy[docIndex] = {
+          ...originalDoc,
+          signature,
+          isSigned: true,
+          status: 'Approved',
+        };
+
+        // Create a new invoice from the estimate
         const invoiceCount = docsCopy.filter(d => d.type === 'Invoice').length;
         newInvoiceId = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
         
@@ -151,16 +161,16 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           status: 'Draft',
           issuedDate: format(new Date(), "yyyy-MM-dd"),
           dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
-          signature,
-          isSigned: true,
+          signature: undefined, // Invoice is not signed yet
+          isSigned: false,
           terms: originalDoc.terms || 'Net 30',
-          payments: []
+          payments: [],
         };
+        // Add the new invoice to the documents list
+        return [newInvoice, ...docsCopy];
 
-        docsCopy.splice(docIndex, 1, newInvoice);
-        return docsCopy;
-
-      } else { 
+      } else if (originalDoc.type === 'Invoice') { 
+        // Sign and pay the invoice
         docsCopy[docIndex] = {
           ...originalDoc,
           signature,
@@ -169,6 +179,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
         };
         return docsCopy;
       }
+      return docsCopy;
     });
 
     return newInvoiceId;
