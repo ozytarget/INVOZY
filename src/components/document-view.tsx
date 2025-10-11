@@ -14,7 +14,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
 import { useDocuments } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail } from "lucide-react";
+import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeleteDocumentDialog } from "./delete-document-dialog";
@@ -142,6 +142,24 @@ export function DocumentView({ document }: DocumentViewProps) {
             description: "The public link has been copied to your clipboard.",
         });
     }
+  };
+
+  const handleSms = () => {
+    if (!document.clientPhone) {
+        toast({
+            variant: "destructive",
+            title: "No Phone Number",
+            description: "This client does not have a phone number on file.",
+        });
+        return;
+    }
+
+    const url = window.location.href;
+    const message = `View your ${document.type.toLowerCase()}: ${document.projectTitle}\n${url}`;
+    const smsUrl = `sms:${document.clientPhone}?body=${encodeURIComponent(message)}`;
+    
+    window.open(smsUrl, '_blank');
+    setIsFabMenuOpen(false);
   };
 
   const handleRecordPayment = async (payment: Omit<Payment, 'id' | 'date'>) => {
@@ -380,6 +398,13 @@ export function DocumentView({ document }: DocumentViewProps) {
                                 />
                             </SendEmailDialog>
                             <FabMenuItem 
+                                onClick={handleSms} 
+                                icon={<MessageSquare className="h-6 w-6" />}
+                                label="Send SMS"
+                                variant="outline"
+                                className="bg-background"
+                            />
+                            <FabMenuItem 
                                 onClick={() => {}} 
                                 icon={<Edit className="h-6 w-6" />}
                                 label="Edit"
@@ -414,3 +439,4 @@ export function DocumentView({ document }: DocumentViewProps) {
 }
 
     
+
