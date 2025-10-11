@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
-import { CalendarIcon, Trash2, PlusCircle } from "lucide-react"
+import { CalendarIcon, Trash2 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 
 import { cn } from "@/lib/utils"
@@ -41,6 +41,7 @@ import { useDocuments } from "@/hooks/use-documents"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Client } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
+import { AiSuggestionsDialog } from "../estimates/ai-suggestions-dialog"
 
 const lineItemSchema = z.object({
   description: z.string().min(1, "Description is required."),
@@ -51,6 +52,7 @@ const lineItemSchema = z.object({
 const formSchema = z.object({
   clientId: z.string().min(1, "Please select a client."),
   projectTitle: z.string().min(3, "Project title is required."),
+  projectDescription: z.string().optional(),
   issuedDate: z.date({
     required_error: "Issued date is required.",
   }),
@@ -64,17 +66,23 @@ const formSchema = z.object({
 
 type InvoiceFormValues = z.infer<typeof formSchema>
 
+type CompanySettings = {
+    companyAddress?: string;
+};
+
 export function CreateInvoiceForm() {
   const { toast } = useToast();
   const router = useRouter();
   const { documents, addDocument, clients } = useDocuments();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [companyLocation, setCompanyLocation] = useState('');
   
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       clientId: "",
       projectTitle: "",
+      projectDescription: "",
       lineItems: [{ description: "", quantity: 1, price: 0 }],
       notes: "",
       terms: "Net 30",
@@ -87,6 +95,14 @@ export function CreateInvoiceForm() {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + 30);
     form.setValue('dueDate', futureDate);
+
+    if (typeof window !== 'undefined') {
+        const savedSettings = localStorage.getItem("companySettings");
+        if (savedSettings) {
+            const parsedSettings: CompanySettings = JSON.parse(savedSettings);
+            setCompanyLocation(parsedSettings.companyAddress || '');
+        }
+    }
   }, [form]);
 
 
@@ -142,6 +158,19 @@ export function CreateInvoiceForm() {
   const handleClientCreated = (newClient: Client) => {
     handleClientChange(newClient.email);
   };
+  
+  const handleApplyLineItems = useCallback((items: { description: string; quantity: number; price: number }[]) => {
+    // Remove the initial empty item if it exists
+    if (fields.length === 1 && fields[0].description === "" && fields[0].price === 0) {
+      remove(0);
+    }
+    append(items);
+  }, [append, fields, remove]);
+
+  const handleApplyNotes = useCallback((notes: string) => {
+    form.setValue('notes', notes);
+  }, [form]);
+
 
   return (
     <Form {...form}>
@@ -286,12 +315,40 @@ export function CreateInvoiceForm() {
                 </CardContent>
             </Card>
         </div>
-
+        
         <Card>
             <CardHeader>
-                <CardTitle className="font-headline">Line Items</CardTitle>
+                <CardTitle className="font-headline">Project Scope & Line Items</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <FormField
+                      control={form.control}
+                      name="projectDescription"
+                      render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Project Description</FormLabel>
+                          <FormControl>
+                              <Textarea
+                                  placeholder="Describe the project scope, deliverables, and timeline in detail. The more info you provide, the better the AI estimate will be."
+                                  className="resize-y min-h-[100px]"
+                                  {...field}
+                              />
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                      )}
+                  />
+                  <div className="flex justify-end">
+                    <AiSuggestionsDialog 
+                        projectDescription={form.watch('projectDescription') || ''} 
+                        projectLocation={companyLocation}
+                        onApplyLineItems={handleApplyLineItems}
+                        onApplyNotes={handleApplyNotes}
+                    />
+                  </div>
+                </div>
+                
                 <div className="border rounded-md">
                 <Table>
                     <TableHeader>
@@ -375,7 +432,7 @@ export function CreateInvoiceForm() {
                 </Button>
             </CardContent>
         </Card>
-        
+
         <Card>
             <CardHeader><CardTitle className="font-headline">Notes & Terms</CardTitle></CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-4">
@@ -421,3 +478,5 @@ export function CreateInvoiceForm() {
     </Form>
   )
 }
+
+    
