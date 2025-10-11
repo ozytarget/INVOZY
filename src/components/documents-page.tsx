@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import {
@@ -48,7 +49,7 @@ type DocumentsPageProps = {
 }
 
 export function DocumentsPage({ type }: DocumentsPageProps) {
-  const { documents, deleteDocument, duplicateDocument } = useDocuments();
+  const { documents, deleteDocument, duplicateDocument, revertInvoiceToDraft, revertLastPayment } = useDocuments();
   const router = useRouter();
   const { toast } = useToast();
   const title = type === "Estimate" ? "Estimates" : "Invoices"
@@ -81,6 +82,23 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
     });
     router.push(createHref); // Navigate to create page to see the new draft (or just stay here)
   }
+
+  const handleRevertToDraft = (docId: string) => {
+    revertInvoiceToDraft(docId);
+    toast({
+      title: "Invoice Reverted",
+      description: "The invoice has been reverted to draft status.",
+    });
+  };
+
+  const handleRevertPayment = (docId: string) => {
+    revertLastPayment(docId);
+    toast({
+      title: "Payment Reverted",
+      description: "The last payment has been removed.",
+    });
+  };
+
 
   return (
     <>
@@ -142,6 +160,17 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                           <DropdownMenuItem asChild><Link href={getViewLink(doc)} target="_blank">View Public Page</Link></DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
                           <DropdownMenuSeparator />
+                           {doc.type === 'Invoice' && doc.status === 'Sent' && (
+                            <DropdownMenuItem onClick={() => handleRevertToDraft(doc.id)}>
+                              Revert to Draft
+                            </DropdownMenuItem>
+                          )}
+                          {doc.type === 'Invoice' && (doc.status === 'Paid' || doc.status === 'Partial') && (
+                             <DropdownMenuItem onClick={() => handleRevertPayment(doc.id)}>
+                              Revert Last Payment
+                            </DropdownMenuItem>
+                          )}
+                          {(doc.type === 'Invoice' && (doc.status === 'Sent' || doc.status === 'Paid' || doc.status === 'Partial')) && <DropdownMenuSeparator />}
                           <DeleteDocumentMenuItem onDelete={() => handleDelete(doc.id)} />
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -185,7 +214,18 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                           <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href={getViewLink(doc)} target="_blank">View Public Page</Link></DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
-                          <DropdownMenuSeparator />
+                           <DropdownMenuSeparator />
+                           {doc.type === 'Invoice' && doc.status === 'Sent' && (
+                            <DropdownMenuItem onClick={() => handleRevertToDraft(doc.id)}>
+                              Revert to Draft
+                            </DropdownMenuItem>
+                          )}
+                          {doc.type === 'Invoice' && (doc.status === 'Paid' || doc.status === 'Partial') && (
+                             <DropdownMenuItem onClick={() => handleRevertPayment(doc.id)}>
+                              Revert Last Payment
+                            </DropdownMenuItem>
+                          )}
+                           {(doc.type === 'Invoice' && (doc.status === 'Sent' || doc.status === 'Paid' || doc.status === 'Partial')) && <DropdownMenuSeparator />}
                           <DeleteDocumentMenuItem onDelete={() => handleDelete(doc.id)} />
                         </DropdownMenuContent>
                       </DropdownMenu>

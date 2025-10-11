@@ -42,6 +42,8 @@ interface DocumentContextType {
   addClient: (client: Omit<Client, 'totalBilled' | 'documentCount'>) => void;
   signAndProcessDocument: (docId: string, signature: string) => string | undefined;
   recordPayment: (docId: string, payment: Omit<Payment, 'id' | 'date'>) => void;
+  revertInvoiceToDraft: (invoiceId: string) => void;
+  revertLastPayment: (invoiceId: string) => void;
   isLoading: boolean;
 }
 
@@ -218,6 +220,47 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
   
+  const revertInvoiceToDraft = useCallback((invoiceId: string) => {
+    setDocuments(prevDocs => {
+      return prevDocs.map(doc => {
+        if (doc.id === invoiceId && doc.type === 'Invoice') {
+          return {
+            ...doc,
+            status: 'Draft',
+            isSigned: false,
+            signature: undefined,
+          };
+        }
+        return doc;
+      });
+    });
+  }, []);
+
+  const revertLastPayment = useCallback((invoiceId: string) => {
+    setDocuments(prevDocs => {
+      return prevDocs.map(doc => {
+        if (doc.id === invoiceId && doc.type === 'Invoice' && doc.payments && doc.payments.length > 0) {
+          const updatedPayments = doc.payments.slice(0, -1);
+          const totalPaid = updatedPayments.reduce((acc, p) => acc + p.amount, 0);
+          
+          let newStatus: DocumentStatus = 'Draft'; // Default if no payments left
+          if (totalPaid > 0) {
+            newStatus = 'Partial';
+          } else if (doc.isSigned) {
+            newStatus = 'Sent';
+          }
+
+          return {
+            ...doc,
+            payments: updatedPayments,
+            status: newStatus,
+          };
+        }
+        return doc;
+      });
+    });
+  }, []);
+
   const clients = useMemo(() => {
     const clientsFromDocs = getClientsFromDocuments(documents);
     const allClientsMap = new Map<string, Client>();
@@ -235,7 +278,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
 
   return (
-    <DocumentContext.Provider value={{ documents, addDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument, recordPayment, isLoading }}>
+    <DocumentContext.Provider value={{ documents, addDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, isLoading }}>
       {children}
     </DocumentContext.Provider>
   );
