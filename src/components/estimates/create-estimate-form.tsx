@@ -299,7 +299,7 @@ export function CreateEstimateForm() {
                 <div className="border-t pt-4">
                   <AiSuggestionsDialog 
                       projectDescription={form.watch('projectDescription')} 
-                      defaultLocation={companyLocation}
+                      projectLocation={companyLocation}
                       onApplyLineItems={handleApplyLineItems}
                       onApplyNotes={handleApplyNotes}
                   />

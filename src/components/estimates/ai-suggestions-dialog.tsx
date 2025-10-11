@@ -14,33 +14,26 @@ import { getSuggestions } from '@/app/actions';
 import { AIPoweredEstimateSuggestionsOutput, AIPoweredEstimateSuggestionsInput } from '@/ai/flows/ai-powered-estimate-suggestions';
 import { Wand2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { ScrollArea } from '../ui/scroll-area';
 
 type AiSuggestionsDialogProps = {
   projectDescription: string;
-  defaultLocation: string;
+  projectLocation: string;
   onApplyLineItems: (lineItems: AIPoweredEstimateSuggestionsOutput['lineItems']) => void;
   onApplyNotes: (notes: string) => void;
 };
 
 export function AiSuggestionsDialog({
   projectDescription,
-  defaultLocation,
+  projectLocation,
   onApplyLineItems,
   onApplyNotes
 }: AiSuggestionsDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<AIPoweredEstimateSuggestionsOutput | null>(null);
-  const [location, setLocation] = useState(defaultLocation);
   const { toast } = useToast();
-
-  useEffect(() => {
-    setLocation(defaultLocation);
-  }, [defaultLocation]);
 
   const handleGenerate = async () => {
     setIsLoading(true);
@@ -48,7 +41,7 @@ export function AiSuggestionsDialog({
 
     const input: AIPoweredEstimateSuggestionsInput = {
       projectDescription,
-      location,
+      location: projectLocation,
     };
 
     const result = await getSuggestions(input);
@@ -75,11 +68,11 @@ export function AiSuggestionsDialog({
         });
         return;
     }
-    if (!location.trim()) {
+    if (!projectLocation.trim()) {
         toast({
             variant: 'destructive',
-            title: 'Location Required',
-            description: 'Please provide a project location (e.g., city, state) for accurate labor costs.',
+            title: 'Company Address Required',
+            description: 'Please set your company address in the Manage > Settings page for accurate AI labor costs.',
         });
         return;
     }
@@ -101,19 +94,10 @@ export function AiSuggestionsDialog({
 
   return (
     <>
-      <div className="flex flex-col gap-2">
-         <Label htmlFor="ai-location">Project Location (for AI labor costs)</Label>
-         <Input 
-            id="ai-location"
-            placeholder="e.g. Austin, TX"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-        <Button type="button" variant="outline" onClick={handleOpen}>
-            <Wand2 className="mr-2 h-4 w-4" />
-            AI-Powered Estimate
-        </Button>
-      </div>
+      <Button type="button" variant="outline" onClick={handleOpen}>
+        <Wand2 className="mr-2 h-4 w-4" />
+        AI-Powered Estimate
+      </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
