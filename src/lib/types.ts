@@ -1,4 +1,5 @@
 
+
 export type LineItem = {
   id: string;
   description: string;
@@ -38,6 +39,8 @@ export type Document = {
   signature?: string;
   isSigned?: boolean;
   payments?: Payment[];
+  estimateNumber?: string;
+  invoiceNumber?: string;
 };
 
 export type Client = {

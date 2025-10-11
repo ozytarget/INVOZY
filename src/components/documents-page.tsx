@@ -1,5 +1,6 @@
 
 
+
 'use client'
 
 import {
@@ -73,12 +74,12 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
     duplicateDocument(doc.id);
      toast({
         title: "Document Duplicated",
-        description: `A new draft has been created from ${doc.id}.`,
+        description: `A new draft has been created.`,
     });
     if (doc.type === 'Estimate') {
-      router.push("/dashboard/estimates/create");
+      router.push("/dashboard/estimates");
     } else {
-      router.push("/dashboard/invoices/create");
+      router.push("/dashboard/invoices");
     }
   }
 
@@ -124,6 +125,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Client</TableHead>
+                  <TableHead>Number</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead>Issued Date</TableHead>
                   {type === "Invoice" && <TableHead>Due Date</TableHead>}
@@ -137,6 +139,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                 {filteredDocuments.map((doc) => (
                   <TableRow key={doc.id} onClick={() => handleRowClick(doc)} className="cursor-pointer">
                     <TableCell className="font-medium">{doc.clientName}</TableCell>
+                    <TableCell>{doc.type === 'Estimate' ? doc.estimateNumber : doc.invoiceNumber}</TableCell>
                     <TableCell className="text-center">
                       <Badge className={statusStyles[doc.status]} variant="outline">
                         {doc.status}
@@ -186,7 +189,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                 <div className="flex justify-between items-start">
                     <div>
                         <div className="font-medium">{doc.clientName}</div>
-                        <div className="text-sm text-muted-foreground">{doc.type} #{doc.id}</div>
+                        <div className="text-sm text-muted-foreground">{doc.type} #{doc.type === 'Estimate' ? doc.estimateNumber : doc.invoiceNumber}</div>
                     </div>
                     <Badge className={statusStyles[doc.status]} variant="outline">
                         {doc.status}

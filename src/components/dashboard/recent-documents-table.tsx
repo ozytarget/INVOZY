@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -72,7 +73,7 @@ export function RecentDocumentsTable() {
                       {doc.clientEmail}
                     </div>
                   </TableCell>
-                  <TableCell>{doc.type}</TableCell>
+                  <TableCell>{doc.type} #{doc.type === 'Estimate' ? doc.estimateNumber : doc.invoiceNumber}</TableCell>
                   <TableCell className="text-center">
                     <Badge
                       className={statusStyles[doc.status]}
@@ -99,7 +100,7 @@ export function RecentDocumentsTable() {
                 <div className="font-medium">{doc.clientName}</div>
                  <Badge className={statusStyles[doc.status]} variant="outline">{doc.status}</Badge>
               </div>
-               <div className="text-sm text-muted-foreground">{doc.type} #{doc.id}</div>
+               <div className="text-sm text-muted-foreground">{doc.type} #{doc.type === 'Estimate' ? doc.estimateNumber : doc.invoiceNumber}</div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">{doc.issuedDate}</span>
                 <span className="font-bold">${doc.amount.toLocaleString()}</span>

@@ -2,6 +2,7 @@
 
 
 
+
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
@@ -46,7 +47,7 @@ const getCombinedClients = (documents: Document[], storedClients: Client[]): Cli
 
 interface DocumentContextType {
   documents: Document[];
-  addDocument: (doc: Omit<Document, 'id' | 'userId'>) => Promise<string | undefined>;
+  addDocument: (doc: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'>) => Promise<string | undefined>;
   deleteDocument: (docId: string) => Promise<void>;
   duplicateDocument: (docId: string) => Promise<void>;
   clients: Client[];
@@ -79,14 +80,28 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     return allDocs.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
   }, [estimates, invoices]);
 
-  const addDocument = useCallback(async (docData: Omit<Document, 'id' | 'userId'>): Promise<string | undefined> => {
+  const addDocument = useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'>): Promise<string | undefined> => {
     if (!user) return undefined;
     const collectionName = docData.type === 'Estimate' ? 'estimates' : 'invoices';
     const collectionRef = collection(firestore, collectionName);
-    const dataToSave = { ...docData, userId: user.uid };
+    
+    // Generate sequential number
+    const userDocs = collectionName === 'estimates' ? estimates : invoices;
+    const docCount = userDocs?.length || 0;
+    const prefix = collectionName === 'estimates' ? 'EST' : 'INV';
+    const number = (docCount + 1).toString().padStart(3, '0');
+    const docNumber = `${prefix}-${number}`;
+
+    const dataToSave = { 
+      ...docData, 
+      userId: user.uid,
+      ...(collectionName === 'estimates' && { estimateNumber: docNumber }),
+      ...(collectionName === 'invoices' && { invoiceNumber: docNumber }),
+    };
+
     const newDocRef = await addDoc(collectionRef, dataToSave);
     return newDocRef.id;
-  }, [user, firestore]);
+  }, [user, firestore, estimates, invoices]);
 
   const deleteDocument = useCallback(async (docId: string) => {
     if (!user) return;
@@ -105,7 +120,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     const originalDoc = documents.find(d => d.id === docId);
     if (!originalDoc) return;
 
-    const newDoc: Omit<Document, 'id' | 'userId'> = {
+    const newDoc: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'> = {
       ...originalDoc,
       status: 'Draft',
       issuedDate: format(new Date(), "yyyy-MM-dd"),
@@ -149,8 +164,11 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       const newInvoiceRef = doc(collection(firestore, 'invoices'));
       newInvoiceId = newInvoiceRef.id;
 
+      const invoiceCount = invoices?.length || 0;
+      const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
+
       const newInvoice: Omit<Document, 'id'> = {
-          ...originalDoc,
+          ...(originalDoc as any), // This is a bit unsafe, but it's the easiest way to copy fields
           type: 'Invoice',
           status: 'Draft',
           userId: user.uid,
@@ -160,6 +178,8 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           isSigned: false,
           terms: originalDoc.terms || 'Net 30',
           payments: [],
+          invoiceNumber: newInvoiceNumber,
+          estimateNumber: originalDoc.estimateNumber, // Keep original estimate number
         };
       batch.set(newInvoiceRef, newInvoice);
 
@@ -168,14 +188,14 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       batch.update(invoiceRef, {
         signature,
         isSigned: true,
-        status: 'Sent',
+        status: 'Sent', // Correctly set to 'Sent', not 'Paid'
       });
     }
 
     await batch.commit();
     return newInvoiceId;
 
-  }, [user, firestore, documents]);
+  }, [user, firestore, documents, invoices]);
 
   const recordPayment = useCallback(async (docId: string, payment: Omit<Payment, 'id' | 'date'>) => {
     if (!user) return;

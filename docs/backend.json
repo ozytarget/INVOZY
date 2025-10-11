@@ -51,6 +51,10 @@
           "type": "string",
           "description": "Unique identifier for the Estimate entity."
         },
+        "estimateNumber": {
+            "type": "string",
+            "description": "The user-facing sequential number for the estimate (e.g., EST-001)."
+        },
         "userId": {
           "type": "string",
           "description": "The UID of the user who owns this estimate."
@@ -139,7 +143,6 @@
       "required": [
         "id",
         "userId",
-        "estimateId",
         "invoiceNumber",
         "clientName",
         "description",
@@ -191,6 +194,10 @@
             "$ref": "#/backend/entities/Client"
           },
           "description": "Stores clients created by a specific user.",
+          "rules": {
+            "allow_read": "isOwner()",
+            "allow_write": "isOwner()"
+          },
           "params": [
             {
               "name": "userId",
@@ -211,6 +218,10 @@
             "$ref": "#/backend/entities/Estimate"
           },
           "description": "Root collection for all estimates. Security rules enforce user ownership.",
+          "rules": {
+            "allow_read": "true",
+            "allow_write": "isOwner()"
+          },
           "params": [
             {
               "name": "estimateId",
@@ -227,6 +238,10 @@
             "$ref": "#/backend/entities/Invoice"
           },
           "description": "Root collection for all invoices. Security rules enforce user ownership.",
+          "rules": {
+            "allow_read": "true",
+            "allow_write": "isOwner()"
+          },
           "params": [
             {
               "name": "invoiceId",
