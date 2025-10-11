@@ -1,6 +1,7 @@
+
 'use client';
 
-import { Document, Client, DocumentStatus } from '@/lib/types';
+import { Document, Client, DocumentStatus, DocumentType } from '@/lib/types';
 import { initialDocuments } from '@/lib/data';
 import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
@@ -33,6 +34,8 @@ const getClientsFromDocuments = (documents: Document[]): Client[] => {
 interface DocumentContextType {
   documents: Document[];
   addDocument: (doc: Document) => void;
+  deleteDocument: (docId: string) => void;
+  duplicateDocument: (docId: string) => void;
   clients: Client[];
   addClient: (client: Omit<Client, 'totalBilled' | 'documentCount'>) => void;
   signAndProcessDocument: (docId: string, signature: string) => void;
@@ -46,6 +49,31 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   const addDocument = useCallback((doc: Document) => {
     setDocuments(prevDocs => [doc, ...prevDocs]);
+  }, []);
+
+  const deleteDocument = useCallback((docId: string) => {
+    setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== docId));
+  }, []);
+
+  const duplicateDocument = useCallback((docId: string) => {
+    setDocuments(prevDocs => {
+      const originalDoc = prevDocs.find(d => d.id === docId);
+      if (!originalDoc) return prevDocs;
+
+      const newId = `${originalDoc.type.slice(0,3).toUpperCase()}-${(prevDocs.filter(d => d.type === originalDoc.type).length + 1).toString().padStart(3, '0')}`;
+      
+      const newDoc: Document = {
+        ...originalDoc,
+        id: newId,
+        status: 'Draft',
+        issuedDate: format(new Date(), "yyyy-MM-dd"),
+        dueDate: originalDoc.dueDate ? format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd") : undefined,
+        isSigned: false,
+        signature: undefined,
+      };
+      
+      return [newDoc, ...prevDocs];
+    });
   }, []);
   
   const addClient = useCallback((clientData: Omit<Client, 'totalBilled' | 'documentCount'>) => {
@@ -121,7 +149,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
 
   return (
-    <DocumentContext.Provider value={{ documents, addDocument, clients, addClient, signAndProcessDocument }}>
+    <DocumentContext.Provider value={{ documents, addDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument }}>
       {children}
     </DocumentContext.Provider>
   );

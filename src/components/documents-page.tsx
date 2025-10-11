@@ -1,3 +1,4 @@
+
 'use client'
 
 import {
@@ -29,6 +30,8 @@ import {
 } from "./ui/dropdown-menu"
 import { useDocuments } from "@/hooks/use-documents"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { DeleteDocumentMenuItem } from "./delete-document-dialog"
 
 const statusStyles: Record<DocumentStatus, string> = {
   Paid: "text-primary bg-primary/10",
@@ -44,8 +47,9 @@ type DocumentsPageProps = {
 }
 
 export function DocumentsPage({ type }: DocumentsPageProps) {
-  const { documents } = useDocuments();
+  const { documents, deleteDocument, duplicateDocument } = useDocuments();
   const router = useRouter();
+  const { toast } = useToast();
   const title = type === "Estimate" ? "Estimates" : "Invoices"
   const createHref = type === "Estimate" ? "/dashboard/estimates/create" : "/dashboard/invoices/create"
   
@@ -58,6 +62,23 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
 
   const handleRowClick = (doc: Document) => {
     router.push(getViewLink(doc));
+  }
+
+  const handleDelete = (docId: string) => {
+    deleteDocument(docId);
+    toast({
+        title: "Document Deleted",
+        description: `The document has been successfully deleted.`,
+    });
+  }
+
+  const handleDuplicate = (doc: Document) => {
+    duplicateDocument(doc.id);
+     toast({
+        title: "Document Duplicated",
+        description: `A new draft has been created from ${doc.id}.`,
+    });
+    router.push(createHref); // Navigate to create page to see the new draft (or just stay here)
   }
 
   return (
@@ -114,10 +135,10 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
                         <DropdownMenuItem asChild><Link href={getViewLink(doc)} target="_blank">View Public Page</Link></DropdownMenuItem>
-                        <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
+                        <DeleteDocumentMenuItem onDelete={() => handleDelete(doc.id)} />
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
