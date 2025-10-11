@@ -57,15 +57,8 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
   
   const filteredDocuments = documents.filter(doc => doc.type === type)
 
-  const getViewLink = (doc: Document) => {
-    // Public view is disabled with Firestore implementation
-    return `/dashboard`;
-  }
-
   const handleRowClick = (doc: Document) => {
-    // Since public view is not functional, we can't navigate there.
-    // For now, we will log to console. A real implementation might open an edit view.
-    console.log("Viewing document:", doc.id)
+    router.push(`/view/${doc.type.toLowerCase()}/${doc.id}`);
   }
 
   const handleDelete = (docId: string) => {
