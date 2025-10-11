@@ -170,12 +170,12 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
         return [newInvoice, ...docsCopy];
 
       } else if (originalDoc.type === 'Invoice') { 
-        // Sign and pay the invoice
+        // Sign and send the invoice
         docsCopy[docIndex] = {
           ...originalDoc,
           signature,
           isSigned: true,
-          status: 'Paid',
+          status: 'Sent',
         };
         return docsCopy;
       }
