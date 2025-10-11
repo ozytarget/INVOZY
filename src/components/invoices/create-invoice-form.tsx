@@ -5,7 +5,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { CalendarIcon, Trash2 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 
@@ -46,6 +46,7 @@ import { CreateClientDialog } from "../clients/create-client-dialog"
 import { AiSuggestionsDialog } from "../estimates/ai-suggestions-dialog"
 
 const lineItemSchema = z.object({
+  id: z.string().optional(),
   description: z.string().min(1, "Description is required."),
   quantity: z.coerce.number().min(0, "Quantity must be positive."),
   price: z.coerce.number().min(0, "Price must be positive."),
@@ -72,31 +73,54 @@ type CompanySettings = {
     companyAddress?: string;
 };
 
-export function CreateInvoiceForm() {
+type CreateInvoiceFormProps = {
+  documentToEdit?: Document;
+}
+
+export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const { documents, addDocument, clients } = useDocuments();
+  const { addDocument, updateDocument, clients } = useDocuments();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [companyLocation, setCompanyLocation] = useState('');
+
+  const isEditMode = !!documentToEdit;
   
-  const form = useForm<InvoiceFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
+  const defaultValues = isEditMode && documentToEdit ? {
+      clientId: documentToEdit.clientEmail,
+      projectTitle: documentToEdit.projectTitle,
+      projectDescription: documentToEdit.notes,
+      issuedDate: parseISO(documentToEdit.issuedDate),
+      dueDate: documentToEdit.dueDate ? parseISO(documentToEdit.dueDate) : new Date(),
+      lineItems: documentToEdit.lineItems,
+      notes: documentToEdit.notes,
+      terms: documentToEdit.terms,
+    } : {
       clientId: "",
       projectTitle: "",
       projectDescription: "",
       lineItems: [{ description: "", quantity: 1, price: 0 }],
       notes: "",
       terms: "Net 30",
-    },
+    };
+
+  const form = useForm<InvoiceFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues
   })
 
   useEffect(() => {
-    // Set default dates only on client to avoid hydration errors
-    form.setValue('issuedDate', new Date());
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + 30);
-    form.setValue('dueDate', futureDate);
+    if (!isEditMode) {
+      form.setValue('issuedDate', new Date());
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 30);
+      form.setValue('dueDate', futureDate);
+    }
+    
+    if (isEditMode && documentToEdit) {
+        const client = clients.find(c => c.email === documentToEdit.clientEmail);
+        setSelectedClient(client || null);
+    }
 
     if (typeof window !== 'undefined') {
         const savedSettings = localStorage.getItem("companySettings");
@@ -105,7 +129,7 @@ export function CreateInvoiceForm() {
             setCompanyLocation(parsedSettings.companyAddress || '');
         }
     }
-  }, [form]);
+  }, [form, isEditMode, documentToEdit, clients]);
 
 
   const { fields, append, remove } = useFieldArray({
@@ -133,9 +157,7 @@ export function CreateInvoiceForm() {
       return;
     }
 
-    const newInvoice: Omit<Document, 'id'> = {
-      type: 'Invoice' as const,
-      status: 'Draft' as const,
+    const docData: Partial<Document> = {
       clientName: client.name,
       clientEmail: client.email,
       clientAddress: client.address,
@@ -144,20 +166,36 @@ export function CreateInvoiceForm() {
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
       dueDate: format(data.dueDate, "yyyy-MM-dd"),
       amount: subtotal,
-      lineItems: data.lineItems.map((item, index) => ({ ...item, id: `${index + 1}` })),
+      lineItems: data.lineItems.map((item, index) => ({ ...item, id: item.id || `${Date.now()}-${index}` })),
       notes: data.notes || '',
       terms: data.terms || '',
     };
-    const newDocId = await addDocument(newInvoice);
-    toast({
-      title: "Invoice Created",
-      description: `Invoice for ${client.name} has been saved as a draft.`,
-    })
-    
-    if (newDocId) {
-      router.push(`/view/invoice/${newDocId}`);
+
+    if (isEditMode && documentToEdit) {
+        await updateDocument(documentToEdit.id, docData);
+        toast({
+            title: "Invoice Updated",
+            description: `Invoice for ${client.name} has been updated.`,
+        });
+        router.push(`/view/invoice/${documentToEdit.id}`);
     } else {
-      router.push("/dashboard/invoices");
+        const newInvoice: Omit<Document, 'id'> = {
+            ...docData,
+            type: 'Invoice',
+            status: 'Draft',
+        } as Omit<Document, 'id'>;
+
+        const newDocId = await addDocument(newInvoice);
+        toast({
+        title: "Invoice Created",
+        description: `Invoice for ${client.name} has been saved as a draft.`,
+        })
+        
+        if (newDocId) {
+        router.push(`/view/invoice/${newDocId}`);
+        } else {
+        router.push("/dashboard/invoices");
+        }
     }
   }
 
@@ -166,7 +204,6 @@ export function CreateInvoiceForm() {
   };
   
   const handleApplyLineItems = useCallback((items: { description: string; quantity: number; price: number }[]) => {
-    // Remove the initial empty item if it exists
     if (fields.length === 1 && fields[0].description === "" && fields[0].price === 0) {
       remove(0);
     }
@@ -196,7 +233,7 @@ export function CreateInvoiceForm() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Select Client</FormLabel>
-                        <Select onValueChange={handleClientChange} value={field.value}>
+                        <Select onValueChange={handleClientChange} value={field.value} disabled={isEditMode}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select an existing client" />
@@ -537,11 +574,9 @@ export function CreateInvoiceForm() {
         </Card>
         <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit">Save as Draft</Button>
+            <Button type="submit">{isEditMode ? 'Update Invoice' : 'Save as Draft'}</Button>
         </div>
       </form>
     </Form>
   )
 }
-
-    

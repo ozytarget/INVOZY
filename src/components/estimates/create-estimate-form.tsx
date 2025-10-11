@@ -5,7 +5,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { CalendarIcon, Trash2 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 
@@ -46,6 +46,7 @@ import { Client, Document } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
 
 const lineItemSchema = z.object({
+  id: z.string().optional(), // Keep id for existing items
   description: z.string().min(1, "Description is required."),
   quantity: z.coerce.number().min(0, "Quantity must be positive."),
   price: z.coerce.number().min(0, "Price must be positive."),
@@ -69,28 +70,50 @@ type CompanySettings = {
     companyAddress?: string;
 };
 
-export function CreateEstimateForm() {
+type CreateEstimateFormProps = {
+  documentToEdit?: Document;
+}
+
+export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const { addDocument, documents, clients } = useDocuments();
+  const { addDocument, updateDocument, clients } = useDocuments();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [companyLocation, setCompanyLocation] = useState('');
   
-  const form = useForm<EstimateFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
+  const isEditMode = !!documentToEdit;
+
+  const defaultValues = isEditMode && documentToEdit ? {
+      clientId: documentToEdit.clientEmail,
+      projectTitle: documentToEdit.projectTitle,
+      projectDescription: documentToEdit.notes, // Assuming project description is stored in notes for now
+      issuedDate: parseISO(documentToEdit.issuedDate),
+      lineItems: documentToEdit.lineItems,
+      notes: documentToEdit.notes,
+      terms: documentToEdit.terms,
+    } : {
       clientId: "",
       projectTitle: "",
       projectDescription: "",
       lineItems: [{ description: "", quantity: 1, price: 0 }],
       notes: "",
       terms: "",
-    },
+    };
+
+  const form = useForm<EstimateFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues,
   })
 
   useEffect(() => {
-    // Set default dates only on the client side to avoid hydration errors
-    form.setValue('issuedDate', new Date());
+    if (!isEditMode) {
+        form.setValue('issuedDate', new Date());
+    }
+
+    if (isEditMode && documentToEdit) {
+        const client = clients.find(c => c.email === documentToEdit.clientEmail);
+        setSelectedClient(client || null);
+    }
 
     if (typeof window !== 'undefined') {
         const savedSettings = localStorage.getItem("companySettings");
@@ -99,7 +122,7 @@ export function CreateEstimateForm() {
             setCompanyLocation(parsedSettings.companyAddress || '');
         }
     }
-  }, [form]);
+  }, [form, isEditMode, documentToEdit, clients]);
 
 
   const { fields, append, remove } = useFieldArray({
@@ -127,9 +150,7 @@ export function CreateEstimateForm() {
       return;
     }
 
-    const newEstimate: Omit<Document, 'id'> = {
-      type: 'Estimate' as const,
-      status: 'Draft' as const,
+    const docData: Partial<Document> = {
       clientName: client.name,
       clientEmail: client.email,
       clientAddress: client.address,
@@ -137,27 +158,41 @@ export function CreateEstimateForm() {
       projectTitle: data.projectTitle,
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
       amount: subtotal,
-      lineItems: data.lineItems.map((item, index) => ({ ...item, id: `${index + 1}` })),
+      lineItems: data.lineItems.map((item, index) => ({ ...item, id: item.id || `${Date.now()}-${index}` })),
       notes: data.notes || '',
       terms: data.terms || '',
-    }
+    };
 
-    const newDocId = await addDocument(newEstimate);
-    
-    toast({
-      title: "Estimate Created",
-      description: `Estimate for ${client.name} has been saved as a draft.`,
-    })
-    
-    if (newDocId) {
-      router.push(`/view/estimate/${newDocId}`);
+    if (isEditMode && documentToEdit) {
+      await updateDocument(documentToEdit.id, docData);
+      toast({
+        title: "Estimate Updated",
+        description: `Estimate for ${client.name} has been updated.`,
+      });
+      router.push(`/view/estimate/${documentToEdit.id}`);
     } else {
-      router.push("/dashboard/estimates");
+      const newEstimate: Omit<Document, 'id'> = {
+        ...docData,
+        type: 'Estimate',
+        status: 'Draft',
+      } as Omit<Document, 'id'>;
+
+      const newDocId = await addDocument(newEstimate);
+      
+      toast({
+        title: "Estimate Created",
+        description: `Estimate for ${client.name} has been saved as a draft.`,
+      })
+      
+      if (newDocId) {
+        router.push(`/view/estimate/${newDocId}`);
+      } else {
+        router.push("/dashboard/estimates");
+      }
     }
   }
 
   const handleApplyLineItems = useCallback((items: { description: string; quantity: number; price: number }[]) => {
-    // Remove the initial empty item if it exists
     if (fields.length === 1 && fields[0].description === "" && fields[0].price === 0) {
       remove(0);
     }
@@ -191,7 +226,7 @@ export function CreateEstimateForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Select Client</FormLabel>
-                      <Select onValueChange={handleClientChange} value={field.value}>
+                      <Select onValueChange={handleClientChange} value={field.value} disabled={isEditMode}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select an existing client" />
@@ -492,11 +527,9 @@ export function CreateEstimateForm() {
         </Card>
         <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit">Save as Draft</Button>
+            <Button type="submit">{isEditMode ? 'Update Estimate' : 'Save as Draft'}</Button>
         </div>
       </form>
     </Form>
   )
 }
-
-    

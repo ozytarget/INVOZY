@@ -45,6 +45,7 @@ const getCombinedClients = (documents: Document[], storedClients: Client[]): Cli
 interface DocumentContextType {
   documents: Document[];
   addDocument: (doc: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber'>) => Promise<string | undefined>;
+  updateDocument: (docId: string, docData: Partial<Document>) => Promise<void>;
   deleteDocument: (docId: string) => Promise<void>;
   duplicateDocument: (docId: string) => Promise<void>;
   clients: Client[];
@@ -119,6 +120,17 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     const newDocRef = await addDoc(collectionRef, dataToSave);
     return newDocRef.id;
   }, [user, firestore]);
+
+  const updateDocument = useCallback(async (docId: string, docData: Partial<Document>) => {
+    if (!user) return;
+    const originalDoc = documents.find(d => d.id === docId);
+    if (!originalDoc) return;
+    
+    const collectionName = originalDoc.type === 'Estimate' ? 'estimates' : 'invoices';
+    const docRef = doc(firestore, collectionName, docId);
+    await updateDoc(docRef, docData);
+  }, [user, firestore, documents]);
+
 
   const deleteDocument = useCallback(async (docId: string) => {
     if (!user) return;
@@ -195,13 +207,12 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
           userId: user.uid,
           issuedDate: format(new Date(), "yyyy-MM-dd"),
           dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
-          signature: signature,
           isSigned: true,
+          signature: signature,
           terms: originalDoc.terms || 'Net 30',
           payments: [],
           invoiceNumber: newInvoiceNumber,
           estimateNumber: originalDoc.estimateNumber,
-          // Overwrite with company settings last to ensure they are current
           companyName: companySettings.companyName || 'Your Company',
           companyAddress: companySettings.companyAddress || '',
           companyEmail: companySettings.companyEmail || '',
@@ -318,7 +329,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
 
   return (
-    <DocumentContext.Provider value={{ documents, addDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, sendDocument, isLoading }}>
+    <DocumentContext.Provider value={{ documents, addDocument, updateDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, sendDocument, isLoading }}>
       {children}
     </DocumentContext.Provider>
   );
