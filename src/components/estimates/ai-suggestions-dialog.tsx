@@ -124,9 +124,9 @@ export function AiSuggestionsDialog({
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={handleOpen}>
+      <Button type="button" variant="outline" size="sm" onClick={handleOpen}>
         <Wand2 className="mr-2 h-4 w-4" />
-        AI-Powered Estimate
+        Generate
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
