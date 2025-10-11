@@ -16,41 +16,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useDocuments } from "@/hooks/use-documents"
-
-type Client = {
-  name: string
-  email: string
-  phone: string;
-  address: string;
-  totalBilled: number
-  documentCount: number
-}
+import type { Client } from "@/lib/types";
 
 export function ClientsList() {
-  const { documents } = useDocuments();
-
-  const clientsMap = new Map<string, Client>()
-
-  documents.forEach((doc) => {
-    let client = clientsMap.get(doc.clientEmail)
-    if (!client) {
-      client = {
-        name: doc.clientName,
-        email: doc.clientEmail,
-        phone: doc.clientPhone,
-        address: doc.clientAddress,
-        totalBilled: 0,
-        documentCount: 0,
-      }
-    }
-    if (doc.type === "Invoice") {
-      client.totalBilled += doc.amount
-    }
-    client.documentCount += 1
-    clientsMap.set(doc.clientEmail, client)
-  })
-
-  const clients = Array.from(clientsMap.values())
+  const { clients } = useDocuments();
 
   const handleRowClick = (client: Client) => {
     // TODO: Navigate to client details page
