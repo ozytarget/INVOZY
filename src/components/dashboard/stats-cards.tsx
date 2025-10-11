@@ -14,24 +14,36 @@ export function StatsCards() {
   const { documents } = useDocuments();
 
   const paidInvoices = documents.filter(
-    (doc) => doc.type === 'Invoice' && doc.status === 'Paid'
+    (doc) => doc.type === 'Invoice' && (doc.status === 'Paid' || doc.status === 'Partial')
   );
 
   const { totalRevenue, grossProfit, materialsCost, taxesCollected } = paidInvoices.reduce(
     (acc, invoice) => {
+      // For partial payments, we should only account for the portion of revenue that has been paid.
+      const amountPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+
+      // Calculate the ratio of payment against the total amount due.
+      const paymentRatio = invoice.amount > 0 ? amountPaid / invoice.amount : 0;
+      
+      // The revenue recognized is the amount actually paid.
+      acc.totalRevenue += amountPaid;
+      
       const subtotal = invoice.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
       const taxAmount = invoice.taxRate ? subtotal * (invoice.taxRate / 100) : 0;
-      acc.totalRevenue += subtotal + taxAmount;
-      acc.taxesCollected += taxAmount;
+      
+      // Apportion the collected tax based on the payment ratio
+      acc.taxesCollected += taxAmount * paymentRatio;
 
+      // Apportion costs and profit based on the payment ratio
       invoice.lineItems.forEach((item) => {
         const itemTotal = item.quantity * item.price;
         if (item.description.toLowerCase().includes('labor')) {
-          acc.grossProfit += itemTotal;
+          acc.grossProfit += itemTotal * paymentRatio;
         } else {
-          acc.materialsCost += itemTotal;
+          acc.materialsCost += itemTotal * paymentRatio;
         }
       });
+
       return acc;
     },
     { totalRevenue: 0, grossProfit: 0, materialsCost: 0, taxesCollected: 0 }
@@ -52,7 +64,7 @@ export function StatsCards() {
             ${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-xs text-muted-foreground">
-            from paid invoices (incl. tax)
+            from paid & partially paid invoices
           </p>
         </CardContent>
       </Card>
@@ -66,7 +78,7 @@ export function StatsCards() {
             ${grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-xs text-muted-foreground">
-            Estimated earnings from labor charges.
+            Recognized profit from paid portions.
           </p>
         </CardContent>
       </Card>
@@ -80,7 +92,7 @@ export function StatsCards() {
             ${materialsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-xs text-muted-foreground">
-            Estimated cost of materials from paid invoices.
+            Recognized cost from paid portions.
           </p>
         </CardContent>
       </Card>
@@ -94,7 +106,7 @@ export function StatsCards() {
             ${taxesCollected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-xs text-muted-foreground">
-            From paid invoices.
+            From paid & partially paid invoices.
           </p>
         </CardContent>
       </Card>
