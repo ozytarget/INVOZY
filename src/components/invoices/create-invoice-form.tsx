@@ -5,6 +5,7 @@ import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
 import { CalendarIcon, Trash2 } from "lucide-react"
+import { useEffect } from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -50,7 +51,9 @@ const formSchema = z.object({
   clientAddress: z.string().min(3, "Client address is required."),
   clientPhone: z.string().optional(),
   projectTitle: z.string().min(3, "Project title is required."),
-  issuedDate: z.date(),
+  issuedDate: z.date({
+    required_error: "Issued date is required.",
+  }),
   dueDate: z.date({
     required_error: "Due date is required.",
   }),
@@ -74,12 +77,19 @@ export function CreateInvoiceForm() {
       clientAddress: "",
       clientPhone: "",
       projectTitle: "",
-      issuedDate: new Date(),
       lineItems: [{ description: "", quantity: 1, price: 0 }],
       notes: "",
       terms: "Net 30",
     },
   })
+
+  // Set default date on client-side to avoid hydration errors
+  useEffect(() => {
+    if (!form.getValues('issuedDate')) {
+        form.setValue('issuedDate', new Date());
+    }
+  }, [form]);
+
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -408,5 +418,3 @@ export function CreateInvoiceForm() {
     </Form>
   )
 }
-
-    

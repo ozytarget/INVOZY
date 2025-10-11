@@ -5,6 +5,7 @@ import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
 import { CalendarIcon, Trash2 } from "lucide-react"
+import { useEffect } from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -52,7 +53,9 @@ const formSchema = z.object({
   clientPhone: z.string().optional(),
   projectTitle: z.string().min(3, "Project title is required."),
   projectDescription: z.string().optional(),
-  issuedDate: z.date(),
+  issuedDate: z.date({
+    required_error: "Issued date is required.",
+  }),
   lineItems: z.array(lineItemSchema).min(1, "At least one line item is required."),
   notes: z.string().optional(),
   terms: z.string().optional(),
@@ -74,12 +77,16 @@ export function CreateEstimateForm() {
       clientPhone: "",
       projectTitle: "",
       projectDescription: "",
-      issuedDate: new Date(),
       lineItems: [{ description: "", quantity: 1, price: 0 }],
       notes: "",
       terms: "",
     },
   })
+
+  // Set default date on client-side to avoid hydration errors
+  useEffect(() => {
+    form.setValue('issuedDate', new Date());
+  }, [form]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
