@@ -1,8 +1,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"
-import { DocumentProvider } from '@/hooks/use-documents';
-import { FirebaseClientProvider } from '@/firebase';
+import { Providers } from '@/components/providers';
+
 
 export const metadata: Metadata = {
   title: 'invozzy',
@@ -25,12 +24,9 @@ export default function RootLayout({
         <meta name="theme-color" content="#27272A" />
       </head>
       <body className="font-body antialiased">
-        <FirebaseClientProvider>
-          <DocumentProvider>
-            {children}
-          </DocumentProvider>
-        </FirebaseClientProvider>
-        <Toaster />
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
