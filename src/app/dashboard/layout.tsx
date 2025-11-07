@@ -11,6 +11,11 @@ import { Button } from "@/components/ui/button"
 import { useUser } from "@/firebase"
 import { useDocuments } from "@/hooks/use-documents"
 import { SearchDialog } from "@/components/search-dialog"
+import { NotificationsSheet } from "@/components/notifications-sheet"
+import { useCollection, useMemoFirebase } from "@/firebase"
+import { collection, query, where } from "firebase/firestore"
+import { useFirestore } from "@/firebase"
+import type { Notification } from "@/lib/types"
 
 export default function DashboardLayout({
   children,
@@ -21,8 +26,18 @@ export default function DashboardLayout({
   const { user, isUserLoading } = useUser();
   const { isLoading: isLoadingDocuments } = useDocuments();
   const router = useRouter();
+  const firestore = useFirestore();
 
-  // Updated nav items based on the image
+  const notificationsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(
+      collection(firestore, 'users', user.uid, 'notifications'),
+      where('isRead', '==', false)
+    );
+  }, [firestore, user]);
+
+  const { data: unreadNotifications } = useCollection<Notification>(notificationsQuery);
+
   const navItems = [
     { href: "/dashboard/estimates", icon: <FileText />, label: "Estimates" },
     { href: "/dashboard/invoices", icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M11 15h4"/><path d="M11 11h4"/><path d="M11 7h4"/><path d="M7 11h0"/></svg>, label: "Invoices" },
@@ -32,19 +47,13 @@ export default function DashboardLayout({
   ]
 
   const getTitle = () => {
-    // Handle dashboard root
     if (pathname === "/dashboard") return "Dashboard";
-
-    // Handle create pages
     if (pathname.includes('/create')) {
-        const type = pathname.split('/')[2]; // estimates or invoices
+        const type = pathname.split('/')[2];
         return `Create ${type.charAt(0).toUpperCase() + type.slice(1)}`;
     }
-    
-    // Find matching nav item for other pages
     const currentNavItem = navItems.find(item => pathname.startsWith(item.href));
     if (currentNavItem) return currentNavItem.label;
-
     return "Dashboard";
   }
 
@@ -74,9 +83,14 @@ export default function DashboardLayout({
               <Search className="h-5 w-5" />
             </Button>
           </SearchDialog>
-          <Button variant="ghost" size="icon" className="text-current hover:bg-white/10 hover:text-white">
-            <Bell className="h-5 w-5" />
-          </Button>
+          <NotificationsSheet>
+            <Button variant="ghost" size="icon" className="relative text-current hover:bg-white/10 hover:text-white">
+              <Bell className="h-5 w-5" />
+              {unreadNotifications && unreadNotifications.length > 0 && (
+                <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-primary" />
+              )}
+            </Button>
+          </NotificationsSheet>
           <UserNav />
         </div>
       </header>

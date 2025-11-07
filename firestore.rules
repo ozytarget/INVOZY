@@ -1,102 +1,32 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset enforces a flexible ownership model. Estimates and invoices are publicly readable but only editable by their owners. Client data is private and only accessible to the owning user.
- * @dataStructure
- *   /users/{userId}/clients/{clientId} - Stores client data private to each user.
- *   /estimates/{estimateId} - Stores estimate data, readable by anyone, writable only by the owner (specified in the 'userId' field).
- *   /invoices/{invoiceId} - Stores invoice data, readable by anyone, writable only by the owner (specified in the 'userId' field).
- * @keySecurityDecisions
- *   - Estimates and Invoices are readable by anyone to support public sharing via a direct link.
- *   - Only the owner (identified by the userId field) can create, update, or delete Estimates or Invoices.
- *   - Client data is strictly private to the owning user.
- *   - User listing is not allowed.
- * @denormalizationForAuthorization
- *   - The 'Estimate' and 'Invoice' documents contain a 'userId' field, which is used to enforce ownership for write operations.
- * @structuralSegregation
- *   - Publicly readable data (Estimates, Invoices) is stored in top-level collections.
- *   - Private data (Clients) is stored in user-specific subcollections.
- */
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Checks if the request is authenticated.
-     * @return {bool} True if the request is authenticated, false otherwise.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * @description Checks if the authenticated user is the owner of the document.
-     * @param {string} userId - The user ID to compare against the request's auth UID.
-     * @return {bool} True if the authenticated user's UID matches the provided userId, false otherwise.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * @description Checks if the authenticated user is the owner of the existing document.
-     * @param {string} userId - The user ID to compare against the resource data's userId.
-     * @return {bool} True if the authenticated user is the owner of the existing document, false otherwise.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+    match /users/{userId}/{any=**} {
+      allow read, write: if isOwner(userId);
     }
-
-    /**
-     * @description Rule for documents in the /users/{userId}/clients/{clientId} path.
-     * @path /users/{userId}/clients/{clientId}
-     * @allow (create) - A user with UID 'user123' can create a client document under /users/user123/clients/client456 if request.auth.uid == 'user123'.
-     * @allow (get, list, update, delete) - A user with UID 'user123' can get, list, update, or delete a client document under /users/user123/clients/client456 if request.auth.uid == 'user123'.
-     * @deny (create) - A user with UID 'user456' cannot create a client document under /users/user123/clients/client456 because request.auth.uid != 'user123'.
-     * @deny (get, list, update, delete) - A user with UID 'user456' cannot get, list, update, or delete a client document under /users/user123/clients/client456 because request.auth.uid != 'user123'.
-     * @principle Enforces document ownership for all operations.  Only the user whose ID matches {userId} can access documents at this path.
-     */
-    match /users/{userId}/clients/{clientId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Rule for documents in the /estimates/{estimateId} path.
-     * @path /estimates/{estimateId}
-     * @allow (get, list) - Any user, authenticated or not, can read estimate data.
-     * @allow (create) - A user with UID 'user123' can create an estimate document under /estimates/est456 if request.auth.uid == 'user123' and request.resource.data.userId == 'user123'.
-     * @allow (update, delete) - A user with UID 'user123' can update or delete an estimate document under /estimates/est456 if request.auth.uid == 'user123' and resource.data.userId == 'user123'.
-     * @deny (create) - A user with UID 'user456' cannot create an estimate document under /estimates/est456 if request.auth.uid != 'user123' or request.resource.data.userId != 'user123'.
-     * @deny (update, delete) - A user with UID 'user456' cannot update or delete an estimate document under /estimates/est456 if request.auth.uid != 'user123' or resource.data.userId != 'user123'.
-     * @principle Allows public reads but enforces document ownership for writes.  The 'userId' field within the document is used to control write access.
-     */
+    
     match /estimates/{estimateId} {
       allow get: if true;
       allow list: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isExistingOwner(resource.data.userId);
-      allow delete: if isExistingOwner(resource.data.userId);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
-    /**
-     * @description Rule for documents in the /invoices/{invoiceId} path.
-     * @path /invoices/{invoiceId}
-     * @allow (get, list) - Any user, authenticated or not, can read invoice data.
-     * @allow (create) - A user with UID 'user123' can create an invoice document under /invoices/inv456 if request.auth.uid == 'user123' and request.resource.data.userId == 'user123'.
-     * @allow (update, delete) - A user with UID 'user123' can update or delete an invoice document under /invoices/inv456 if request.auth.uid == 'user123' and resource.data.userId == 'user123'.
-     * @deny (create) - A user with UID 'user456' cannot create an invoice document under /invoices/inv456 if request.auth.uid != 'user123' or request.resource.data.userId != 'user123'.
-     * @deny (update, delete) - A user with UID 'user456' cannot update or delete an invoice document under /invoices/inv456 if request.auth.uid != 'user123' or resource.data.userId != 'user123'.
-     * @principle Allows public reads but enforces document ownership for writes.  The 'userId' field within the document is used to control write access.
-     */
     match /invoices/{invoiceId} {
       allow get: if true;
       allow list: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isExistingOwner(resource.data.userId);
-      allow delete: if isExistingOwner(resource.data.userId);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
   }
 }

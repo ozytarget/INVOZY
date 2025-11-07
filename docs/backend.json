@@ -209,6 +209,21 @@
         "email",
         "address"
       ]
+    },
+    "Notification": {
+      "title": "Notification",
+      "type": "object",
+      "description": "Represents a notification for a user.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "message": { "type": "string" },
+        "documentId": { "type": "string" },
+        "documentType": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": ["userId", "message", "timestamp", "isRead"]
     }
   },
   "auth": {
@@ -226,21 +241,7 @@
           "schema": {
             "$ref": "#/backend/entities/Client"
           },
-          "description": "Stores clients created by a specific user.",
-          "rules": {
-            "allow_read": "isOwner()",
-            "allow_write": "isOwner()"
-          },
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "clientId",
-              "description": "The unique identifier for the client."
-            }
-          ]
+          "description": "Stores clients created by a specific user."
         }
       },
       {
@@ -250,17 +251,7 @@
           "schema": {
             "$ref": "#/backend/entities/Estimate"
           },
-          "description": "Root collection for all estimates. Security rules enforce user ownership.",
-          "rules": {
-            "allow_read": "true",
-            "allow_write": "isOwner()"
-          },
-          "params": [
-            {
-              "name": "estimateId",
-              "description": "The unique identifier for the estimate."
-            }
-          ]
+          "description": "Root collection for all estimates. Security rules enforce user ownership."
         }
       },
       {
@@ -270,20 +261,20 @@
           "schema": {
             "$ref": "#/backend/entities/Invoice"
           },
-          "description": "Root collection for all invoices. Security rules enforce user ownership.",
-          "rules": {
-            "allow_read": "true",
-            "allow_write": "isOwner()"
-          },
-          "params": [
-            {
-              "name": "invoiceId",
-              "description": "The unique identifier for the invoice."
-            }
-          ]
+          "description": "Root collection for all invoices. Security rules enforce user ownership."
+        }
+      },
+      {
+        "path": "/users/{userId}/notifications/{notificationId}",
+        "definition": {
+            "entityName": "Notification",
+            "schema": {
+                "$ref": "#/backend/entities/Notification"
+            },
+            "description": "Stores notifications for a specific user."
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed for a multi-user application with public document sharing. Estimates and invoices are in root collections to allow for public, unauthenticated reads via a direct link. Each document contains a 'userId' field to enforce ownership for write operations and private list queries. Clients are stored in a sub-collection under each user, as they are private to that user. This approach balances public accessibility with secure, user-specific data ownership."
+    "reasoning": "The Firestore data structure is designed for a multi-user application. Estimates and invoices are in root collections to allow for public, unauthenticated reads via a direct link. Each document contains a 'userId' field to enforce ownership for write operations and private list queries. Clients and notifications are stored in a sub-collection under each user, as they are private to that user."
   }
 }

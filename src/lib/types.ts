@@ -1,5 +1,6 @@
 
 
+
 export type LineItem = {
   id: string;
   description: string;
@@ -66,4 +67,14 @@ export type Client = {
   address: string;
   totalBilled: number;
   documentCount: number;
+};
+
+export type Notification = {
+  id: string;
+  userId: string;
+  message: string;
+  documentId: string;
+  documentType: 'Invoice' | 'Estimate';
+  timestamp: string;
+  isRead: boolean;
 };
