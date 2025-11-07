@@ -9,13 +9,36 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase"
-import { collection, doc, query, orderBy, writeBatch } from "firebase/firestore"
+import { collection, doc, query, orderBy, writeBatch, Timestamp } from "firebase/firestore"
 import type { Notification } from "@/lib/types"
 import { formatDistanceToNow } from 'date-fns'
 import { Button } from "./ui/button"
 import { ScrollArea } from "./ui/scroll-area"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+
+// Helper function to safely convert timestamp
+const formatNotificationTimestamp = (timestamp: any): string => {
+  if (!timestamp) {
+    return 'just now';
+  }
+  // Firestore timestamps can be objects with seconds and nanoseconds
+  if (timestamp && typeof timestamp.toDate === 'function') {
+    return formatDistanceToNow(timestamp.toDate(), { addSuffix: true });
+  }
+  // Or they might already be string representations
+  try {
+    const date = new Date(timestamp);
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return 'a while ago';
+    }
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch (error) {
+    return 'a while ago';
+  }
+};
+
 
 export function NotificationsSheet({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
@@ -79,7 +102,7 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
                     >
                         <p className="font-medium">{notification.message}</p>
                         <p className="text-sm text-muted-foreground">
-                        {notification.timestamp ? formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true }) : 'just now'}
+                          {formatNotificationTimestamp(notification.timestamp)}
                         </p>
                     </div>
                     ))
