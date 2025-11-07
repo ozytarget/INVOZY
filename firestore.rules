@@ -14,6 +14,10 @@ service cloud.firestore {
     match /users/{userId}/{any=**} {
       allow read, write: if isOwner(userId);
     }
+
+    match /users/{userId}/notifications/{notificationId} {
+      allow read, write: if isOwner(userId);
+    }
     
     match /estimates/{estimateId} {
       allow get: if true;
