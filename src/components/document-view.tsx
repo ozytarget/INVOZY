@@ -357,26 +357,28 @@ export function DocumentView({ document }: DocumentViewProps) {
                         <Carousel className="w-full">
                         <CarouselContent>
                             {document.projectPhotos.map((photo, index) => (
-                            <CarouselItem key={index}>
-                                <div className="p-1">
-                                    <div className="relative group">
-                                        <Image src={photo.url} alt={photo.description || `Project photo ${index + 1}`} width={800} height={600} className="w-full object-cover rounded-lg aspect-video" />
-                                        {isDashboardView && (
-                                            <Button 
-                                                variant="secondary" 
-                                                size="icon" 
-                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
-                                                onClick={() => handleDownloadPhoto(photo.url, `${documentNumber}-photo-${index + 1}.png`)}
-                                            >
-                                                <Download className="h-4 w-4" />
-                                            </Button>
+                                photo && photo.url && (
+                                <CarouselItem key={index}>
+                                    <div className="p-1">
+                                        <div className="relative group">
+                                            <Image src={photo.url} alt={photo.description || `Project photo ${index + 1}`} width={800} height={600} className="w-full object-cover rounded-lg aspect-video" />
+                                            {isDashboardView && (
+                                                <Button 
+                                                    variant="secondary" 
+                                                    size="icon" 
+                                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                                                    onClick={() => handleDownloadPhoto(photo.url, `${documentNumber}-photo-${index + 1}.png`)}
+                                                >
+                                                    <Download className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                        {photo.description && (
+                                            <p className="text-sm text-muted-foreground mt-2 text-center">{photo.description}</p>
                                         )}
                                     </div>
-                                     {photo.description && (
-                                        <p className="text-sm text-muted-foreground mt-2 text-center">{photo.description}</p>
-                                    )}
-                                </div>
-                            </CarouselItem>
+                                </CarouselItem>
+                                )
                             ))}
                         </CarouselContent>
                         {document.projectPhotos.length > 1 && (
@@ -488,5 +490,7 @@ export function DocumentView({ document }: DocumentViewProps) {
     </div>
   );
 }
+
+    
 
     
