@@ -195,11 +195,6 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
     if (originalDoc.type === 'Estimate') {
       const estimateRef = doc(firestore, 'estimates', docId);
-      batch.update(estimateRef, {
-        signature,
-        isSigned: true,
-        status: 'Approved',
-      });
       
       const newInvoiceRef = doc(collection(firestore, 'invoices'));
       newInvoiceId = newInvoiceRef.id;
@@ -242,6 +237,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       delete newInvoiceData.id; 
       
       batch.set(newInvoiceRef, newInvoiceData);
+      // Now, delete the original estimate
+      batch.delete(estimateRef);
 
     } else { // It's an invoice
       const invoiceRef = doc(firestore, 'invoices', docId);
