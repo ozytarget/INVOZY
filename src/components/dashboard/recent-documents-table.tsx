@@ -40,7 +40,7 @@ export function RecentDocumentsTable() {
     .slice(0, 5)
 
   const handleRowClick = (docId: string, docType: string) => {
-    router.push(`/view/${docType.toLowerCase()}/${docId}`);
+    router.push(`/view/${docType.toLowerCase()}/${docId}?internal=true`);
   }
 
   return (

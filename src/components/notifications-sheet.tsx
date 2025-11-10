@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import {
@@ -74,7 +75,7 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
     const batch = writeBatch(firestore);
     batch.update(notifRef, { isRead: true });
     batch.commit().then(() => {
-      router.push(`/view/${notification.documentType.toLowerCase()}/${notification.documentId}`);
+      router.push(`/view/${notification.documentType.toLowerCase()}/${notification.documentId}?internal=true`);
     });
   }
 

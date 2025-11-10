@@ -1,6 +1,5 @@
 
 
-
 'use client'
 
 import {
@@ -59,7 +58,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
   const filteredDocuments = documents.filter(doc => doc.type === type)
 
   const handleRowClick = (doc: Document) => {
-    router.push(`/view/${doc.type.toLowerCase()}/${doc.id}`);
+    router.push(`/view/${doc.type.toLowerCase()}/${doc.id}?internal=true`);
   }
 
   const handleDelete = (docId: string) => {
