@@ -5,13 +5,14 @@ import { DocumentView } from "@/components/document-view";
 import { notFound, useParams } from "next/navigation";
 import type { Document, Notification } from "@/lib/types";
 import { doc, collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 export default function PublicInvoiceViewPage() {
   const params = useParams();
   const firestore = useFirestore();
+  const { user } = useUser();
   const id = typeof params.id === 'string' ? params.id : '';
   const notificationSent = useRef(false);
 
@@ -23,7 +24,7 @@ export default function PublicInvoiceViewPage() {
   const { data: document, isLoading, error } = useDoc<Document>(docRef);
   
   useEffect(() => {
-    if (document && firestore && !notificationSent.current) {
+    if (document && firestore && !notificationSent.current && user?.uid !== document.userId) {
       const createNotification = async () => {
         try {
           const notificationData: Omit<Notification, 'id' | 'timestamp'> & { timestamp: any } = {
@@ -42,13 +43,9 @@ export default function PublicInvoiceViewPage() {
         }
       };
       
-      // We check if the viewer is likely the client, not the owner editing.
-      // This is a simple check; a more robust solution might use session tracking.
-      if (!window.location.pathname.startsWith('/dashboard')) {
-        createNotification();
-      }
+      createNotification();
     }
-  }, [document, firestore]);
+  }, [document, firestore, user]);
 
   if (isLoading) {
     return (
