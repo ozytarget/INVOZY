@@ -5,7 +5,7 @@
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
 import React, from 'react';
 import { format } from 'date-fns';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, addDoc, deleteDoc, writeBatch, getDocs, query, where, getDoc, updateDoc } from 'firebase/firestore';
 
 // This function extracts unique clients from documents and combines with stored clients
@@ -233,7 +233,6 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
           search_field: `${originalDoc.clientName} ${originalDoc.projectTitle} ${newInvoiceNumber}`.toLowerCase(),
       };
       
-      // CRITICAL FIX: Delete the old ID before creating the new document
       delete newInvoiceData.id; 
       
       batch.set(newInvoiceRef, newInvoiceData);
@@ -334,7 +333,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     
     const docSnap = await getDoc(docRef);
     if (docSnap.exists() && docSnap.data().status === 'Draft') {
-      await updateDoc(docRef, { status: 'Sent' });
+      updateDocumentNonBlocking(docRef, { status: 'Sent' });
     }
   }, [user, firestore]);
 
