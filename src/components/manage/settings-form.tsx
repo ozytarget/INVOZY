@@ -90,7 +90,7 @@ export function SettingsForm() {
         });
         // This will force a re-render of components that depend on localStorage
         window.dispatchEvent(new Event("storage"));
-        // No need to push router, it will be reloaded
+        router.push('/dashboard');
     } catch (error) {
         toast({
             variant: "destructive",
