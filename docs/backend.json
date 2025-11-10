@@ -259,6 +259,16 @@
   "firestore": {
     "structure": [
       {
+        "path": "/users/{userId}",
+        "definition": {
+            "entityName": "UserProfile",
+            "schema": {
+                "$ref": "#/backend/entities/UserProfile"
+            },
+            "description": "Stores user profile information."
+        }
+      },
+      {
         "path": "/users/{userId}/clients/{clientId}",
         "definition": {
           "entityName": "Client",
@@ -299,6 +309,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed for a multi-user application. Estimates and invoices are in root collections to allow for public, unauthenticated reads via a direct link. Each document contains a 'userId' field to enforce ownership for write operations and private list queries. Clients and notifications are stored in a sub-collection under each user, as they are private to that user."
+    "reasoning": "The Firestore data structure is designed for a multi-user application. Estimates and invoices are in root collections to allow for public, unauthenticated reads via a direct link. Each document contains a 'userId' field to enforce ownership for write operations and private list queries. UserProfiles, Clients and notifications are stored in a sub-collection under each user, as they are private to that user."
   }
 }
