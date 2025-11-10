@@ -57,6 +57,7 @@ export type Document = {
   payments?: Payment[];
   estimateNumber?: string;
   invoiceNumber?: string;
+  projectPhotos?: string[];
   search_field: string;
 };
 

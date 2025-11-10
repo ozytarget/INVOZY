@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
@@ -220,6 +221,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
           payments: [],
           invoiceNumber: newInvoiceNumber,
           estimateNumber: originalDoc.estimateNumber,
+          projectPhotos: originalDoc.projectPhotos || [],
           // Finally, ensure company settings are applied and have the last word
           companyName: companySettings.companyName || '',
           companyAddress: companySettings.companyAddress || '',
@@ -356,4 +358,3 @@ export const useDocuments = () => {
   }
   return context;
 };
-

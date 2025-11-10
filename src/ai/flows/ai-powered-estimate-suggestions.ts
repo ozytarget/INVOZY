@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -64,6 +65,10 @@ The user will provide a brief project description. Your task is to expand this i
 
 Project Description: """{{{projectDescription}}}"""
 Contractor's State for Labor Pricing: "{{{contractorLocation}}}"
+{{#if photoDataUri}}
+Project Photo:
+{{media url=photoDataUri}}
+{{/if}}
 
 **Key Instructions for your ELITE estimation (OBSERVE ALL OF THEM METICULOUSLY):**
 

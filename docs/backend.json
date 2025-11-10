@@ -92,7 +92,15 @@
         "companyLogo": { "type": "string" },
         "companyWebsite": { "type": "string" },
         "contractorName": { "type": "string" },
-        "schedulingUrl": { "type": "string" }
+        "schedulingUrl": { "type": "string" },
+        "projectPhotos": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "data-uri"
+          },
+          "description": "An array of data URIs for photos related to the project (up to 5)."
+        }
       },
       "required": [
         "id",
@@ -167,7 +175,15 @@
         "companyLogo": { "type": "string" },
         "companyWebsite": { "type": "string" },
         "contractorName": { "type": "string" },
-        "schedulingUrl": { "type": "string" }
+        "schedulingUrl": { "type": "string" },
+        "projectPhotos": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "data-uri"
+          },
+          "description": "An array of data URIs for photos related to the project (up to 5)."
+        }
       },
       "required": [
         "id",
