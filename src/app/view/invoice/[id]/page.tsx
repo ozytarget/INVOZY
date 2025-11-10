@@ -24,7 +24,9 @@ export default function PublicInvoiceViewPage() {
   const { data: document, isLoading, error } = useDoc<Document>(docRef);
   
   useEffect(() => {
-    if (document && firestore && !notificationSent.current && user?.uid !== document.userId) {
+    // Only attempt to create a notification if the document exists, a user is loaded,
+    // and that user is NOT the owner of the document.
+    if (document && user && firestore && !notificationSent.current && user.uid !== document.userId) {
       const createNotification = async () => {
         try {
           const notificationData: Omit<Notification, 'id' | 'timestamp'> & { timestamp: any } = {
@@ -39,7 +41,9 @@ export default function PublicInvoiceViewPage() {
           await addDoc(notificationsCol, notificationData);
           notificationSent.current = true; // Mark as sent to prevent duplicates
         } catch (error) {
-          console.error("Error creating notification:", error);
+          // This might fail if the viewer is not authenticated, which is fine.
+          // We don't want to show an error to the client viewing the invoice.
+          console.error("Could not create view notification:", error);
         }
       };
       
