@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
@@ -161,14 +161,14 @@ export function DocumentView({ document }: DocumentViewProps) {
     setIsFabMenuOpen(false);
   }
   
-  const handleDownloadPhoto = (photoUrl: string, filename: string) => {
+  const handleDownloadPhoto = useCallback((photoUrl: string, filename: string) => {
     const link = document.createElement('a');
     link.href = photoUrl;
     link.download = filename || 'project-photo.png';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }
+  }, []);
 
   const documentNumber = document.type === 'Estimate' ? document.estimateNumber : document.invoiceNumber;
 
@@ -490,7 +490,3 @@ export function DocumentView({ document }: DocumentViewProps) {
     </div>
   );
 }
-
-    
-
-    
