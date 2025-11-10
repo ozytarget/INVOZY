@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import { Document, Payment } from "@/lib/types";
@@ -7,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
@@ -15,7 +14,7 @@ import { useDocuments } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail, MessageSquare, ClipboardList, Download } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DeleteDocumentDialog } from "./delete-document-dialog";
 import { RecordPaymentDialog } from "./invoices/record-payment-dialog";
 import { cn } from "@/lib/utils";
@@ -49,22 +48,17 @@ export function DocumentView({ document }: DocumentViewProps) {
   const { signAndProcessDocument, deleteDocument, recordPayment, sendDocument } = useDocuments();
   const { toast } = useToast();
   const router = useRouter();
-  const [isDashboardView, setIsDashboardView] = useState(false);
+  const searchParams = useSearchParams();
+  const isDashboardView = searchParams.get('internal') === 'true';
   const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
   
   const [downloadHandler, setDownloadHandler] = useState<(photoUrl: string, filename: string) => void>(() => () => {});
 
 
   useEffect(() => {
-    // A simple check to see if this view is loaded inside the main dashboard flow
-    // or as a standalone public page.
-    if (window.self !== window.top) {
-        setIsDashboardView(true);
-    }
-    
     // This function depends on browser-only APIs (`document`).
-    // By defining it inside useEffect, we ensure it's only created on the client
-    // after the component has mounted.
+    // By defining it inside useEffect with an empty dependency array,
+    // we ensure it's only created once on the client-side after the component has mounted.
     setDownloadHandler(() => (photoUrl: string, filename: string) => {
         const link = document.createElement('a');
         link.href = photoUrl;
@@ -118,16 +112,19 @@ export function DocumentView({ document }: DocumentViewProps) {
   };
 
   const handleShare = async () => {
-    const url = window.location.href;
+    // Construct the public URL without the 'internal=true' query param
+    const publicUrl = new URL(window.location.href);
+    publicUrl.searchParams.delete('internal');
+
     try {
         await navigator.share({
             title: `${document.type} from ${document.companyName || 'invozzy'}`,
-            text: `View your ${document.type.toLowerCase()}: ${document.projectTitle}`,
-            url: url,
+            text: `View your ${document.type.toLowerCase()} : ${document.projectTitle}`,
+            url: publicUrl.toString(),
         });
     } catch (error) {
         // Fallback to clipboard if share API fails or is not available
-        await navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(publicUrl.toString());
         toast({
             title: "Link Copied",
             description: "The public link has been copied to your clipboard.",
@@ -156,8 +153,9 @@ export function DocumentView({ document }: DocumentViewProps) {
         return;
     }
 
-    const url = window.location.href;
-    const message = `View your ${document.type.toLowerCase()}: ${document.projectTitle}\n${url}`;
+    const publicUrl = new URL(window.location.href);
+    publicUrl.searchParams.delete('internal');
+    const message = `View your ${document.type.toLowerCase()}: ${document.projectTitle}\n${publicUrl.toString()}`;
     const smsUrl = `sms:${document.clientPhone}?body=${encodeURIComponent(message)}`;
     
     window.open(smsUrl, '_blank');
@@ -497,3 +495,5 @@ export function DocumentView({ document }: DocumentViewProps) {
     </div>
   );
 }
+
+    

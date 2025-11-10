@@ -2,7 +2,7 @@
 'use client';
 
 import { DocumentView } from "@/components/document-view";
-import { notFound, useParams, useSearchParams } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import type { Document, Notification } from "@/lib/types";
 import { doc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
@@ -11,11 +11,9 @@ import { useEffect, useRef } from "react";
 
 export default function PublicInvoiceViewPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const firestore = useFirestore();
   const { user } = useUser();
   const id = typeof params.id === 'string' ? params.id : '';
-  const isInternal = searchParams.get('internal') === 'true';
   const notificationSent = useRef(false);
 
   const docRef = useMemoFirebase(() => {
@@ -26,10 +24,12 @@ export default function PublicInvoiceViewPage() {
   const { data: document, isLoading, error } = useDoc<Document>(docRef);
   
   useEffect(() => {
-    // Only create a notification if it's an external view (not internal), a document exists,
-    // and a user is loaded (meaning the viewer is a user, but not necessarily the owner),
-    // and that user is NOT the owner of the document.
-    if (!isInternal && document && user && firestore && !notificationSent.current && user.uid !== document.userId) {
+    // Determine if this is an external view by checking if the `internal` flag is missing.
+    // This logic relies on `isDashboardView` being derived from searchParams, which is client-side.
+    const isExternalView = typeof window !== 'undefined' && !new URL(window.location.href).searchParams.has('internal');
+
+    // Only create a notification if it's an external view and a non-owner user is viewing it.
+    if (isExternalView && document && user && firestore && !notificationSent.current && user.uid !== document.userId) {
       const createNotification = async () => {
         try {
           const notificationData: Omit<Notification, 'id' | 'timestamp'> & { timestamp: any } = {
@@ -52,7 +52,7 @@ export default function PublicInvoiceViewPage() {
       
       createNotification();
     }
-  }, [document, firestore, user, isInternal]);
+  }, [document, firestore, user]);
 
   if (isLoading) {
     return (
@@ -68,3 +68,5 @@ export default function PublicInvoiceViewPage() {
 
   return <DocumentView document={document as Document} />;
 }
+
+    
