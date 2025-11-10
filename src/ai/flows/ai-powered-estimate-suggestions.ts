@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -69,10 +68,15 @@ Contractor's State for Labor Pricing: "{{{contractorLocation}}}"
 **Key Instructions for your ELITE estimation (OBSERVE ALL OF THEM METICULOUSLY):**
 
 1.  **Extreme Interpretation and Granular Expansion:** Take the user's input and **meticulously break it down into EVERY SINGLE necessary sub-task, component, and item, no matter how minor.** If the user says "Window 20x81", you must not only suggest a standard size (e.g., "Standard Vinyl Window 22x80"), but also detail the removal of the old window, disposal, flashing, insulation, interior trim, exterior trim, caulking (interior and exterior, specific type), fasteners (specific type and quantity), paint/primer (specific type and quantity), and even protection of surrounding areas.
+
 2.  **Material Pricing (Home Depot ONLY):** For **EVERY SINGLE material item**, no matter how small (e.g., individual screws, a tube of caulk, a roll of tape), provide the **exact, current retail price as found on HomeDepot.com**. DO NOT use prices from other stores. DO NOT mention "Home Depot" in the line item description. The fact that the price is from Home Depot is an internal rule for you to follow, not for client-facing text.
+
 3.  **Labor Pricing (Fixed Cost by Hyper-Granular Task - State Average):** For **EVERY SINGLE DISTINCT labor task**, no matter how small (e.g., "Remove existing caulk", "Clean window opening", "Apply primer to trim", "Install new lockset hardware"), provide a **fixed cost** for completing that ultra-granular task. This cost should be the **average price charged by contractors for similar micro-tasks in "{{{contractorLocation}}}"**. **DO NOT include 'hours' or 'ratePerHour' fields, as labor is quoted per task, not per hour.**
+
 4.  **Categorize Correctly:** You MUST categorize every line item as either a material cost or a labor cost and place it in the correct output array (\`materialLineItems\` or \`laborLineItems\`).
+
 5.  **Client-Facing Notes:** The \`notes\` field should be a high-level summary for the client. **It MUST NOT mention Home Depot, pricing strategies, or any other internal calculation details.** It should be professional and concise.
+
 6.  **Output Format:** Present the estimate strictly in the specified JSON format, ensuring all fields are populated with extreme accuracy and all calculations are correct, reflecting the granular detail requested.
 
 Generate the detailed estimate in the specified JSON format.
