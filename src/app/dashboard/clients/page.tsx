@@ -65,38 +65,52 @@ export default function ClientsPage() {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
-        const requiredHeaders = ['name', 'email', 'address'];
-        const headers = results.meta.fields || [];
-        const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
-
-        if (missingHeaders.length > 0) {
-          toast({
-            variant: "destructive",
-            title: "Import Failed",
-            description: `CSV is missing required headers: ${missingHeaders.join(', ')}.`,
-          });
-          setIsImporting(false);
-          return;
-        }
-
-        const clientsToImport = results.data as Omit<Client, 'totalBilled' | 'documentCount'>[];
+        const headerMap = {
+            // App's internal field: [Possible CSV header names]
+            name: ['name', 'Name', 'Client Name'],
+            email: ['email', 'Email', 'Email Address'],
+            phone: ['phone', 'Phone', 'Phone (mobile)', 'Phone (other)'],
+            address: ['address', 'Address', 'Address 2', 'City', 'State / Province', 'Zip / Postal Code'],
+        };
+        
         let importedCount = 0;
+        let skippedCount = 0;
 
-        for (const client of clientsToImport) {
-          if (client.name && client.email && client.address) {
-             await addClient({
-              name: client.name,
-              email: client.email,
-              address: client.address,
-              phone: client.phone || '',
-            });
-            importedCount++;
-          }
+        for (const row of results.data as any[]) {
+            const clientName = headerMap.name.map(h => row[h]).find(val => val) || '';
+            const clientEmail = headerMap.email.map(h => row[h]).find(val => val) || '';
+
+            // If no name or email, skip this row. Email is crucial.
+            if (!clientName || !clientEmail) {
+                skippedCount++;
+                continue;
+            }
+
+            const clientPhone = headerMap.phone.map(h => row[h]).find(val => val) || '';
+
+            // Combine multiple address fields into one
+            const addressParts = headerMap.address
+                .map(h => row[h])
+                .filter(Boolean); // Filter out empty parts
+            const clientAddress = addressParts.join(', ').replace(/, ,/g, ',');
+
+            try {
+                await addClient({
+                    name: clientName,
+                    email: clientEmail,
+                    address: clientAddress || 'N/A', // Provide a default if address is empty
+                    phone: clientPhone,
+                });
+                importedCount++;
+            } catch (error) {
+                console.error("Error importing client:", row, error);
+                skippedCount++;
+            }
         }
         
         toast({
           title: "Import Complete",
-          description: `${importedCount} clients were successfully imported.`,
+          description: `${importedCount} clients were successfully imported. ${skippedCount > 0 ? `${skippedCount} rows were skipped.` : ''}`,
         });
 
         setIsImporting(false);
