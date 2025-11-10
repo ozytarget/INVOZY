@@ -1,14 +1,106 @@
 
 'use client';
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { useDocuments } from "@/hooks/use-documents"
-import { DollarSign, FileText, FileSignature, TrendingUp, Construction, Percent } from "lucide-react"
+import { DollarSign, FileSignature, TrendingUp, Construction, Percent } from "lucide-react"
+import { Document, LineItem } from "@/lib/types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "../ui/table";
+import { ScrollArea } from "../ui/scroll-area";
+import { Badge } from "../ui/badge";
+
+type DetailItem = {
+    invoiceNumber?: string;
+    clientName: string;
+    description: string;
+    amount: number;
+}
+
+function DetailDialog({ title, items, total, trigger }: { title: string, items: DetailItem[], total: number, trigger: React.ReactNode }) {
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                {trigger}
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>{title}</DialogTitle>
+                </DialogHeader>
+                <div className="h-[60vh]">
+                    <ScrollArea className="h-full">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Invoice</TableHead>
+                                    <TableHead>Client</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {items.map((item, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell><Badge variant="outline">{item.invoiceNumber}</Badge></TableCell>
+                                        <TableCell>{item.clientName}</TableCell>
+                                        <TableCell>{item.description}</TableCell>
+                                        <TableCell className="text-right">${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                            <TableFooter>
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-right font-bold text-lg">Total</TableCell>
+                                    <TableCell className="text-right font-bold text-lg">${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    </ScrollArea>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function StatCard({ title, value, subtext, icon, detailItems, total }: { title: string, value: string, subtext: string, icon: React.ReactNode, detailItems?: DetailItem[], total?: number }) {
+    const cardContent = (
+        <Card className={detailItems ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{title}</CardTitle>
+              {icon}
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {value}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {subtext}
+              </p>
+            </CardContent>
+        </Card>
+    );
+
+    if (detailItems && total) {
+        return (
+            <DetailDialog title={`Breakdown: ${title}`} items={detailItems} total={total} trigger={cardContent} />
+        )
+    }
+
+    return cardContent;
+}
+
 
 export function StatsCards() {
   const { documents } = useDocuments();
@@ -17,36 +109,63 @@ export function StatsCards() {
     (doc) => doc.type === 'Invoice' && (doc.status === 'Paid' || doc.status === 'Partial')
   );
 
-  const { totalRevenue, grossProfit, materialsCost, taxesCollected } = paidInvoices.reduce(
+  const { totalRevenue, grossProfit, materialsCost, taxesCollected, revenueDetails, profitDetails, materialDetails } = paidInvoices.reduce(
     (acc, invoice) => {
-      // For partial payments, we should only account for the portion of revenue that has been paid.
       const amountPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-
-      // Calculate the ratio of payment against the total amount due.
       const paymentRatio = invoice.amount > 0 ? amountPaid / invoice.amount : 0;
       
-      // The revenue recognized is the amount actually paid.
       acc.totalRevenue += amountPaid;
-      
+      if (amountPaid > 0) {
+          acc.revenueDetails.push({
+            invoiceNumber: invoice.invoiceNumber,
+            clientName: invoice.clientName,
+            description: `Payment received for "${invoice.projectTitle}"`,
+            amount: amountPaid,
+          });
+      }
+
       const subtotal = invoice.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
       const taxAmount = invoice.taxRate ? subtotal * (invoice.taxRate / 100) : 0;
       
-      // Apportion the collected tax based on the payment ratio
       acc.taxesCollected += taxAmount * paymentRatio;
 
-      // Apportion costs and profit based on the payment ratio
       invoice.lineItems.forEach((item) => {
         const itemTotal = item.quantity * item.price;
+        const recognizedAmount = itemTotal * paymentRatio;
         if (item.description.toLowerCase().includes('labor')) {
-          acc.grossProfit += itemTotal * paymentRatio;
+          acc.grossProfit += recognizedAmount;
+          if (recognizedAmount > 0) {
+            acc.profitDetails.push({
+                invoiceNumber: invoice.invoiceNumber,
+                clientName: invoice.clientName,
+                description: item.description,
+                amount: recognizedAmount,
+            });
+          }
         } else {
-          acc.materialsCost += itemTotal * paymentRatio;
+          acc.materialsCost += recognizedAmount;
+          if (recognizedAmount > 0) {
+            acc.materialDetails.push({
+                invoiceNumber: invoice.invoiceNumber,
+                clientName: invoice.clientName,
+                description: item.description,
+                amount: recognizedAmount,
+            });
+          }
         }
       });
 
       return acc;
     },
-    { totalRevenue: 0, grossProfit: 0, materialsCost: 0, taxesCollected: 0 }
+    { 
+        totalRevenue: 0, 
+        grossProfit: 0, 
+        materialsCost: 0, 
+        taxesCollected: 0,
+        revenueDetails: [] as DetailItem[],
+        profitDetails: [] as DetailItem[],
+        materialDetails: [] as DetailItem[],
+    }
   );
 
   const invoiceCount = documents.filter(doc => doc.type === 'Invoice').length;
@@ -54,86 +173,48 @@ export function StatsCards() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            ${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            from paid & partially paid invoices
-          </p>
-        </CardContent>
-      </Card>
-       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Gross Profit (Labor)</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            ${grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Recognized profit from paid portions.
-          </p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Materials Cost</CardTitle>
-          <Construction className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            ${materialsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Recognized cost from paid portions.
-          </p>
-        </CardContent>
-      </Card>
-       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Taxes Collected</CardTitle>
-          <Percent className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            ${taxesCollected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            From paid & partially paid invoices.
-          </p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Invoices</CardTitle>
-          <FileSignature className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">+{invoiceCount}</div>
-          <p className="text-xs text-muted-foreground">
-            Total invoices generated
-          </p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Estimates</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">+{estimateCount}</div>
-          <p className="text-xs text-muted-foreground">
-            Total estimates created
-          </p>
-        </CardContent>
-      </Card>
+        <StatCard 
+            title="Total Revenue"
+            value={`$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            subtext="from paid & partially paid invoices"
+            icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+            detailItems={revenueDetails}
+            total={totalRevenue}
+        />
+        <StatCard 
+            title="Gross Profit (Labor)"
+            value={`$${grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            subtext="Recognized profit from paid portions"
+            icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+            detailItems={profitDetails}
+            total={grossProfit}
+        />
+        <StatCard 
+            title="Materials Cost"
+            value={`$${materialsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            subtext="Recognized cost from paid portions"
+            icon={<Construction className="h-4 w-4 text-muted-foreground" />}
+            detailItems={materialDetails}
+            total={materialsCost}
+        />
+        <StatCard 
+            title="Taxes Collected"
+            value={`$${taxesCollected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            subtext="From paid & partially paid invoices"
+            icon={<Percent className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard 
+            title="Invoices"
+            value={`+${invoiceCount}`}
+            subtext="Total invoices generated"
+            icon={<FileSignature className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard 
+            title="Estimates"
+            value={`+${estimateCount}`}
+            subtext="Total estimates created"
+            icon={<FileText className="h-4 w-4 text-muted-foreground" />}
+        />
     </div>
   )
 }
