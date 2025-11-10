@@ -1,6 +1,5 @@
 
 
-
 'use client'
 
 import { Document, Payment } from "@/lib/types";
@@ -220,29 +219,6 @@ export function DocumentView({ document }: DocumentViewProps) {
                 )}
               </div>
             </section>
-
-             {document.projectPhotos && document.projectPhotos.length > 0 && (
-              <section className="mb-8">
-                <h2 className="text-2xl font-bold font-headline mb-4">Project Photos</h2>
-                <Carousel className="w-full">
-                  <CarouselContent>
-                    {document.projectPhotos.map((photo, index) => (
-                      <CarouselItem key={index}>
-                        <div className="p-1">
-                          <Image src={photo} alt={`Project photo ${index + 1}`} width={800} height={600} className="w-full object-cover rounded-lg aspect-video" />
-                        </div>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  {document.projectPhotos.length > 1 && (
-                    <>
-                      <CarouselPrevious className="left-2" />
-                      <CarouselNext className="right-2" />
-                    </>
-                  )}
-                </Carousel>
-              </section>
-            )}
             
             <Separator className="my-8" />
 
@@ -364,6 +340,29 @@ export function DocumentView({ document }: DocumentViewProps) {
                 )}
             </section>
             
+            {document.projectPhotos && document.projectPhotos.length > 0 && (
+              <section className="mb-8">
+                <h2 className="text-2xl font-bold font-headline mb-4">Project Photos</h2>
+                <Carousel className="w-full">
+                  <CarouselContent>
+                    {document.projectPhotos.map((photo, index) => (
+                      <CarouselItem key={index}>
+                        <div className="p-1">
+                          <Image src={photo} alt={`Project photo ${index + 1}`} width={800} height={600} className="w-full object-cover rounded-lg aspect-video" />
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  {document.projectPhotos.length > 1 && (
+                    <>
+                      <CarouselPrevious className="left-2" />
+                      <CarouselNext className="right-2" />
+                    </>
+                  )}
+                </Carousel>
+              </section>
+            )}
+
             <footer className="space-y-4">
                 {document.notes && (
                     <div>
