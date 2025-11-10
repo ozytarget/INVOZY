@@ -1,6 +1,5 @@
 
 
-
 export type LineItem = {
   id: string;
   description: string;
@@ -19,6 +18,11 @@ export type Payment = {
 
 export type DocumentStatus = 'Draft' | 'Sent' | 'Paid' | 'Partial' | 'Overdue' | 'Approved';
 export type DocumentType = 'Estimate' | 'Invoice';
+
+export type ProjectPhoto = {
+  url: string;
+  description: string;
+}
 
 export type Document = {
   id: string;
@@ -57,7 +61,7 @@ export type Document = {
   payments?: Payment[];
   estimateNumber?: string;
   invoiceNumber?: string;
-  projectPhotos?: string[];
+  projectPhotos?: ProjectPhoto[];
   search_field: string;
 };
 

@@ -42,7 +42,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useDocuments } from "@/hooks/use-documents"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Client, Document } from "@/lib/types"
+import { Client, Document, ProjectPhoto } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
 import { AiSuggestionsDialog } from "../estimates/ai-suggestions-dialog"
 import { Separator } from "../ui/separator"
@@ -52,6 +52,11 @@ const lineItemSchema = z.object({
   description: z.string().min(1, "Description is required."),
   quantity: z.coerce.number().min(0, "Quantity must be positive."),
   price: z.coerce.number().min(0, "Price must be positive."),
+})
+
+const photoSchema = z.object({
+  url: z.string(),
+  description: z.string().optional(),
 })
 
 const formSchema = z.object({
@@ -67,7 +72,7 @@ const formSchema = z.object({
   lineItems: z.array(lineItemSchema).min(1, "At least one line item is required."),
   notes: z.string().optional(),
   terms: z.string().optional(),
-  projectPhotos: z.array(z.string()).optional(),
+  projectPhotos: z.array(photoSchema).optional(),
 })
 
 type InvoiceFormValues = z.infer<typeof formSchema>
@@ -108,7 +113,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       lineItems: documentToEdit.lineItems,
       notes: documentToEdit.notes,
       terms: documentToEdit.terms,
-      projectPhotos: documentToEdit.projectPhotos || [],
+      projectPhotos: documentToEdit.projectPhotos?.map(p => ({ url: p.url, description: p.description || '' })) || [],
     } : {
       clientId: "",
       projectTitle: "",
@@ -124,7 +129,11 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     defaultValues
   })
 
-  const projectPhotos = form.watch("projectPhotos", []);
+  const { fields: photoFields, append: appendPhoto, remove: removePhoto, update: updatePhoto } = useFieldArray({
+    control: form.control,
+    name: "projectPhotos"
+  });
+
 
   useEffect(() => {
     if (!isEditMode) {
@@ -190,7 +199,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       lineItems: data.lineItems.map((item, index) => ({ ...item, id: item.id || `${Date.now()}-${index}` })),
       notes: data.notes || '',
       terms: data.terms || '',
-      projectPhotos: data.projectPhotos || [],
+      projectPhotos: data.projectPhotos?.map(p => ({ url: p.url, description: p.description || '' })) || [],
     };
 
     if (isEditMode && documentToEdit) {
@@ -240,8 +249,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     const files = e.target.files;
     if (!files) return;
 
-    const currentPhotos = form.getValues("projectPhotos") || [];
-    if (currentPhotos.length + files.length > 5) {
+    if (photoFields.length + files.length > 5) {
       toast({
         variant: "destructive",
         title: "Too many photos",
@@ -252,12 +260,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
 
     const filePromises = Array.from(files).map(fileToDataUrl);
     const newPhotos = await Promise.all(filePromises);
-    form.setValue("projectPhotos", [...currentPhotos, ...newPhotos]);
-  };
-
-  const removePhoto = (index: number) => {
-    const currentPhotos = form.getValues("projectPhotos") || [];
-    form.setValue("projectPhotos", currentPhotos.filter((_, i) => i !== index));
+    newPhotos.forEach(url => appendPhoto({ url, description: '' }));
   };
 
 
@@ -415,14 +418,17 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
                   <FormItem>
                     <FormLabel>Upload up to 5 photos</FormLabel>
                     <FormControl>
-                      <div className="flex items-center justify-center w-full">
-                        <label htmlFor="photo-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80">
+                       <div className="flex items-center justify-center w-full">
+                        <label htmlFor="photo-upload" className={cn(
+                            "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80",
+                            photoFields.length >= 5 && "cursor-not-allowed opacity-50"
+                        )}>
                           <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
                             <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
                             <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 10MB</p>
                           </div>
-                          <Input id="photo-upload" type="file" className="hidden" multiple accept="image/*" onChange={handlePhotoUpload} disabled={projectPhotos.length >= 5} />
+                          <Input id="photo-upload" type="file" className="hidden" multiple accept="image/*" onChange={handlePhotoUpload} disabled={photoFields.length >= 5} />
                         </label>
                       </div>
                     </FormControl>
@@ -430,11 +436,22 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
                   </FormItem>
                 )}
               />
-              {projectPhotos.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mt-4">
-                  {projectPhotos.map((photo, index) => (
-                    <div key={index} className="relative group">
-                      <Image src={photo} alt={`Project photo ${index + 1}`} width={150} height={150} className="object-cover w-full h-32 rounded-md" />
+              {photoFields.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                  {photoFields.map((photo, index) => (
+                    <div key={photo.id} className="relative group border rounded-lg p-2 space-y-2">
+                      <Image src={photo.url} alt={`Project photo ${index + 1}`} width={200} height={200} className="object-cover w-full h-32 rounded-md" />
+                      <FormField
+                          control={form.control}
+                          name={`projectPhotos.${index}.description`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input placeholder="E.g., 'Hallway wall damage'" {...field} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
                       <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removePhoto(index)}>
                         <X className="h-4 w-4" />
                       </Button>

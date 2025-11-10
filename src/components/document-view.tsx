@@ -13,7 +13,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
 import { useDocuments } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail, MessageSquare, ClipboardList } from "lucide-react";
+import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail, MessageSquare, ClipboardList, Download } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeleteDocumentDialog } from "./delete-document-dialog";
@@ -159,6 +159,15 @@ export function DocumentView({ document }: DocumentViewProps) {
   const handleEmailSent = () => {
     sendDocument(document.id, document.type);
     setIsFabMenuOpen(false);
+  }
+  
+  const handleDownloadPhoto = (photoUrl: string, filename: string) => {
+    const link = document.createElement('a');
+    link.href = photoUrl;
+    link.download = filename || 'project-photo.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   const documentNumber = document.type === 'Estimate' ? document.estimateNumber : document.invoiceNumber;
@@ -339,31 +348,47 @@ export function DocumentView({ document }: DocumentViewProps) {
                     </div>
                 )}
             </section>
-            
-            {document.projectPhotos && document.projectPhotos.length > 0 && (
-              <section className="mb-8">
-                <h2 className="text-2xl font-bold font-headline mb-4">Project Photos</h2>
-                <Carousel className="w-full">
-                  <CarouselContent>
-                    {document.projectPhotos.map((photo, index) => (
-                      <CarouselItem key={index}>
-                        <div className="p-1">
-                          <Image src={photo} alt={`Project photo ${index + 1}`} width={800} height={600} className="w-full object-cover rounded-lg aspect-video" />
-                        </div>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  {document.projectPhotos.length > 1 && (
-                    <>
-                      <CarouselPrevious className="left-2" />
-                      <CarouselNext className="right-2" />
-                    </>
-                  )}
-                </Carousel>
-              </section>
-            )}
 
             <footer className="space-y-4">
+                 {document.projectPhotos && document.projectPhotos.length > 0 && (
+                    <section className="mb-8">
+                        <Separator className="my-8" />
+                        <h2 className="text-2xl font-bold font-headline mb-4">Project Photos</h2>
+                        <Carousel className="w-full">
+                        <CarouselContent>
+                            {document.projectPhotos.map((photo, index) => (
+                            <CarouselItem key={index}>
+                                <div className="p-1">
+                                    <div className="relative group">
+                                        <Image src={photo.url} alt={photo.description || `Project photo ${index + 1}`} width={800} height={600} className="w-full object-cover rounded-lg aspect-video" />
+                                        {isDashboardView && (
+                                            <Button 
+                                                variant="secondary" 
+                                                size="icon" 
+                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                                                onClick={() => handleDownloadPhoto(photo.url, `${documentNumber}-photo-${index + 1}.png`)}
+                                            >
+                                                <Download className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                     {photo.description && (
+                                        <p className="text-sm text-muted-foreground mt-2 text-center">{photo.description}</p>
+                                    )}
+                                </div>
+                            </CarouselItem>
+                            ))}
+                        </CarouselContent>
+                        {document.projectPhotos.length > 1 && (
+                            <>
+                            <CarouselPrevious className="left-2" />
+                            <CarouselNext className="right-2" />
+                            </>
+                        )}
+                        </Carousel>
+                    </section>
+                )}
+
                 {document.notes && (
                     <div>
                         <h3 className="font-semibold mb-1">Notes</h3>

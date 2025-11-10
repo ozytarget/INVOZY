@@ -96,10 +96,14 @@
         "projectPhotos": {
           "type": "array",
           "items": {
-            "type": "string",
-            "format": "data-uri"
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "format": "data-uri" },
+              "description": { "type": "string" }
+            },
+            "required": ["url"]
           },
-          "description": "An array of data URIs for photos related to the project (up to 5)."
+          "description": "An array of photos related to the project (up to 5), each with a URL and an optional description."
         }
       },
       "required": [
@@ -179,10 +183,14 @@
         "projectPhotos": {
           "type": "array",
           "items": {
-            "type": "string",
-            "format": "data-uri"
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "format": "data-uri" },
+              "description": { "type": "string" }
+            },
+            "required": ["url"]
           },
-          "description": "An array of data URIs for photos related to the project (up to 5)."
+          "description": "An array of photos related to the project (up to 5), each with a URL and an optional description."
         }
       },
       "required": [
