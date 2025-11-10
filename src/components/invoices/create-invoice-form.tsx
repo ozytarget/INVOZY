@@ -42,7 +42,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useDocuments } from "@/hooks/use-documents"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Client, Document, ProjectPhoto } from "@/lib/types"
+import { Client, Document } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
 import { AiSuggestionsDialog } from "../estimates/ai-suggestions-dialog"
 import { Separator } from "../ui/separator"
@@ -129,10 +129,27 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     defaultValues
   })
 
-  const { fields: photoFields, append: appendPhoto, remove: removePhoto, update: updatePhoto } = useFieldArray({
+  const { fields: photoFields, append: appendPhoto, remove: removePhoto } = useFieldArray({
     control: form.control,
     name: "projectPhotos"
   });
+
+  const { formState: { isDirty } } = form;
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (isDirty) {
+        event.preventDefault();
+        event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
 
 
   useEffect(() => {
@@ -421,7 +438,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
                        <div className="flex items-center justify-center w-full">
                         <label htmlFor="photo-upload" className={cn(
                             "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80",
-                            photoFields.length >= 5 && "cursor-not-allowed opacity-50"
+                            (photoFields.length >= 5) && "cursor-not-allowed opacity-50"
                         )}>
                           <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
@@ -708,3 +725,5 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     </Form>
   )
 }
+
+    

@@ -125,10 +125,29 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     defaultValues,
   })
 
-  const { fields: photoFields, append: appendPhoto, remove: removePhoto, update: updatePhoto } = useFieldArray({
+  const { fields: photoFields, append: appendPhoto, remove: removePhoto } = useFieldArray({
     control: form.control,
     name: "projectPhotos"
   });
+  
+  const { formState: { isDirty } } = form;
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (isDirty) {
+        event.preventDefault();
+        // Modern browsers show a generic message, but this is required for older ones.
+        event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
+
 
   useEffect(() => {
     if (!isEditMode) {
@@ -374,7 +393,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
                       <div className="flex items-center justify-center w-full">
                         <label htmlFor="photo-upload" className={cn(
                             "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80",
-                            photoFields.length >= 5 && "cursor-not-allowed opacity-50"
+                            (photoFields.length >= 5) && "cursor-not-allowed opacity-50"
                         )}>
                           <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
@@ -661,3 +680,5 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     </Form>
   )
 }
+
+    
