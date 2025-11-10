@@ -45,10 +45,10 @@ type RecordPaymentDialogProps = {
   children: React.ReactNode;
 }
 
-export function RecordPaymentDialog({ document, onRecordPayment, children }: RecordPaymentDialogProps) {
+export function RecordPaymentDialog({ document: documentData, onRecordPayment, children }: RecordPaymentDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const amountPaid = document.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
-  const balanceDue = document.amount - amountPaid;
+  const amountPaid = documentData.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
+  const balanceDue = documentData.amount - amountPaid;
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(formSchema),
@@ -75,7 +75,7 @@ export function RecordPaymentDialog({ document, onRecordPayment, children }: Rec
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Record Payment for INV-{document.id.split('-')[1]}</DialogTitle>
+          <DialogTitle>Record Payment for INV-{documentData.id.split('-')[1]}</DialogTitle>
           <DialogDescription>
             Record a new payment for this invoice. The balance due is ${balanceDue.toFixed(2)}.
           </DialogDescription>

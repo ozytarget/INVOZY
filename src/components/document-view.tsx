@@ -43,7 +43,7 @@ const FabMenuItem = ({ onClick, icon, label, variant = 'secondary', className = 
     </div>
 );
 
-export function DocumentView({ document }: DocumentViewProps) {
+export function DocumentView({ document: documentData }: DocumentViewProps) {
   const sigCanvas = useRef<SignatureCanvas>(null);
   const { signAndProcessDocument, deleteDocument, recordPayment, sendDocument } = useDocuments();
   const { toast } = useToast();
@@ -70,10 +70,10 @@ export function DocumentView({ document }: DocumentViewProps) {
 
   }, []);
 
-  const subtotal = document.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
-  const taxAmount = document.taxRate ? subtotal * (document.taxRate / 100) : 0;
+  const subtotal = documentData.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+  const taxAmount = documentData.taxRate ? subtotal * (documentData.taxRate / 100) : 0;
   const totalAmount = subtotal + taxAmount;
-  const amountPaid = document.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
+  const amountPaid = documentData.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
   const balanceDue = totalAmount - amountPaid;
 
   const clearSignature = () => {
@@ -90,20 +90,20 @@ export function DocumentView({ document }: DocumentViewProps) {
       return;
     }
     const signature = sigCanvas.current!.toDataURL('image/png');
-    const newInvoiceId = await signAndProcessDocument(document.id, signature);
+    const newInvoiceId = await signAndProcessDocument(documentData.id, signature);
 
     toast({
-      title: `${document.type} Approved!`,
-      description: `Thank you for your business. ${document.type === 'Estimate' ? 'A new invoice has been generated.' : ''}`,
+      title: `${documentData.type} Approved!`,
+      description: `Thank you for your business. ${documentData.type === 'Estimate' ? 'A new invoice has been generated.' : ''}`,
     });
 
-    if (document.type === 'Estimate' && newInvoiceId) {
+    if (documentData.type === 'Estimate' && newInvoiceId) {
         router.push(`/view/invoice/${newInvoiceId}`);
     }
   }
 
    const handleDelete = async () => {
-    await deleteDocument(document.id);
+    await deleteDocument(documentData.id);
     toast({
       title: "Document Deleted",
       description: `The document has been successfully deleted.`,
@@ -118,8 +118,8 @@ export function DocumentView({ document }: DocumentViewProps) {
 
     try {
         await navigator.share({
-            title: `${document.type} from ${document.companyName || 'invozzy'}`,
-            text: `View your ${document.type.toLowerCase()} : ${document.projectTitle}`,
+            title: `${documentData.type} from ${documentData.companyName || 'invozzy'}`,
+            text: `View your ${documentData.type.toLowerCase()} : ${documentData.projectTitle}`,
             url: publicUrl.toString(),
         });
     } catch (error) {
@@ -133,18 +133,18 @@ export function DocumentView({ document }: DocumentViewProps) {
   };
   
   const handleEdit = () => {
-    const editUrl = `/dashboard/${document.type.toLowerCase()}s/edit/${document.id}`;
+    const editUrl = `/dashboard/${documentData.type.toLowerCase()}s/edit/${documentData.id}`;
     router.push(editUrl);
     setIsFabMenuOpen(false);
   }
   
   const handleGenerateWorkOrder = () => {
-    router.push(`/view/work-order/${document.id}`);
+    router.push(`/view/work-order/${documentData.id}`);
     setIsFabMenuOpen(false);
   };
 
   const handleSms = () => {
-    if (!document.clientPhone) {
+    if (!documentData.clientPhone) {
         toast({
             variant: "destructive",
             title: "No Phone Number",
@@ -155,15 +155,15 @@ export function DocumentView({ document }: DocumentViewProps) {
 
     const publicUrl = new URL(window.location.href);
     publicUrl.searchParams.delete('internal');
-    const message = `View your ${document.type.toLowerCase()}: ${document.projectTitle}\n${publicUrl.toString()}`;
-    const smsUrl = `sms:${document.clientPhone}?body=${encodeURIComponent(message)}`;
+    const message = `View your ${documentData.type.toLowerCase()}: ${documentData.projectTitle}\n${publicUrl.toString()}`;
+    const smsUrl = `sms:${documentData.clientPhone}?body=${encodeURIComponent(message)}`;
     
     window.open(smsUrl, '_blank');
     setIsFabMenuOpen(false);
   };
 
   const handleRecordPayment = async (payment: Omit<Payment, 'id' | 'date'>) => {
-    await recordPayment(document.id, payment);
+    await recordPayment(documentData.id, payment);
     toast({
       title: "Payment Recorded",
       description: `A payment of $${payment.amount.toFixed(2)} has been recorded.`
@@ -171,11 +171,11 @@ export function DocumentView({ document }: DocumentViewProps) {
   }
 
   const handleEmailSent = () => {
-    sendDocument(document.id, document.type);
+    sendDocument(documentData.id, documentData.type);
     setIsFabMenuOpen(false);
   }
   
-  const documentNumber = document.type === 'Estimate' ? document.estimateNumber : document.invoiceNumber;
+  const documentNumber = documentData.type === 'Estimate' ? documentData.estimateNumber : documentData.invoiceNumber;
 
   return (
     <div className="bg-background min-h-screen pb-32">
@@ -194,20 +194,20 @@ export function DocumentView({ document }: DocumentViewProps) {
           <CardContent className="p-0">
             <header className="flex justify-between items-start mb-8">
               <div>
-                {document.companyLogo && (
-                    <Image src={document.companyLogo} alt={document.companyName || 'Company Logo'} width={120} height={50} className="object-contain mb-2" />
+                {documentData.companyLogo && (
+                    <Image src={documentData.companyLogo} alt={documentData.companyName || 'Company Logo'} width={120} height={50} className="object-contain mb-2" />
                 )}
                 <div className="text-muted-foreground">
-                    <p className="font-bold text-foreground">{document.companyName || "Your Company"}</p>
-                    <p className="whitespace-pre-line">{document.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
-                    {document.taxId && <p>Tax ID: {document.taxId}</p>}
+                    <p className="font-bold text-foreground">{documentData.companyName || "Your Company"}</p>
+                    <p className="whitespace-pre-line">{documentData.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
+                    {documentData.taxId && <p>Tax ID: {documentData.taxId}</p>}
                 </div>
               </div>
               <div className="text-right">
-                <h1 className="text-4xl font-bold font-headline uppercase">{document.type}</h1>
+                <h1 className="text-4xl font-bold font-headline uppercase">{documentData.type}</h1>
                 <p className="text-muted-foreground"># {documentNumber}</p>
                 <div className="mt-2">
-                  <Badge variant="outline" className={`text-sm ${statusStyles[document.status]}`}>{document.status}</Badge>
+                  <Badge variant="outline" className={`text-sm ${statusStyles[documentData.status]}`}>{documentData.status}</Badge>
                 </div>
               </div>
             </header>
@@ -215,20 +215,20 @@ export function DocumentView({ document }: DocumentViewProps) {
             <section className="grid grid-cols-2 gap-8 mb-8">
               <div>
                 <h2 className="text-sm font-semibold text-muted-foreground mb-2">BILLED TO</h2>
-                <p className="font-bold">{document.clientName}</p>
-                <p className="whitespace-pre-line text-sm">{document.clientAddress}</p>
-                <p className="text-sm">{document.clientEmail}</p>
-                <p className="text-sm">{document.clientPhone}</p>
+                <p className="font-bold">{documentData.clientName}</p>
+                <p className="whitespace-pre-line text-sm">{documentData.clientAddress}</p>
+                <p className="text-sm">{documentData.clientEmail}</p>
+                <p className="text-sm">{documentData.clientPhone}</p>
               </div>
               <div className="text-right">
                 <div className="grid grid-cols-2">
                   <span className="font-semibold">Date Issued:</span>
-                  <span>{document.issuedDate}</span>
+                  <span>{documentData.issuedDate}</span>
                 </div>
-                {document.dueDate && (
+                {documentData.dueDate && (
                     <div className="grid grid-cols-2 mt-1">
                         <span className="font-semibold">Date Due:</span>
-                        <span>{document.dueDate}</span>
+                        <span>{documentData.dueDate}</span>
                     </div>
                 )}
               </div>
@@ -237,7 +237,7 @@ export function DocumentView({ document }: DocumentViewProps) {
             <Separator className="my-8" />
 
             <section className="mb-8">
-                <h2 className="text-2xl font-bold font-headline mb-4">{document.projectTitle}</h2>
+                <h2 className="text-2xl font-bold font-headline mb-4">{documentData.projectTitle}</h2>
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -248,7 +248,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {document.lineItems.map(item => (
+                        {documentData.lineItems.map(item => (
                             <TableRow key={item.id}>
                                 <TableCell className="font-medium">{item.description}</TableCell>
                                 <TableCell className="text-center">{item.quantity}</TableCell>
@@ -268,11 +268,11 @@ export function DocumentView({ document }: DocumentViewProps) {
                     </div>
                     {taxAmount > 0 && (
                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Tax ({document.taxRate}%)</span>
+                            <span className="text-muted-foreground">Tax ({documentData.taxRate}%)</span>
                             <span>${taxAmount.toFixed(2)}</span>
                         </div>
                     )}
-                     {document.type === 'Invoice' && (
+                     {documentData.type === 'Invoice' && (
                         <>
                            <Separator />
                            <div className="flex justify-between font-bold text-lg">
@@ -290,7 +290,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                             </div>
                         </>
                     )}
-                    {document.type === 'Estimate' && (
+                    {documentData.type === 'Estimate' && (
                          <>
                             <Separator />
                             <div className="flex justify-between font-bold text-lg">
@@ -304,7 +304,7 @@ export function DocumentView({ document }: DocumentViewProps) {
 
             <Separator className="my-8" />
 
-            {document.type === 'Invoice' && document.payments && document.payments.length > 0 && (
+            {documentData.type === 'Invoice' && documentData.payments && documentData.payments.length > 0 && (
               <section className="mb-8">
                   <h3 className="font-semibold mb-2">Payment History</h3>
                   <div className="border rounded-md">
@@ -317,7 +317,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                               </TableRow>
                           </TableHeader>
                           <TableBody>
-                              {document.payments.map(payment => (
+                              {documentData.payments.map(payment => (
                                   <TableRow key={payment.id}>
                                       <TableCell>{payment.date}</TableCell>
                                       <TableCell>{payment.method}</TableCell>
@@ -332,10 +332,10 @@ export function DocumentView({ document }: DocumentViewProps) {
 
             <section className="mb-8">
                 <h3 className="font-semibold mb-2">Client Signature</h3>
-                {document.isSigned && document.signature ? (
+                {documentData.isSigned && documentData.signature ? (
                     <div>
                         <p className="text-sm text-muted-foreground mb-2">Approved and signed by the client:</p>
-                        <Image src={document.signature} alt="Client Signature" width={200} height={100} className="rounded-md border bg-white" />
+                        <Image src={documentData.signature} alt="Client Signature" width={200} height={100} className="rounded-md border bg-white" />
                     </div>
                 ) : (
                     <div className="space-y-2">
@@ -355,13 +355,13 @@ export function DocumentView({ document }: DocumentViewProps) {
             </section>
 
             <footer className="space-y-4">
-                 {document.projectPhotos && document.projectPhotos.length > 0 && (
+                 {documentData.projectPhotos && documentData.projectPhotos.length > 0 && (
                     <section className="mb-8">
                         <Separator className="my-8" />
                         <h2 className="text-2xl font-bold font-headline mb-4">Project Photos</h2>
                         <Carousel className="w-full">
                         <CarouselContent>
-                            {document.projectPhotos.map((photo, index) => (
+                            {documentData.projectPhotos.map((photo, index) => (
                                 photo && photo.url && (
                                 <CarouselItem key={index}>
                                     <div className="p-1">
@@ -386,7 +386,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                                 )
                             ))}
                         </CarouselContent>
-                        {document.projectPhotos.length > 1 && (
+                        {documentData.projectPhotos.length > 1 && (
                             <>
                             <CarouselPrevious className="left-2" />
                             <CarouselNext className="right-2" />
@@ -396,16 +396,16 @@ export function DocumentView({ document }: DocumentViewProps) {
                     </section>
                 )}
 
-                {document.notes && (
+                {documentData.notes && (
                     <div>
                         <h3 className="font-semibold mb-1">Notes</h3>
-                        <p className="text-sm text-muted-foreground">{document.notes}</p>
+                        <p className="text-sm text-muted-foreground">{documentData.notes}</p>
                     </div>
                 )}
-                 {document.terms && (
+                 {documentData.terms && (
                     <div>
                         <h3 className="font-semibold mb-1">Terms</h3>
-                        <p className="text-sm text-muted-foreground">{document.terms}</p>
+                        <p className="text-sm text-muted-foreground">{documentData.terms}</p>
                     </div>
                 )}
             </footer>
@@ -424,7 +424,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                 <div className="relative z-50 flex flex-col items-end gap-4">
                     {isFabMenuOpen && (
                         <div className="flex flex-col items-end gap-4 transition-all duration-300">
-                             {document.type === 'Invoice' && document.isSigned && (
+                             {documentData.type === 'Invoice' && documentData.isSigned && (
                                 <FabMenuItem 
                                     onClick={handleGenerateWorkOrder}
                                     icon={<ClipboardList className="h-6 w-6" />}
@@ -432,8 +432,8 @@ export function DocumentView({ document }: DocumentViewProps) {
                                     variant="default"
                                 />
                             )}
-                             {document.type === 'Invoice' && document.status !== 'Paid' && (
-                                <RecordPaymentDialog document={document} onRecordPayment={handleRecordPayment}>
+                             {documentData.type === 'Invoice' && documentData.status !== 'Paid' && (
+                                <RecordPaymentDialog document={documentData} onRecordPayment={handleRecordPayment}>
                                     <FabMenuItem 
                                         onClick={() => {}} 
                                         icon={<DollarSign className="h-6 w-6" />}
@@ -443,8 +443,8 @@ export function DocumentView({ document }: DocumentViewProps) {
                                 </RecordPaymentDialog>
                             )}
                              <SendEmailDialog 
-                                document={document} 
-                                companyName={document.companyName || "Your Company"}
+                                document={documentData} 
+                                companyName={documentData.companyName || "Your Company"}
                                 onEmailSent={handleEmailSent}
                             >
                                 <FabMenuItem 

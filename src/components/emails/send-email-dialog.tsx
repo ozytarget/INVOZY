@@ -26,7 +26,7 @@ type SendEmailDialogProps = {
   children: React.ReactNode;
 }
 
-export function SendEmailDialog({ document, companyName, onEmailSent, children }: SendEmailDialogProps) {
+export function SendEmailDialog({ document: documentData, companyName, onEmailSent, children }: SendEmailDialogProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -35,10 +35,10 @@ export function SendEmailDialog({ document, companyName, onEmailSent, children }
     const documentUrl = window.location.href;
     
     const result = await sendDocumentEmail({
-        to: document.clientEmail,
+        to: documentData.clientEmail,
         documentUrl,
-        documentType: document.type,
-        documentNumber: document.type === 'Invoice' ? document.invoiceNumber! : document.estimateNumber!,
+        documentType: documentData.type,
+        documentNumber: documentData.type === 'Invoice' ? documentData.invoiceNumber! : documentData.estimateNumber!,
         companyName,
     });
 
@@ -47,7 +47,7 @@ export function SendEmailDialog({ document, companyName, onEmailSent, children }
     if (result.success) {
         toast({
             title: "Email Sent",
-            description: `The ${document.type.toLowerCase()} has been sent to ${document.clientEmail}.`,
+            description: `The ${documentData.type.toLowerCase()} has been sent to ${documentData.clientEmail}.`,
         });
         onEmailSent();
     } else {
@@ -67,9 +67,9 @@ export function SendEmailDialog({ document, companyName, onEmailSent, children }
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Send {document.type} to Client?</AlertDialogTitle>
+          <AlertDialogTitle>Send {documentData.type} to Client?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will send an email to <span className="font-semibold">{document.clientName}</span> at <span className="font-semibold">{document.clientEmail}</span> with a link to view the document.
+            This will send an email to <span className="font-semibold">{documentData.clientName}</span> at <span className="font-semibold">{documentData.clientEmail}</span> with a link to view the document.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

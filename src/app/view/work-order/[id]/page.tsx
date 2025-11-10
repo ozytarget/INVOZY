@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
-function WorkOrderDisplay({ workOrder, document }: { workOrder: WorkOrderOutput, document: Document }) {
+function WorkOrderDisplay({ workOrder, document: documentData }: { workOrder: WorkOrderOutput, document: Document }) {
     return (
         <div className="space-y-8">
             <Card>
@@ -85,16 +85,16 @@ export default function WorkOrderViewPage() {
     return doc(firestore, 'invoices', id);
   }, [firestore, id]);
 
-  const { data: document, isLoading: isLoadingDocument, error } = useDoc<Document>(docRef);
+  const { data: documentData, isLoading: isLoadingDocument, error } = useDoc<Document>(docRef);
 
   useEffect(() => {
-    if (document) {
+    if (documentData) {
       const generate = async () => {
         setIsGenerating(true);
         const result = await getWorkOrder({
-          projectTitle: document.projectTitle,
-          projectDescription: document.notes,
-          lineItems: document.lineItems.map(item => ({ description: item.description, quantity: item.quantity })),
+          projectTitle: documentData.projectTitle,
+          projectDescription: documentData.notes,
+          lineItems: documentData.lineItems.map(item => ({ description: item.description, quantity: item.quantity })),
         });
         if (result.success && result.data) {
           setWorkOrder(result.data);
@@ -109,10 +109,10 @@ export default function WorkOrderViewPage() {
       };
       generate();
     }
-  }, [document, toast]);
+  }, [documentData, toast]);
   
   const handleSms = () => {
-    if (!document?.clientPhone) {
+    if (!documentData?.clientPhone) {
         toast({
             variant: "destructive",
             title: "No Phone Number",
@@ -122,8 +122,8 @@ export default function WorkOrderViewPage() {
     }
 
     const url = window.location.href;
-    const message = `View your work order for: ${document.projectTitle}\n${url}`;
-    const smsUrl = `sms:${document.clientPhone}?body=${encodeURIComponent(message)}`;
+    const message = `View your work order for: ${documentData.projectTitle}\n${url}`;
+    const smsUrl = `sms:${documentData.clientPhone}?body=${encodeURIComponent(message)}`;
     
     window.open(smsUrl, '_blank');
   };
@@ -136,7 +136,7 @@ export default function WorkOrderViewPage() {
     );
   }
 
-  if (error || !document) {
+  if (error || !documentData) {
     notFound();
   }
 
@@ -159,34 +159,34 @@ export default function WorkOrderViewPage() {
                 <CardHeader className="p-0 mb-8">
                      <header className="flex justify-between items-start mb-8">
                         <div>
-                            {document.companyLogo && (
-                                <Image src={document.companyLogo} alt={document.companyName || 'Company Logo'} width={120} height={50} className="object-contain mb-2" />
+                            {documentData.companyLogo && (
+                                <Image src={documentData.companyLogo} alt={documentData.companyName || 'Company Logo'} width={120} height={50} className="object-contain mb-2" />
                             )}
                             <div className="text-muted-foreground">
-                                <p className="font-bold text-foreground">{document.companyName || "Your Company"}</p>
-                                <p className="whitespace-pre-line">{document.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
+                                <p className="font-bold text-foreground">{documentData.companyName || "Your Company"}</p>
+                                <p className="whitespace-pre-line">{documentData.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
                             </div>
                         </div>
                         <div className="text-right">
                             <h1 className="text-4xl font-bold font-headline uppercase">Work Order</h1>
-                            <p className="text-muted-foreground">Reference Invoice: {document.invoiceNumber}</p>
+                            <p className="text-muted-foreground">Reference Invoice: {documentData.invoiceNumber}</p>
                         </div>
                     </header>
                     <div className="border rounded-lg p-4 bg-muted/30">
-                        <h2 className="font-semibold text-lg mb-2">{document.projectTitle}</h2>
+                        <h2 className="font-semibold text-lg mb-2">{documentData.projectTitle}</h2>
                         <div className="grid sm:grid-cols-2 gap-4 text-sm">
                              <div className="flex items-start gap-3">
                                 <User className="w-5 h-5 mt-0.5 text-muted-foreground" />
                                 <div>
-                                    <p className="font-medium text-foreground">{document.clientName}</p>
-                                    <p className="text-muted-foreground">{document.clientEmail}</p>
+                                    <p className="font-medium text-foreground">{documentData.clientName}</p>
+                                    <p className="text-muted-foreground">{documentData.clientEmail}</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-3">
                                 <Home className="w-5 h-5 mt-0.5 text-muted-foreground" />
                                 <div>
-                                    <p className="font-medium text-foreground whitespace-pre-line">{document.clientAddress}</p>
-                                    <p className="text-muted-foreground">{document.clientPhone}</p>
+                                    <p className="font-medium text-foreground whitespace-pre-line">{documentData.clientAddress}</p>
+                                    <p className="text-muted-foreground">{documentData.clientPhone}</p>
                                 </div>
                             </div>
                         </div>
@@ -201,7 +201,7 @@ export default function WorkOrderViewPage() {
                             <p className="text-muted-foreground">The AI is analyzing the project details to create the task, material, and tool lists.</p>
                         </div>
                     )}
-                    {workOrder && <WorkOrderDisplay workOrder={workOrder} document={document} />}
+                    {workOrder && <WorkOrderDisplay workOrder={workOrder} document={documentData} />}
                 </CardContent>
              </Card>
         </div>

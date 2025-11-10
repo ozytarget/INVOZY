@@ -21,7 +21,7 @@ export default function PublicInvoiceViewPage() {
     return doc(firestore, 'invoices', id);
   }, [firestore, id]);
 
-  const { data: document, isLoading, error } = useDoc<Document>(docRef);
+  const { data: documentData, isLoading, error } = useDoc<Document>(docRef);
   
   useEffect(() => {
     // Determine if this is an external view by checking if the `internal` flag is missing.
@@ -29,18 +29,18 @@ export default function PublicInvoiceViewPage() {
     const isExternalView = typeof window !== 'undefined' && !new URL(window.location.href).searchParams.has('internal');
 
     // Only create a notification if it's an external view and a non-owner user is viewing it.
-    if (isExternalView && document && user && firestore && !notificationSent.current && user.uid !== document.userId) {
+    if (isExternalView && documentData && user && firestore && !notificationSent.current && user.uid !== documentData.userId) {
       const createNotification = async () => {
         try {
           const notificationData: Omit<Notification, 'id' | 'timestamp'> & { timestamp: any } = {
-            userId: document.userId,
-            message: `${document.clientName} has viewed invoice #${document.invoiceNumber}`,
-            documentId: document.id,
+            userId: documentData.userId,
+            message: `${documentData.clientName} has viewed invoice #${documentData.invoiceNumber}`,
+            documentId: documentData.id,
             documentType: 'Invoice',
             isRead: false,
             timestamp: serverTimestamp(),
           };
-          const notificationsCol = collection(firestore, 'users', document.userId, 'notifications');
+          const notificationsCol = collection(firestore, 'users', documentData.userId, 'notifications');
           await addDoc(notificationsCol, notificationData);
           notificationSent.current = true; // Mark as sent to prevent duplicates
         } catch (error) {
@@ -52,7 +52,7 @@ export default function PublicInvoiceViewPage() {
       
       createNotification();
     }
-  }, [document, firestore, user]);
+  }, [documentData, firestore, user]);
 
   if (isLoading) {
     return (
@@ -62,11 +62,11 @@ export default function PublicInvoiceViewPage() {
     );
   }
 
-  if (error || !document) {
+  if (error || !documentData) {
     notFound();
   }
 
-  return <DocumentView document={document as Document} />;
+  return <DocumentView document={documentData as Document} />;
 }
 
     
