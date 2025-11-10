@@ -51,6 +51,9 @@ export function DocumentView({ document }: DocumentViewProps) {
   const router = useRouter();
   const [isDashboardView, setIsDashboardView] = useState(false);
   const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
+  
+  const [downloadHandler, setDownloadHandler] = useState<(photoUrl: string, filename: string) => void>(() => () => {});
+
 
   useEffect(() => {
     // A simple check to see if this view is loaded inside the main dashboard flow
@@ -58,6 +61,19 @@ export function DocumentView({ document }: DocumentViewProps) {
     if (window.self !== window.top) {
         setIsDashboardView(true);
     }
+    
+    // This function depends on browser-only APIs (`document`).
+    // By defining it inside useEffect, we ensure it's only created on the client
+    // after the component has mounted.
+    setDownloadHandler(() => (photoUrl: string, filename: string) => {
+        const link = document.createElement('a');
+        link.href = photoUrl;
+        link.download = filename || 'project-photo.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+
   }, []);
 
   const subtotal = document.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
@@ -161,15 +177,6 @@ export function DocumentView({ document }: DocumentViewProps) {
     setIsFabMenuOpen(false);
   }
   
-  const handleDownloadPhoto = useCallback((photoUrl: string, filename: string) => {
-    const link = document.createElement('a');
-    link.href = photoUrl;
-    link.download = filename || 'project-photo.png';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, []);
-
   const documentNumber = document.type === 'Estimate' ? document.estimateNumber : document.invoiceNumber;
 
   return (
@@ -367,7 +374,7 @@ export function DocumentView({ document }: DocumentViewProps) {
                                                     variant="secondary" 
                                                     size="icon" 
                                                     className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
-                                                    onClick={() => handleDownloadPhoto(photo.url, `${documentNumber}-photo-${index + 1}.png`)}
+                                                    onClick={() => downloadHandler(photo.url, `${documentNumber}-photo-${index + 1}.png`)}
                                                 >
                                                     <Download className="h-4 w-4" />
                                                 </Button>
