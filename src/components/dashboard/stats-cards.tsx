@@ -15,9 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { useDocuments } from "@/hooks/use-documents"
-import { DollarSign, FileSignature, TrendingUp, Construction, Percent, FileText, Download } from "lucide-react"
+import { DollarSign, FileSignature, TrendingUp, Construction, Percent, Download, FileText } from "lucide-react"
 import { Document, LineItem } from "@/lib/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "../ui/table";
 import { ScrollArea } from "../ui/scroll-area";
