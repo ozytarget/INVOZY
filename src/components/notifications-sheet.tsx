@@ -71,6 +71,7 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
   }
 
   const handleNotificationClick = (notification: Notification) => {
+    if (!user) return;
     const notifRef = doc(firestore, 'users', user.uid, 'notifications', notification.id);
     const batch = writeBatch(firestore);
     batch.update(notifRef, { isRead: true });
