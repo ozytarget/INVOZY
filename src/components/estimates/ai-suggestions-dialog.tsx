@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { getSuggestions } from "@/app/actions.tsx";
+import { getSuggestions } from "@/app/actions";
 import { AIPoweredEstimateSuggestionsOutput, AIPoweredEstimateSuggestionsInput } from '@/ai/flows/ai-powered-estimate-suggestions';
 import { Wand2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
