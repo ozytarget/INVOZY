@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Document, Payment, PaymentMethod } from "@/lib/types";
 
-const paymentMethods: PaymentMethod[] = ["Cash", "Bank Transfer", "Credit Card", "Debit Card"];
+const paymentMethods = ["Cash", "Bank Transfer", "Credit Card", "Debit Card"] as const;
 
 const formSchema = z.object({
   amount: z.coerce.number().positive("Amount must be greater than 0."),
@@ -75,7 +75,7 @@ export function RecordPaymentDialog({ document: documentData, onRecordPayment, c
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Record Payment for INV-{documentData.id.split('-')[1]}</DialogTitle>
+          <DialogTitle>Record Payment for INV-{documentData.invoiceNumber}</DialogTitle>
           <DialogDescription>
             Record a new payment for this invoice. The balance due is ${balanceDue.toFixed(2)}.
           </DialogDescription>
