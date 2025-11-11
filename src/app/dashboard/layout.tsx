@@ -72,7 +72,7 @@ export default function DashboardLayout({
   }
   
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background">
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 px-4 sm:px-6" style={{ backgroundColor: 'hsl(var(--nav-background))', color: 'hsl(var(--nav-foreground))' }}>
         <h1 className="text-xl font-bold">
           {getTitle()}
@@ -94,7 +94,7 @@ export default function DashboardLayout({
           <UserNav />
         </div>
       </header>
-      <main className="flex-1 flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 pb-24">
+      <main className="flex-1 flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 pb-24 overflow-y-auto">
         {children}
       </main>
       <nav className="fixed bottom-0 left-0 right-0 z-10 border-t" style={{ backgroundColor: 'hsl(var(--nav-background))', color: 'hsl(var(--nav-foreground))' }}>
