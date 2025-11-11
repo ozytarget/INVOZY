@@ -1,10 +1,9 @@
 
 
-
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
-import React, from 'react';
+import React from 'react';
 import { format } from 'date-fns';
 import { useCollection, useFirestore, useUser, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, addDoc, deleteDoc, writeBatch, getDocs, query, where, getDoc, updateDoc } from 'firebase/firestore';
