@@ -94,10 +94,10 @@ export default function DashboardLayout({
           <UserNav />
         </div>
       </header>
-      <main className="flex-1 flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 pb-24 overflow-y-auto">
+      <main className="flex-1 flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 overflow-y-scroll">
         {children}
       </main>
-      <nav className="fixed bottom-0 left-0 right-0 z-10 border-t" style={{ backgroundColor: 'hsl(var(--nav-background))', color: 'hsl(var(--nav-foreground))' }}>
+      <nav className="fixed bottom-0 left-0 right-0 z-10 border-t pb-safe" style={{ backgroundColor: 'hsl(var(--nav-background))', color: 'hsl(var(--nav-foreground))' }}>
         <div className="grid h-16 w-full grid-cols-5 items-center justify-around">
           {navItems.map((item) => (
             <Link
