@@ -4,22 +4,77 @@
 import { DocumentView } from "@/components/document-view";
 import { notFound, useParams } from "next/navigation";
 import type { Document } from "@/lib/types";
-import { doc } from "firebase/firestore";
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { supabase } from "@/supabase/client";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 export default function PublicEstimateViewPage() {
   const params = useParams();
-  const firestore = useFirestore();
   const id = typeof params.id === 'string' ? params.id : '';
+  const [document, setDocument] = useState<Document | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const docRef = useMemoFirebase(() => {
-    if (!id) return null;
-    // This now points to the root collection, making it public.
-    return doc(firestore, 'estimates', id);
-  }, [firestore, id]);
+  useEffect(() => {
+    if (!id) {
+      notFound();
+      return;
+    }
 
-  const { data: document, isLoading, error } = useDoc<Document>(docRef);
+    const fetchEstimate = async () => {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('estimates')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (fetchError || !data) {
+          notFound();
+          return;
+        }
+
+        const transformedDoc: Document = {
+          id: data.id,
+          userId: data.user_id,
+          type: 'Estimate',
+          status: data.status,
+          companyName: data.company_name || '',
+          companyAddress: data.company_address || '',
+          companyEmail: data.company_email || '',
+          companyPhone: data.company_phone || '',
+          companyLogo: data.company_logo,
+          companyWebsite: data.company_website,
+          contractorName: data.contractor_name,
+          schedulingUrl: data.scheduling_url,
+          clientName: data.client_name,
+          clientEmail: data.client_email,
+          clientAddress: data.client_address || '',
+          clientPhone: data.client_phone,
+          projectTitle: data.project_title,
+          issuedDate: data.issued_date,
+          dueDate: data.due_date,
+          amount: data.amount,
+          taxRate: data.tax_rate,
+          lineItems: [],
+          notes: data.notes || '',
+          terms: data.terms || '',
+          taxId: data.tax_id,
+          signature: data.signature,
+          isSigned: data.is_signed || false,
+          payments: [],
+          estimateNumber: data.estimate_number,
+          projectPhotos: data.project_photos || [],
+          search_field: data.search_field || '',
+        };
+
+        setDocument(transformedDoc);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEstimate();
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -29,10 +84,9 @@ export default function PublicEstimateViewPage() {
     );
   }
 
-  // If there's an error or if the document is not found after loading, show 404.
-  if (error || !document) {
+  if (!document) {
     notFound();
   }
   
-  return <DocumentView document={document as Document} />;
+  return <DocumentView document={document} />;
 }

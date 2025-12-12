@@ -3,56 +3,78 @@
 
 import { DocumentView } from "@/components/document-view";
 import { notFound, useParams } from "next/navigation";
-import type { Document, Notification } from "@/lib/types";
-import { doc, collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import type { Document } from "@/lib/types";
+import { supabase } from "@/supabase/client";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useEffect, useRef } from "react";
 
 export default function PublicInvoiceViewPage() {
   const params = useParams();
-  const firestore = useFirestore();
-  const { user } = useUser();
   const id = typeof params.id === 'string' ? params.id : '';
-  const notificationSent = useRef(false);
+  const [document, setDocument] = useState<Document | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const docRef = useMemoFirebase(() => {
-    if (!id) return null;
-    return doc(firestore, 'invoices', id);
-  }, [firestore, id]);
-
-  const { data: documentData, isLoading, error } = useDoc<Document>(docRef);
-  
   useEffect(() => {
-    // Determine if this is an external view by checking if the `internal` flag is missing.
-    // This logic relies on `isDashboardView` being derived from searchParams, which is client-side.
-    const isExternalView = typeof window !== 'undefined' && !new URL(window.location.href).searchParams.has('internal');
-
-    // Only create a notification if it's an external view and a non-owner user is viewing it.
-    if (isExternalView && documentData && user && firestore && !notificationSent.current && user.uid !== documentData.userId) {
-      const createNotification = async () => {
-        try {
-          const notificationData: Omit<Notification, 'id' | 'timestamp'> & { timestamp: any } = {
-            userId: documentData.userId,
-            message: `${documentData.clientName} has viewed invoice #${documentData.invoiceNumber}`,
-            documentId: documentData.id,
-            documentType: 'Invoice',
-            isRead: false,
-            timestamp: serverTimestamp(),
-          };
-          const notificationsCol = collection(firestore, 'users', documentData.userId, 'notifications');
-          await addDoc(notificationsCol, notificationData);
-          notificationSent.current = true; // Mark as sent to prevent duplicates
-        } catch (error) {
-          // This might fail if the viewer is not authenticated, which is fine.
-          // We don't want to show an error to the client viewing the invoice.
-          console.error("Could not create view notification:", error);
-        }
-      };
-      
-      createNotification();
+    if (!id) {
+      notFound();
+      return;
     }
-  }, [documentData, firestore, user]);
+
+    const fetchInvoice = async () => {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('invoices')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (fetchError || !data) {
+          notFound();
+          return;
+        }
+
+        const transformedDoc: Document = {
+          id: data.id,
+          userId: data.user_id,
+          type: 'Invoice',
+          status: data.status,
+          companyName: data.company_name || '',
+          companyAddress: data.company_address || '',
+          companyEmail: data.company_email || '',
+          companyPhone: data.company_phone || '',
+          companyLogo: data.company_logo,
+          companyWebsite: data.company_website,
+          contractorName: data.contractor_name,
+          schedulingUrl: data.scheduling_url,
+          clientName: data.client_name,
+          clientEmail: data.client_email,
+          clientAddress: data.client_address || '',
+          clientPhone: data.client_phone,
+          projectTitle: data.project_title,
+          issuedDate: data.issued_date,
+          dueDate: data.due_date,
+          amount: data.amount,
+          taxRate: data.tax_rate,
+          lineItems: [],
+          notes: data.notes || '',
+          terms: data.terms || '',
+          taxId: data.tax_id,
+          signature: data.signature,
+          isSigned: data.is_signed || false,
+          payments: [],
+          invoiceNumber: data.invoice_number,
+          projectPhotos: data.project_photos || [],
+          search_field: data.search_field || '',
+        };
+
+        setDocument(transformedDoc);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInvoice();
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -62,11 +84,11 @@ export default function PublicInvoiceViewPage() {
     );
   }
 
-  if (error || !documentData) {
+  if (!document) {
     notFound();
   }
 
-  return <DocumentView document={documentData as Document} />;
+  return <DocumentView document={document} />;
 }
 
     

@@ -4,8 +4,7 @@
 
 import { notFound, useParams } from "next/navigation";
 import type { Document } from "@/lib/types";
-import { doc } from "firebase/firestore";
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { supabase } from "@/supabase/client";
 import { ClipboardList, HardHat, Wrench, Loader2, User, Home, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,19 +72,75 @@ function WorkOrderDisplay({ workOrder, document: documentData }: { workOrder: Wo
 
 export default function WorkOrderViewPage() {
   const params = useParams();
-  const firestore = useFirestore();
   const { toast } = useToast();
   const id = typeof params.id === 'string' ? params.id : '';
 
+  const [documentData, setDocumentData] = useState<Document | null>(null);
   const [workOrder, setWorkOrder] = useState<WorkOrderOutput | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(true);
 
-  const docRef = useMemoFirebase(() => {
-    if (!id) return null;
-    return doc(firestore, 'invoices', id);
-  }, [firestore, id]);
+  useEffect(() => {
+    if (!id) {
+      notFound();
+      return;
+    }
 
-  const { data: documentData, isLoading: isLoadingDocument, error } = useDoc<Document>(docRef);
+    const fetchInvoice = async () => {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('invoices')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (fetchError || !data) {
+          notFound();
+          return;
+        }
+
+        const transformedDoc: Document = {
+          id: data.id,
+          userId: data.user_id,
+          type: 'Invoice',
+          status: data.status,
+          companyName: data.company_name || '',
+          companyAddress: data.company_address || '',
+          companyEmail: data.company_email || '',
+          companyPhone: data.company_phone || '',
+          companyLogo: data.company_logo,
+          companyWebsite: data.company_website,
+          contractorName: data.contractor_name,
+          schedulingUrl: data.scheduling_url,
+          clientName: data.client_name,
+          clientEmail: data.client_email,
+          clientAddress: data.client_address || '',
+          clientPhone: data.client_phone,
+          projectTitle: data.project_title,
+          issuedDate: data.issued_date,
+          dueDate: data.due_date,
+          amount: data.amount,
+          taxRate: data.tax_rate,
+          lineItems: [],
+          notes: data.notes || '',
+          terms: data.terms || '',
+          taxId: data.tax_id,
+          signature: data.signature,
+          isSigned: data.is_signed || false,
+          payments: [],
+          invoiceNumber: data.invoice_number,
+          projectPhotos: data.project_photos || [],
+          search_field: data.search_field || '',
+        };
+
+        setDocumentData(transformedDoc);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInvoice();
+  }, [id]);
 
   useEffect(() => {
     if (documentData) {
