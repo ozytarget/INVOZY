@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import { Document, Payment } from "@/lib/types";
@@ -52,23 +53,15 @@ export function DocumentView({ document: documentData }: DocumentViewProps) {
   const isDashboardView = searchParams.get('internal') === 'true';
   const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
   
-  const [downloadHandler, setDownloadHandler] = useState<(photoUrl: string, filename: string) => void>(() => () => {});
-
-
-  useEffect(() => {
-    // This function depends on browser-only APIs (`document`).
-    // By defining it inside useEffect with an empty dependency array,
-    // we ensure it's only created once on the client-side after the component has mounted.
-    setDownloadHandler(() => (photoUrl: string, filename: string) => {
-        const link = document.createElement('a');
-        link.href = photoUrl;
-        link.download = filename || 'project-photo.png';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    });
-
-  }, []);
+  const downloadHandler = (photoUrl: string, filename: string) => {
+    if (typeof window === "undefined") return;
+    const link = document.createElement('a');
+    link.href = photoUrl;
+    link.download = filename || 'project-photo.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const subtotal = documentData.lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
   const taxAmount = documentData.taxRate ? subtotal * (documentData.taxRate / 100) : 0;
@@ -497,3 +490,4 @@ export function DocumentView({ document: documentData }: DocumentViewProps) {
 }
 
     
+
