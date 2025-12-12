@@ -21,8 +21,7 @@ import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon, Perce
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/firebase"
-import { signOut } from "firebase/auth"
+import { useAuth } from "@/supabase/provider"
 
 const settingsSchema = z.object({
   companyName: z.string().min(2, "Company name is required."),
@@ -50,7 +49,7 @@ const fileToDataUrl = (file: File): Promise<string> => {
 export function SettingsForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const auth = useAuth();
+  const { signOut } = useAuth();
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   
   const form = useForm<SettingsFormValues>({
@@ -135,7 +134,7 @@ export function SettingsForm() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await signOut();
       router.push('/');
       toast({
         title: "Logged Out",

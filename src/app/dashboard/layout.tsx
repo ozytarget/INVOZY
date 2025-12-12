@@ -8,13 +8,10 @@ import Link from "next/link"
 import { UserNav } from "@/components/user-nav"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { useUser } from "@/firebase"
-import { useDocuments } from "@/hooks/use-documents"
+import { useUser } from "@/supabase/provider"
+import { useDocuments } from "@/hooks/use-documents-supabase"
 import { SearchDialog } from "@/components/search-dialog"
 import { NotificationsSheet } from "@/components/notifications-sheet"
-import { useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where } from "firebase/firestore"
-import { useFirestore } from "@/firebase"
 import type { Notification } from "@/lib/types"
 
 export default function DashboardLayout({
@@ -26,17 +23,9 @@ export default function DashboardLayout({
   const { user, isUserLoading } = useUser();
   const { isLoading: isLoadingDocuments } = useDocuments();
   const router = useRouter();
-  const firestore = useFirestore();
-
-  const notificationsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(
-      collection(firestore, 'users', user.uid, 'notifications'),
-      where('isRead', '==', false)
-    );
-  }, [firestore, user]);
-
-  const { data: unreadNotifications } = useCollection<Notification>(notificationsQuery);
+  
+  // Notifications disabled for now - can be added later
+  const unreadNotifications: Notification[] = [];
 
   const navItems = [
     { href: "/dashboard/estimates", icon: <FileText />, label: "Estimates" },

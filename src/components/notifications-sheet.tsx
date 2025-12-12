@@ -9,8 +9,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase"
-import { collection, doc, query, orderBy, writeBatch, Timestamp } from "firebase/firestore"
+import { useUser } from "@/supabase/provider"
 import type { Notification } from "@/lib/types"
 import { formatDistanceToNow } from 'date-fns'
 import { Button } from "./ui/button"
@@ -18,66 +17,20 @@ import { ScrollArea } from "./ui/scroll-area"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 
-// Helper function to safely convert timestamp
-const formatNotificationTimestamp = (timestamp: any): string => {
-  if (!timestamp) {
-    return 'just now';
-  }
-  // Firestore timestamps can be objects with seconds and nanoseconds
-  if (timestamp && typeof timestamp.toDate === 'function') {
-    return formatDistanceToNow(timestamp.toDate(), { addSuffix: true });
-  }
-  // Or they might already be string representations
-  try {
-    const date = new Date(timestamp);
-    // Check if the date is valid
-    if (isNaN(date.getTime())) {
-      return 'a while ago';
-    }
-    return formatDistanceToNow(date, { addSuffix: true });
-  } catch (error) {
-    return 'a while ago';
-  }
-};
-
-
 export function NotificationsSheet({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
-  const firestore = useFirestore();
   const router = useRouter();
-
-  const notificationsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(
-      collection(firestore, 'users', user.uid, 'notifications'),
-      orderBy('timestamp', 'desc')
-    );
-  }, [firestore, user]);
-
-  const { data: notifications } = useCollection<Notification>(notificationsQuery);
+  
+  // Notifications disabled for now - will be added later
+  const notifications: Notification[] = [];
 
   const handleMarkAllAsRead = async () => {
-    if (!user || !notifications || notifications.length === 0) return;
-
-    const unreadNotifications = notifications.filter(n => !n.isRead);
-    if (unreadNotifications.length === 0) return;
-
-    const batch = writeBatch(firestore);
-    unreadNotifications.forEach(notification => {
-      const notifRef = doc(firestore, 'users', user.uid, 'notifications', notification.id);
-      batch.update(notifRef, { isRead: true });
-    });
-    await batch.commit();
+    // TODO: Implement when notifications are ready
   }
 
   const handleNotificationClick = (notification: Notification) => {
-    if (!user) return;
-    const notifRef = doc(firestore, 'users', user.uid, 'notifications', notification.id);
-    const batch = writeBatch(firestore);
-    batch.update(notifRef, { isRead: true });
-    batch.commit().then(() => {
-      router.push(`/view/${notification.documentType.toLowerCase()}/${notification.documentId}?internal=true`);
-    });
+    // TODO: Implement when notifications are ready
+    router.push(`/view/${notification.documentType.toLowerCase()}/${notification.documentId}?internal=true`);
   }
 
   return (
@@ -104,7 +57,7 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
                     >
                         <p className="font-medium">{notification.message}</p>
                         <p className="text-sm text-muted-foreground">
-                          {formatNotificationTimestamp(notification.timestamp)}
+                          {notification.created_at ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true }) : 'just now'}
                         </p>
                     </div>
                     ))

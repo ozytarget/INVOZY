@@ -1,4 +1,4 @@
-import { LoginForm } from '@/components/auth/login-form';
+import { LoginForm } from '@/components/auth/login-form-supabase';
 import { Logo } from '@/components/logo';
 
 export default function LoginPage() {

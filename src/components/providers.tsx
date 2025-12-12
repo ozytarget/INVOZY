@@ -1,16 +1,16 @@
 'use client';
 
-import { DocumentProvider } from '@/hooks/use-documents';
-import { FirebaseClientProvider } from '@/firebase';
+import { DocumentProvider } from '@/hooks/use-documents-supabase';
+import { SupabaseClientProvider } from '@/supabase/provider';
 import { Toaster } from './ui/toaster';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <FirebaseClientProvider>
+    <SupabaseClientProvider>
       <DocumentProvider>
         {children}
       </DocumentProvider>
       <Toaster />
-    </FirebaseClientProvider>
+    </SupabaseClientProvider>
   );
 }

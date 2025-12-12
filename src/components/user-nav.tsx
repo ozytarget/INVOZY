@@ -15,8 +15,7 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { User as UserIcon, Settings } from "lucide-react";
-import { useAuth, useUser } from "@/firebase";
-import { signOut } from "firebase/auth";
+import { useAuth, useUser } from "@/supabase/provider";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,7 +27,7 @@ type UserSettings = {
 
 export function UserNav() {
   const { user } = useUser();
-  const auth = useAuth();
+  const { signOut } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [settings, setSettings] = useState<UserSettings | null>(null);
@@ -55,7 +54,7 @@ export function UserNav() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await signOut();
       router.push('/');
       toast({
         title: "Logged Out",
