@@ -57,7 +57,7 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
                     >
                         <p className="font-medium">{notification.message}</p>
                         <p className="text-sm text-muted-foreground">
-                          {notification.created_at ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true }) : 'just now'}
+                          {notification.timestamp ? formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true }) : 'just now'}
                         </p>
                     </div>
                     ))
