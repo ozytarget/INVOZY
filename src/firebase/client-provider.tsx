@@ -9,14 +9,14 @@ import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 // Define the shape of the Firebase context state
 export interface FirebaseContextState {
-  firebaseApp: FirebaseApp | null;
-  firestore: Firestore | null;
-  auth: Auth | null;
+  firebaseApp: FirebaseApp;
+  firestore: Firestore;
+  auth: Auth;
   user: User | null;
   isUserLoading: boolean;
 }
 
-// Create the React Context
+// Create the React Context with a default undefined value
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
 // Define the props for the provider component
@@ -25,48 +25,50 @@ interface FirebaseClientProviderProps {
 }
 
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
-  const [firebaseApp, setFirebaseApp] = useState<FirebaseApp | null>(null);
-  const [auth, setAuth] = useState<Auth | null>(null);
-  const [firestore, setFirestore] = useState<Firestore | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [isUserLoading, setIsUserLoading] = useState(true);
+  const [contextValue, setContextValue] = useState<FirebaseContextState | null>(null);
 
   useEffect(() => {
-    // Initialize Firebase only on the client side
+    // This effect runs once on the client to initialize Firebase
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     const authInstance = getAuth(app);
     const firestoreInstance = getFirestore(app);
 
     enableMultiTabIndexedDbPersistence(firestoreInstance).catch((err) => {
-      if (err.code == 'failed-precondition') {
+      if (err.code === 'failed-precondition') {
         console.warn('Firestore persistence failed: multiple tabs open.');
-      } else if (err.code == 'unimplemented') {
+      } else if (err.code === 'unimplemented') {
         console.warn('Firestore persistence not available in this browser.');
       }
     });
 
-    setFirebaseApp(app);
-    setAuth(authInstance);
-    setFirestore(firestoreInstance);
-
     const unsubscribe = onAuthStateChanged(authInstance, (user) => {
-      setUser(user);
-      setIsUserLoading(false);
+      // This will be called on initial load and whenever auth state changes.
+      setContextValue((currentContext) => {
+        // If context is already set, just update user and loading state
+        if (currentContext) {
+          return { ...currentContext, user, isUserLoading: false };
+        }
+        // First time setting the context
+        return {
+          firebaseApp: app,
+          auth: authInstance,
+          firestore: firestoreInstance,
+          user,
+          isUserLoading: false,
+        };
+      });
     });
 
     // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, []);
+  }, []); // The empty dependency array ensures this effect runs only once.
 
-  const contextValue = useMemo((): FirebaseContextState => {
-    return {
-      firebaseApp,
-      auth,
-      firestore,
-      user,
-      isUserLoading,
-    };
-  }, [firebaseApp, auth, firestore, user, isUserLoading]);
+  // While contextValue is null, Firebase is initializing.
+  // We don't render children to prevent them from accessing a null context.
+  if (!contextValue) {
+    // You can render a global loading spinner here if you want
+    return null;
+  }
 
   return (
     <FirebaseContext.Provider value={contextValue}>
@@ -85,33 +87,21 @@ export const useFirebase = (): FirebaseContextState => {
   return context;
 };
 
-// Custom hooks for specific services
+// Custom hooks for specific services, now guaranteed to be non-null
 export const useAuth = (): Auth => {
-    const { auth } = useFirebase();
-    if (!auth) {
-        throw new Error('Firebase Auth not available. Check FirebaseClientProvider.');
-    }
-    return auth;
+  return useFirebase().auth;
 };
 
 export const useFirestore = (): Firestore => {
-    const { firestore } = useFirebase();
-    if (!firestore) {
-        throw new Error('Firestore not available. Check FirebaseClientProvider.');
-    }
-    return firestore;
+  return useFirebase().firestore;
 };
 
 export const useUser = () => {
-    const { user, isUserLoading } = useFirebase();
-    return { user, isUserLoading };
+  const { user, isUserLoading } = useFirebase();
+  return { user, isUserLoading };
 };
 
-export function useMemoFirebase<T>(factory: () => T, deps: React.DependencyList): T | (T & {__memo?: boolean}) {
-  const memoized = useMemo(factory, deps);
-  
-  if(typeof memoized !== 'object' || memoized === null) return memoized;
-  (memoized as T & {__memo?: boolean}).__memo = true;
-  
-  return memoized;
+export function useMemoFirebase<T>(factory: () => T, deps: React.DependencyList): T {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(factory, deps);
 }
