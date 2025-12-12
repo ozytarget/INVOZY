@@ -74,7 +74,7 @@ export function UserNav() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
-  const avatarSrc = settings?.companyLogo || user?.photoURL || '';
+  const avatarSrc = settings?.companyLogo || '';
   const fallbackText = getInitials(settings?.contractorName) || (user?.email ? user.email.charAt(0).toUpperCase() : <UserIcon />);
 
 
