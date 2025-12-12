@@ -3,7 +3,11 @@
 # Este script automatiza la configuración del repositorio remoto y la subida de cambios a GitHub.
 
 echo "PASO 1: Configurando la conexión con tu repositorio de GitHub..."
-git remote set-url origin https://github.com/ozytarget/INVOZY.git
+# Primero, intenta eliminar 'origin' por si existe y está mal configurado.
+# El '|| true' evita que el script se detenga si 'origin' no existe.
+git remote remove origin || true
+# Ahora, añade 'origin' con la URL correcta. Este es el comando clave que faltaba.
+git remote add origin https://github.com/ozytarget/INVOZY.git
 echo "Conexión establecida con https://github.com/ozytarget/INVOZY.git"
 echo "----------------------------------------------------"
 echo ""
@@ -26,6 +30,7 @@ echo "----------------------------------------------------"
 echo ""
 
 echo "PASO 4: Subiendo tu código a GitHub..."
+# Forzamos la subida a la rama 'main'
 git push origin main
 
 echo ""
