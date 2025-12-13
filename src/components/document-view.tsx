@@ -106,24 +106,43 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
   };
 
   const handleShare = async () => {
-    // Construct the public URL without the 'internal=true' query param
-    const publicUrl = new URL(window.location.href);
-    publicUrl.searchParams.delete('internal');
+    if (!documentData.share_token) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "This document does not have a public share link.",
+      });
+      return;
+    }
+
+    // Construct the public share URL
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+    const publicUrl = `${appUrl}/public/${documentData.share_token}`;
 
     try {
-        await navigator.share({
-            title: `${documentData.type} from ${documentData.companyName || 'invozzy'}`,
-            text: `View your ${documentData.type.toLowerCase()} : ${documentData.projectTitle}`,
-            url: publicUrl.toString(),
-        });
+      // Try using the native Share API first
+      await navigator.share({
+        title: `${documentData.type} from ${documentData.companyName || 'INVOZY'}`,
+        text: `View your ${documentData.type.toLowerCase()}: ${documentData.projectTitle}`,
+        url: publicUrl,
+      });
     } catch (error) {
-        // Fallback to clipboard if share API fails or is not available
-        await navigator.clipboard.writeText(publicUrl.toString());
+      // Fallback to clipboard copy
+      try {
+        await navigator.clipboard.writeText(publicUrl);
         toast({
-            title: "Link Copied",
-            description: "The public link has been copied to your clipboard.",
+          title: "Link Copied!",
+          description: "Public link copied to clipboard.",
         });
+      } catch (clipboardError) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not copy link to clipboard.",
+        });
+      }
     }
+    setIsFabMenuOpen(false);
   };
   
   const handleEdit = () => {

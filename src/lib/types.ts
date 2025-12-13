@@ -29,6 +29,7 @@ export type Document = {
   userId: string; // Added to link document to a user
   type: DocumentType;
   status: DocumentStatus;
+  share_token?: string; // UUID for public sharing
   
   // Company Info (embedded for public viewing)
   companyName: string;

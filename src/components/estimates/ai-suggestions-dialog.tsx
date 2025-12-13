@@ -74,24 +74,11 @@ export function AiSuggestionsDialog({
   };
 
   const handleOpen = () => {
-    if (!projectDescription.trim()) {
-        toast({
-            variant: 'destructive',
-            title: 'Project Description Required',
-            description: 'Please provide a project description before generating suggestions.',
-        });
-        return;
-    }
-    if (!projectLocation.trim()) {
-        toast({
-            variant: 'destructive',
-            title: 'Company Address Required',
-            description: 'Please set your company address in the Manage > Settings page for accurate AI labor costs.',
-        });
-        return;
-    }
-    setIsOpen(true);
-    handleGenerate();
+    toast({
+        variant: 'default',
+        title: 'AI Feature Paused',
+        description: 'AI suggestions are temporarily disabled. We are migrating to a more robust infrastructure.',
+    });
   }
   
   const handleApplyAndClose = () => {
