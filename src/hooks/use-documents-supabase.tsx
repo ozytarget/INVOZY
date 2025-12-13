@@ -6,6 +6,15 @@ import { format } from 'date-fns';
 import { supabase } from '@/supabase/client';
 import { useUser } from '@/supabase/provider';
 
+// Generate UUID for share tokens
+const generateShareToken = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 // Helper function to extract unique clients
 const getCombinedClients = (documents: Document[], storedClients: Client[]): Client[] => {
   const clientsMap = new Map<string, Client>();
@@ -202,6 +211,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       user_id: user.id,
       type: docData.type,
       status: docData.status,
+      share_token: generateShareToken(),
       company_name: companySettings.companyName || docData.companyName,
       company_address: companySettings.companyAddress || docData.companyAddress,
       company_email: companySettings.companyEmail || docData.companyEmail,

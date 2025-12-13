@@ -1,11 +1,12 @@
 'use client';
 
+import { DocumentProvider } from "@/hooks/use-documents-supabase";
 import { CreateInvoiceForm } from "@/components/invoices/create-invoice-form";
 import { useDocuments } from "@/hooks/use-documents-supabase";
 import { Loader2 } from "lucide-react";
 import { useParams, notFound } from "next/navigation";
 
-export default function EditInvoicePage() {
+function EditInvoicePageContent() {
   const params = useParams();
   const { documents, isLoading } = useDocuments();
   const id = typeof params.id === 'string' ? params.id : '';
@@ -34,5 +35,13 @@ export default function EditInvoicePage() {
        </div>
       <CreateInvoiceForm documentToEdit={documentToEdit} />
     </div>
+  )
+}
+
+export default function EditInvoicePage() {
+  return (
+    <DocumentProvider>
+      <EditInvoicePageContent />
+    </DocumentProvider>
   )
 }

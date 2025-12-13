@@ -1,11 +1,12 @@
 'use client';
 
+import { DocumentProvider } from "@/hooks/use-documents-supabase";
 import { CreateEstimateForm } from "@/components/estimates/create-estimate-form";
 import { useDocuments } from "@/hooks/use-documents-supabase";
 import { Loader2 } from "lucide-react";
 import { useParams, notFound } from "next/navigation";
 
-export default function EditEstimatePage() {
+function EditEstimatePageContent() {
   const params = useParams();
   const { documents, isLoading } = useDocuments();
   const id = typeof params.id === 'string' ? params.id : '';
@@ -34,5 +35,13 @@ export default function EditEstimatePage() {
        </div>
       <CreateEstimateForm documentToEdit={documentToEdit} />
     </div>
+  )
+}
+
+export default function EditEstimatePage() {
+  return (
+    <DocumentProvider>
+      <EditEstimatePageContent />
+    </DocumentProvider>
   )
 }

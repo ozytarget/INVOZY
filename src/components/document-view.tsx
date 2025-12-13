@@ -24,6 +24,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 
 type DocumentViewProps = {
   document: Document;
+  isPublic?: boolean;
 }
 
 const statusStyles: Record<Document['status'], string> = {
@@ -44,7 +45,7 @@ const FabMenuItem = ({ onClick, icon, label, variant = 'secondary', className = 
     </div>
 );
 
-export function DocumentView({ document: documentData }: DocumentViewProps) {
+export function DocumentView({ document: documentData, isPublic = false }: DocumentViewProps) {
   const sigCanvas = useRef<SignatureCanvas>(null);
   const { signAndProcessDocument, deleteDocument, recordPayment, sendDocument } = useDocuments();
   const { toast } = useToast();

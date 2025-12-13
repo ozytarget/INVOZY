@@ -151,13 +151,13 @@ export function SettingsForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-32">
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Company Information</CardTitle>
             <CardDescription>This information will appear on your estimates and invoices.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="grid md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -316,11 +316,11 @@ export function SettingsForm() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-between">
+        <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t">
           <Button type="button" variant="destructive" onClick={handleLogout}>
             Log Out
           </Button>
-          <Button type="submit">Save Settings</Button>
+          <Button type="submit" size="lg">Save Settings</Button>
         </div>
       </form>
     </Form>
