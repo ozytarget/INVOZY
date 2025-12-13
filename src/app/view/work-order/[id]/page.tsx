@@ -183,7 +183,7 @@ export default function WorkOrderViewPage() {
     window.open(smsUrl, '_blank');
   };
 
-  if (isLoadingDocument) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -191,7 +191,7 @@ export default function WorkOrderViewPage() {
     );
   }
 
-  if (error || !documentData) {
+  if (!documentData) {
     notFound();
   }
 
