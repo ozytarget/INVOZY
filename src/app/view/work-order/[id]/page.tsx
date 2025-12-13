@@ -70,7 +70,11 @@ function WorkOrderDisplay({ workOrder, document: documentData }: { workOrder: Wo
     );
 }
 
-export default function WorkOrderViewPage() {
+export default function WorkOrderPage() {
+  return <WorkOrderPageContent />;
+}
+
+function WorkOrderPageContent() {
   const params = useParams();
   const { toast } = useToast();
   const id = typeof params.id === 'string' ? params.id : '';
@@ -92,7 +96,7 @@ export default function WorkOrderViewPage() {
           .from('invoices')
           .select('*')
           .eq('id', id)
-          .single();
+          .single() as { data: any; error: any };
 
         if (fetchError || !data) {
           notFound();
@@ -100,10 +104,10 @@ export default function WorkOrderViewPage() {
         }
 
         const transformedDoc: Document = {
-          id: data.id,
-          userId: data.user_id,
+          id: data.id || '',
+          userId: data.user_id || '',
           type: 'Invoice',
-          status: data.status,
+          status: data.status || 'Draft',
           companyName: data.company_name || '',
           companyAddress: data.company_address || '',
           companyEmail: data.company_email || '',

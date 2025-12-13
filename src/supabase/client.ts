@@ -11,10 +11,25 @@ if (!supabaseAnonKey) {
   throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// ✅ Singleton pattern to prevent multiple client instances
+let supabaseInstance: ReturnType<typeof createClient> | null = null;
+
+export const supabase = (() => {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return supabaseInstance;
+})();
 
 // Para operaciones del servidor que necesitan más permisos
-export const supabaseAdmin = createClient(
-  supabaseUrl,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_VUk8nB6VhCX5g1qA_XSHgg_CKttejPd'
-);
+let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
+
+export const supabaseAdmin = (() => {
+  if (!supabaseAdminInstance) {
+    supabaseAdminInstance = createClient(
+      supabaseUrl,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_VUk8nB6VhCX5g1qA_XSHgg_CKttejPd'
+    );
+  }
+  return supabaseAdminInstance;
+})();

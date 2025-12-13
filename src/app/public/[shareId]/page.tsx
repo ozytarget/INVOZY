@@ -6,24 +6,26 @@ import { DocumentView } from '@/components/document-view';
 export default async function PublicDocumentPage({ 
   params 
 }: { 
-  params: { shareId: string } 
+  params: Promise<{ shareId: string }>
 }) {
+  const { shareId } = await params;
+  
   // Fetch document by share_token (public access, no auth needed)
   const { data, error } = await supabase
     .from('estimates')
     .select('*')
-    .eq('share_token', params.shareId)
-    .single();
+    .eq('share_token', shareId)
+    .single() as { data: any; error: any };
 
   let document: DocumentType | null = null;
 
   if (data) {
     // Transform database document to Document type
     document = {
-      id: data.id,
-      userId: data.user_id,
+      id: data.id || '',
+      userId: data.user_id || '',
       type: 'Estimate' as DocType,
-      status: data.status,
+      status: data.status || 'Draft',
       companyName: data.company_name || '',
       companyAddress: data.company_address || '',
       companyEmail: data.company_email || '',
@@ -39,9 +41,24 @@ export default async function PublicDocumentPage({
       projectTitle: data.project_title,
       issuedDate: data.issued_date,
       dueDate: data.due_date,
-      amount: data.amount,
-      taxRate: data.tax_rate,
-      lineItems: [],
+      amount: data.amount || 0,
+      taxRate: data.tax_rate || 0,
+      lineItems: (() => {
+        let items = [];
+        if (data.line_items) {
+          if (Array.isArray(data.line_items)) {
+            items = data.line_items;
+          } else if (typeof data.line_items === 'string') {
+            try {
+              items = JSON.parse(data.line_items);
+            } catch (e) {
+              console.error('Error parsing line_items:', e);
+              items = [];
+            }
+          }
+        }
+        return items;
+      })(),
       notes: data.notes || '',
       terms: data.terms || '',
       taxId: data.tax_id,
@@ -57,15 +74,15 @@ export default async function PublicDocumentPage({
     const { data: invoiceData } = await supabase
       .from('invoices')
       .select('*')
-      .eq('share_token', params.shareId)
-      .single();
+      .eq('share_token', shareId)
+      .single() as { data: any; error: any };
 
     if (invoiceData) {
       document = {
-        id: invoiceData.id,
-        userId: invoiceData.user_id,
+        id: invoiceData.id || '',
+        userId: invoiceData.user_id || '',
         type: 'Invoice' as DocType,
-        status: invoiceData.status,
+        status: invoiceData.status || 'Draft',
         companyName: invoiceData.company_name || '',
         companyAddress: invoiceData.company_address || '',
         companyEmail: invoiceData.company_email || '',
@@ -81,9 +98,24 @@ export default async function PublicDocumentPage({
         projectTitle: invoiceData.project_title,
         issuedDate: invoiceData.issued_date,
         dueDate: invoiceData.due_date,
-        amount: invoiceData.amount,
-        taxRate: invoiceData.tax_rate,
-        lineItems: [],
+        amount: invoiceData.amount || 0,
+        taxRate: invoiceData.tax_rate || 0,
+        lineItems: (() => {
+          let items = [];
+          if (invoiceData.line_items) {
+            if (Array.isArray(invoiceData.line_items)) {
+              items = invoiceData.line_items;
+            } else if (typeof invoiceData.line_items === 'string') {
+              try {
+                items = JSON.parse(invoiceData.line_items);
+              } catch (e) {
+                console.error('Error parsing line_items:', e);
+                items = [];
+              }
+            }
+          }
+          return items;
+        })(),
         notes: invoiceData.notes || '',
         terms: invoiceData.terms || '',
         taxId: invoiceData.tax_id,

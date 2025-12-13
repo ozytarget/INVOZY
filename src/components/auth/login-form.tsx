@@ -15,13 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import {
-  AuthError,
-  createUserWithEmailAndPassword,
-  signInAnonymously,
-  signInWithEmailAndPassword,
-} from 'firebase/auth';
-import { useAuth } from '@/firebase';
+import { useAuth } from '@/supabase/provider';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
@@ -36,7 +30,7 @@ type LoginFormValues = z.infer<typeof formSchema>;
 export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const auth = useAuth();
+  const { signIn, signUp } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LoginFormValues>({
@@ -47,31 +41,19 @@ export function LoginForm() {
     },
   });
 
-  const handleAuthError = (error: AuthError) => {
+  const handleAuthError = (error: any) => {
     let title = 'An error occurred';
-    let description = error.message;
+    let description = error.message || 'Unknown error';
 
-    switch (error.code) {
-      case 'auth/user-not-found':
-        title = 'User Not Found';
-        description = 'No user found with this email. Please sign up.';
-        break;
-      case 'auth/wrong-password':
-        title = 'Incorrect Password';
-        description = 'The password you entered is incorrect. Please try again.';
-        break;
-      case 'auth/email-already-in-use':
-        title = 'Email Already in Use';
-        description = 'This email is already registered. Please log in instead.';
-        break;
-      case 'auth/weak-password':
-        title = 'Weak Password';
-        description = 'The password must be at least 6 characters long.';
-        break;
-      case 'auth/invalid-email':
-        title = 'Invalid Email';
-        description = 'The email address is not valid.';
-        break;
+    if (error.message?.includes('Invalid login credentials')) {
+      title = 'Invalid Credentials';
+      description = 'Email or password is incorrect.';
+    } else if (error.message?.includes('User already registered')) {
+      title = 'Email Already in Use';
+      description = 'This email is already registered. Please log in instead.';
+    } else if (error.message?.includes('Password')) {
+      title = 'Weak Password';
+      description = 'Password must be at least 6 characters long.';
     }
 
     toast({
@@ -84,10 +66,10 @@ export function LoginForm() {
   async function handleSignIn(data: LoginFormValues) {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+      await signIn(data.email, data.password);
       router.push('/dashboard');
     } catch (error) {
-      handleAuthError(error as AuthError);
+      handleAuthError(error);
     } finally {
       setIsLoading(false);
     }
@@ -96,10 +78,13 @@ export function LoginForm() {
   async function handleSignUp(data: LoginFormValues) {
     setIsLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, data.email, data.password);
-      // On successful sign up, the onAuthStateChanged in the layout will handle redirection
+      await signUp(data.email, data.password);
+      toast({
+        title: 'Success',
+        description: 'Account created! Please check your email to confirm.',
+      });
     } catch (error) {
-      handleAuthError(error as AuthError);
+      handleAuthError(error);
     } finally {
       setIsLoading(false);
     }

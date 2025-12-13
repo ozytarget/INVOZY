@@ -1,4 +1,5 @@
 {
     "IDX.aI.showChatInEditorTab": true,
-    "IDX.agenticWorkspace": true
+    "IDX.agenticWorkspace": true,
+    "chat.agent.maxRequests": 9999
 }

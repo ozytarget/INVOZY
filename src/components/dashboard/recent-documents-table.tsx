@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { DocumentStatus } from "@/lib/types"
-import { useDocuments } from "@/hooks/use-documents-supabase"
+import { useDocuments } from "@/hooks/use-documents"
 import { useRouter } from "next/navigation";
 
 const statusStyles: Record<DocumentStatus, string> = {
@@ -98,9 +98,9 @@ export function RecentDocumentsTable() {
             <div key={doc.id} className="border rounded-lg p-4 space-y-2 cursor-pointer" onClick={() => handleRowClick(doc.id, doc.type)}>
               <div className="flex justify-between items-center">
                 <div className="font-medium">{doc.clientName}</div>
-                 <Badge className={statusStyles[doc.status]} variant="outline">{doc.status}</Badge>
+                <Badge className={statusStyles[doc.status]} variant="outline">{doc.status}</Badge>
               </div>
-               <div className="text-sm text-muted-foreground">{doc.type} #{doc.type === 'Estimate' ? doc.estimateNumber : doc.invoiceNumber}</div>
+              <div className="text-sm text-muted-foreground">{doc.type} #{doc.type === 'Estimate' ? doc.estimateNumber : doc.invoiceNumber}</div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">{doc.issuedDate}</span>
                 <span className="font-bold">${doc.amount.toLocaleString()}</span>

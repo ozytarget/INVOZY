@@ -1,6 +1,6 @@
 'use client';
 
-import { DocumentProvider } from '@/hooks/use-documents-supabase';
+import { DocumentProvider } from '@/hooks/use-documents';
 import { SupabaseClientProvider } from '@/supabase/provider';
 import { Toaster } from './ui/toaster';
 

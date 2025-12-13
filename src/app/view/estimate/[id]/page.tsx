@@ -8,7 +8,7 @@ import { supabase } from "@/supabase/client";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
-export default function PublicEstimateViewPage() {
+function EstimateViewContent() {
   const params = useParams();
   const id = typeof params.id === 'string' ? params.id : '';
   const [document, setDocument] = useState<Document | null>(null);
@@ -26,18 +26,33 @@ export default function PublicEstimateViewPage() {
           .from('estimates')
           .select('*')
           .eq('id', id)
-          .single();
+          .single() as { data: any; error: any };
 
         if (fetchError || !data) {
           notFound();
           return;
         }
 
+        // ✅ Parse lineItems defensively
+        let lineItems = [];
+        if (data?.line_items) {
+          if (Array.isArray(data.line_items)) {
+            lineItems = data.line_items;
+          } else if (typeof data.line_items === 'string') {
+            try {
+              lineItems = JSON.parse(data.line_items);
+            } catch (e) {
+              console.error('Error parsing line_items:', e);
+              lineItems = [];
+            }
+          }
+        }
+
         const transformedDoc: Document = {
-          id: data.id,
-          userId: data.user_id,
+          id: data.id || '',
+          userId: data.user_id || '',
           type: 'Estimate',
-          status: data.status,
+          status: data.status || 'Draft',
           companyName: data.company_name || '',
           companyAddress: data.company_address || '',
           companyEmail: data.company_email || '',
@@ -55,7 +70,7 @@ export default function PublicEstimateViewPage() {
           dueDate: data.due_date,
           amount: data.amount,
           taxRate: data.tax_rate,
-          lineItems: [],
+          lineItems: lineItems,
           notes: data.notes || '',
           terms: data.terms || '',
           taxId: data.tax_id,
@@ -89,4 +104,8 @@ export default function PublicEstimateViewPage() {
   }
   
   return <DocumentView document={document} />;
+}
+
+export default function PublicEstimateViewPage() {
+  return <EstimateViewContent />;
 }

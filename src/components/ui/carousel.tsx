@@ -116,6 +116,8 @@ const Carousel = React.forwardRef<
       api.on("select", onSelect)
 
       return () => {
+        // ✅ Desusc ribir AMBOS listeners para evitar memory leak
+        api?.off("reInit", onSelect)
         api?.off("select", onSelect)
       }
     }, [api, onSelect])

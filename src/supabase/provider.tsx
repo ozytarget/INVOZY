@@ -48,7 +48,10 @@ export function SupabaseClientProvider({ children }: SupabaseClientProviderProps
     });
 
     return () => {
-      authListener?.subscription.unsubscribe();
+      // ✅ Verificar que listener existe ANTES de desusc ribirse
+      if (authListener?.subscription) {
+        authListener.subscription.unsubscribe();
+      }
     };
   }, []);
 

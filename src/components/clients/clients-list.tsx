@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useDocuments } from "@/hooks/use-documents-supabase"
+import { useDocuments } from "@/hooks/use-documents"
 import type { Client } from "@/lib/types";
 
 export function ClientsList() {
@@ -25,7 +25,7 @@ export function ClientsList() {
     // TODO: Navigate to client details page
     console.log("Navigating to client:", client.name);
   };
-  
+
   const sortedClients = [...clients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   return (
@@ -37,7 +37,7 @@ export function ClientsList() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-         {/* Desktop View */}
+        {/* Desktop View */}
         <div className="hidden md:block">
           <Table>
             <TableHeader>
@@ -70,15 +70,15 @@ export function ClientsList() {
         <div className="md:hidden space-y-4">
           {sortedClients.map((client) => (
             <div key={`${client.email}-${client.name}`} onClick={() => handleRowClick(client)} className="border rounded-lg p-4 space-y-2 cursor-pointer">
-               <div className="font-medium">{client.name}</div>
-               <div className="text-sm text-muted-foreground">
+              <div className="font-medium">{client.name}</div>
+              <div className="text-sm text-muted-foreground">
                 <p>{client.email}</p>
                 <p>{client.phone}</p>
-               </div>
-               <div className="flex justify-between items-center text-sm pt-2 border-t">
-                  <span className="text-muted-foreground">{client.documentCount} document(s)</span>
-                  <span className="font-bold">${client.totalBilled.toLocaleString()} billed</span>
-               </div>
+              </div>
+              <div className="flex justify-between items-center text-sm pt-2 border-t">
+                <span className="text-muted-foreground">{client.documentCount} document(s)</span>
+                <span className="font-bold">${client.totalBilled.toLocaleString()} billed</span>
+              </div>
             </div>
           ))}
         </div>

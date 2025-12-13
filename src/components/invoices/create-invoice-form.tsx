@@ -40,7 +40,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { useDocuments } from "@/hooks/use-documents-supabase"
+import { useDocuments } from "@/hooks/use-documents"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Client, Document } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
@@ -78,8 +78,8 @@ const formSchema = z.object({
 type InvoiceFormValues = z.infer<typeof formSchema>
 
 type CompanySettings = {
-    companyAddress?: string;
-    taxRate?: number;
+  companyAddress?: string;
+  taxRate?: number;
 };
 
 type CreateInvoiceFormProps = {
@@ -88,10 +88,10 @@ type CreateInvoiceFormProps = {
 
 const fileToDataUrl = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 }
 
@@ -103,30 +103,22 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
   const [companySettings, setCompanySettings] = useState<CompanySettings>({});
 
   const isEditMode = !!documentToEdit;
-  
-  const defaultValues = isEditMode && documentToEdit ? {
-      clientId: documentToEdit.clientEmail,
-      projectTitle: documentToEdit.projectTitle,
-      projectDescription: documentToEdit.notes,
-      issuedDate: parseISO(documentToEdit.issuedDate),
-      dueDate: documentToEdit.dueDate ? parseISO(documentToEdit.dueDate) : new Date(),
-      lineItems: documentToEdit.lineItems,
-      notes: documentToEdit.notes,
-      terms: documentToEdit.terms,
-      projectPhotos: documentToEdit.projectPhotos?.map(p => ({ url: p.url, description: p.description || '' })) || [],
-    } : {
+
+  // Don't use defaultValues during form creation - always use form.reset() in useEffect
+  // This ensures async data loads properly
+  const form = useForm<InvoiceFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
       clientId: "",
       projectTitle: "",
       projectDescription: "",
+      issuedDate: new Date(),
+      dueDate: new Date(),
       lineItems: [{ description: "", quantity: 1, price: 0 }],
       notes: "",
       terms: "Net 30",
       projectPhotos: [],
-    };
-
-  const form = useForm<InvoiceFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues
+    }
   })
 
   const { fields: photoFields, append: appendPhoto, remove: removePhoto } = useFieldArray({
@@ -153,33 +145,125 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
 
 
   useEffect(() => {
+    console.log('=== INVOICE FORM useEffect ===');
+    console.log('isEditMode:', isEditMode);
+    console.log('documentToEdit:', documentToEdit);
+
+    // For new invoices, set default dates
     if (!isEditMode) {
+      console.log('New invoice mode - setting default dates');
       form.setValue('issuedDate', new Date());
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 30);
       form.setValue('dueDate', futureDate);
-    }
-    
-    if (isEditMode && documentToEdit) {
-        const client = clients.find(c => c.email === documentToEdit.clientEmail);
-        setSelectedClient(client || null);
+      return;
     }
 
-    if (typeof window !== 'undefined') {
-        const savedSettings = localStorage.getItem("companySettings");
-        if (savedSettings) {
-            const parsedSettings: CompanySettings = JSON.parse(savedSettings);
-            setCompanySettings(parsedSettings);
-        }
+    // For edit mode, ensure documentToEdit is loaded
+    if (!documentToEdit) {
+      console.log('No documentToEdit yet, waiting...');
+      return;
     }
-  }, [form, isEditMode, documentToEdit, clients]);
+
+    console.log('✓ EDIT MODE - Loading data into form');
+    console.log('documentToEdit ID:', documentToEdit.id);
+    console.log('documentToEdit data:', {
+      clientEmail: documentToEdit.clientEmail,
+      projectTitle: documentToEdit.projectTitle,
+      lineItems: documentToEdit.lineItems?.length,
+      dueDate: documentToEdit.dueDate,
+    });
+
+    // Set the selected client
+    const client = clients.find(c => c.email === documentToEdit.clientEmail);
+    if (client) {
+      console.log('Setting selected client:', client.name);
+      setSelectedClient(client);
+    }
+
+    // Use setValue for each field to populate the form
+    console.log('Populating form fields with setValue...');
+
+    if (documentToEdit.clientEmail) {
+      form.setValue('clientId', documentToEdit.clientEmail, { shouldValidate: false, shouldDirty: false });
+      console.log('✓ Set clientId:', documentToEdit.clientEmail);
+    }
+
+    if (documentToEdit.projectTitle) {
+      form.setValue('projectTitle', documentToEdit.projectTitle, { shouldValidate: false, shouldDirty: false });
+      console.log('✓ Set projectTitle:', documentToEdit.projectTitle);
+    }
+
+    if (documentToEdit.notes) {
+      form.setValue('projectDescription', documentToEdit.notes, { shouldValidate: false, shouldDirty: false });
+      form.setValue('notes', documentToEdit.notes, { shouldValidate: false, shouldDirty: false });
+      console.log('✓ Set notes:', documentToEdit.notes);
+    }
+
+    if (documentToEdit.issuedDate) {
+      const issuedDate = parseISO(documentToEdit.issuedDate);
+      form.setValue('issuedDate', issuedDate, { shouldValidate: false, shouldDirty: false });
+      console.log('✓ Set issuedDate:', issuedDate);
+    }
+
+    if (documentToEdit.dueDate) {
+      const dueDate = parseISO(documentToEdit.dueDate);
+      form.setValue('dueDate', dueDate, { shouldValidate: false, shouldDirty: false });
+      console.log('✓ Set dueDate:', dueDate);
+    }
+
+    if (documentToEdit.terms) {
+      form.setValue('terms', documentToEdit.terms, { shouldValidate: false, shouldDirty: false });
+      console.log('✓ Set terms:', documentToEdit.terms);
+    }
+
+    if (documentToEdit.lineItems && Array.isArray(documentToEdit.lineItems)) {
+      console.log('📦 lineItems found:', documentToEdit.lineItems);
+      console.log('📦 lineItems type:', typeof documentToEdit.lineItems);
+      console.log('📦 lineItems is Array?:', Array.isArray(documentToEdit.lineItems));
+      form.setValue('lineItems', documentToEdit.lineItems, { shouldValidate: false, shouldDirty: false });
+      console.log('✓ Set lineItems:', documentToEdit.lineItems.length, 'items');
+
+      // Verify what was set
+      const formValues = form.getValues('lineItems');
+      console.log('✓ Form now has lineItems:', formValues);
+    } else {
+      console.log('⚠️ NO LINEITEMS FOUND OR NOT AN ARRAY');
+      console.log('lineItems value:', documentToEdit.lineItems);
+      console.log('lineItems type:', typeof documentToEdit.lineItems);
+    }
+
+    if (documentToEdit.projectPhotos && Array.isArray(documentToEdit.projectPhotos)) {
+      const photos = documentToEdit.projectPhotos.map(p => ({ url: p.url || '', description: p.description || '' }));
+      form.setValue('projectPhotos', photos, { shouldValidate: false, shouldDirty: false });
+      console.log('✓ Set projectPhotos:', photos.length, 'photos');
+    }
+
+    console.log('✓✓✓ Form population complete');
+
+  }, [documentToEdit, isEditMode]);
+
+  // Load company settings
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedSettings = localStorage.getItem("companySettings");
+      if (savedSettings) {
+        try {
+          const parsedSettings: CompanySettings = JSON.parse(savedSettings);
+          setCompanySettings(parsedSettings);
+        } catch (error) {
+          console.error('Error loading company settings:', error);
+        }
+      }
+    }
+  }, []);
 
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "lineItems",
   })
-  
+
   const lineItems = form.watch("lineItems");
   const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
   const taxRate = documentToEdit?.taxRate ?? companySettings.taxRate ?? 0;
@@ -193,6 +277,9 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
   }, [clients, form]);
 
   async function onSubmit(data: InvoiceFormValues) {
+    console.log('📝 INVOICE FORM SUBMITTED - Raw data:', data);
+    console.log('📝 Invoice lineItems raw:', data.lineItems);
+
     const client = clients.find(c => c.email === data.clientId);
     if (!client) {
       toast({
@@ -202,6 +289,10 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       });
       return;
     }
+
+    const mappedLineItems = data.lineItems.map((item, index) => ({ ...item, id: item.id || `${Date.now()}-${index}` }));
+    console.log('📝 Invoice mapped lineItems:', mappedLineItems);
+    console.log('📝 Invoice mapped lineItems count:', mappedLineItems.length);
 
     const docData: Partial<Document> = {
       clientName: client.name,
@@ -213,44 +304,55 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       dueDate: format(data.dueDate, "yyyy-MM-dd"),
       amount: totalAmount,
       taxRate: taxRate,
-      lineItems: data.lineItems.map((item, index) => ({ ...item, id: item.id || `${Date.now()}-${index}` })),
+      lineItems: mappedLineItems,
       notes: data.notes || '',
       terms: data.terms || '',
       projectPhotos: data.projectPhotos?.map(p => ({ url: p.url, description: p.description || '' })) || [],
     };
+    console.log('📝 Invoice final docData:', docData);
+    console.log('📝 Invoice docData.lineItems:', docData.lineItems);
 
     if (isEditMode && documentToEdit) {
-        await updateDocument(documentToEdit.id, docData);
-        toast({
-            title: "Invoice Updated",
-            description: `Invoice for ${client.name} has been updated.`,
-        });
-        router.push(`/view/invoice/${documentToEdit.id}`);
+      console.log('📝 UPDATING invoice:', documentToEdit.id);
+      console.log('📝 Invoice update data lineItems:', docData.lineItems);
+      await updateDocument(documentToEdit.id, docData);
+      console.log('📝 Invoice update completed');
+      toast({
+        title: "Invoice Updated",
+        description: `Invoice for ${client.name} has been updated.`,
+      });
+      router.push(`/view/invoice/${documentToEdit.id}`);
     } else {
-        const newInvoice: Omit<Document, 'id'> = {
-            ...docData,
-            type: 'Invoice',
-            status: 'Draft',
-        } as Omit<Document, 'id'>;
+      console.log('📝 CREATING new invoice');
+      const newInvoice: Omit<Document, 'id'> = {
+        ...docData,
+        type: 'Invoice',
+        status: 'Draft',
+      } as Omit<Document, 'id'>;
 
-        const newDocId = await addDocument(newInvoice);
-        toast({
+      console.log('📝 New invoice data:', newInvoice);
+      console.log('📝 New invoice lineItems:', newInvoice.lineItems);
+
+      const newDocId = await addDocument(newInvoice);
+      console.log('📝 Invoice create completed, new ID:', newDocId);
+
+      toast({
         title: "Invoice Created",
         description: `Invoice for ${client.name} has been saved as a draft.`,
-        })
-        
-        if (newDocId) {
+      })
+
+      if (newDocId) {
         router.push(`/view/invoice/${newDocId}`);
-        } else {
+      } else {
         router.push("/dashboard/invoices");
-        }
+      }
     }
   }
 
   const handleClientCreated = (newClient: Client) => {
     handleClientChange(newClient.email);
   };
-  
+
   const handleApplyLineItems = useCallback((items: { description: string; quantity: number; price: number }[]) => {
     if (fields.length === 1 && fields[0].description === "" && fields[0].price === 0) {
       remove(0);
@@ -285,445 +387,444 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid lg:grid-cols-2 gap-8">
-            <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                      <CardTitle className="font-headline">Client Information</CardTitle>
-                      <CreateClientDialog onClientCreated={handleClientCreated} />
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="clientId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Select Client</FormLabel>
-                        <Select onValueChange={handleClientChange} value={field.value} disabled={isEditMode}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select an existing client" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {clients.map(client => (
-                              <SelectItem key={client.email} value={client.email}>
-                                {client.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {selectedClient && (
-                    <div className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50 space-y-1">
-                        <p className="font-bold text-foreground">{selectedClient.name}</p>
-                        <p>{selectedClient.address}</p>
-                        <p>{selectedClient.email}</p>
-                        <p>{selectedClient.phone}</p>
-                    </div>
-                  )}
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader><CardTitle className="font-headline">Invoice Details</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="projectTitle"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Project Title</FormLabel>
-                        <FormControl>
-                        <Input placeholder="New Website Redesign" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 <div className="grid md:grid-cols-2 gap-4">
-                 <FormField
-                    control={form.control}
-                    name="issuedDate"
-                    render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                        <FormLabel>Issued Date</FormLabel>
-                        <Popover>
-                        <PopoverTrigger asChild>
-                            <FormControl>
-                            <Button
-                                variant={"outline"}
-                                className={cn(
-                                "pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                                )}
-                            >
-                                {field.value ? (
-                                format(field.value, "PPP")
-                                ) : (
-                                <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                            </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                            />
-                        </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="dueDate"
-                    render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                        <FormLabel>Due Date</FormLabel>
-                        <Popover>
-                        <PopoverTrigger asChild>
-                            <FormControl>
-                            <Button
-                                variant={"outline"}
-                                className={cn(
-                                "pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                                )}
-                            >
-                                {field.value ? (
-                                format(field.value, "PPP")
-                                ) : (
-                                <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                            </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                            />
-                        </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 </div>
-                </CardContent>
-            </Card>
-        </div>
-
-        <Card>
-          <CardHeader><CardTitle className="font-headline">Project Photos</CardTitle></CardHeader>
-          <CardContent>
-             <FormField
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="font-headline">Client Information</CardTitle>
+                <CreateClientDialog onClientCreated={handleClientCreated} />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
                 control={form.control}
-                name="projectPhotos"
+                name="clientId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Upload up to 5 photos</FormLabel>
+                    <FormLabel>Select Client</FormLabel>
+                    <Select onValueChange={handleClientChange} value={field.value} disabled={isEditMode}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an existing client" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {clients.map(client => (
+                          <SelectItem key={client.email} value={client.email}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {selectedClient && (
+                <div className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50 space-y-1">
+                  <p className="font-bold text-foreground">{selectedClient.name}</p>
+                  <p>{selectedClient.address}</p>
+                  <p>{selectedClient.email}</p>
+                  <p>{selectedClient.phone}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="font-headline">Invoice Details</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="projectTitle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Title</FormLabel>
                     <FormControl>
-                       <div className="flex items-center justify-center w-full">
-                        <label htmlFor="photo-upload" className={cn(
-                            "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80",
-                            (photoFields.length >= 5) && "cursor-not-allowed opacity-50"
-                        )}>
-                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
-                            <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                            <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 10MB</p>
-                          </div>
-                          <Input id="photo-upload" type="file" className="hidden" multiple accept="image/*" onChange={handlePhotoUpload} disabled={photoFields.length >= 5} />
-                        </label>
-                      </div>
+                      <Input placeholder="New Website Redesign" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              {photoFields.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-                  {photoFields.map((photo, index) => (
-                    <div key={photo.id} className="relative group border rounded-lg p-2 space-y-2">
-                      <Image src={photo.url} alt={`Project photo ${index + 1}`} width={200} height={200} className="object-cover w-full h-32 rounded-md" />
-                      <FormField
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="issuedDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Issued Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dueDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Due Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader><CardTitle className="font-headline">Project Photos</CardTitle></CardHeader>
+          <CardContent>
+            <FormField
+              control={form.control}
+              name="projectPhotos"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Upload up to 5 photos</FormLabel>
+                  <FormControl>
+                    <div className="flex items-center justify-center w-full">
+                      <label htmlFor="photo-upload" className={cn(
+                        "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80",
+                        (photoFields.length >= 5) && "cursor-not-allowed opacity-50"
+                      )}>
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
+                          <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                          <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 10MB</p>
+                        </div>
+                        <Input id="photo-upload" type="file" className="hidden" multiple accept="image/*" onChange={handlePhotoUpload} disabled={photoFields.length >= 5} />
+                      </label>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {photoFields.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                {photoFields.map((photo, index) => (
+                  <div key={photo.id} className="relative group border rounded-lg p-2 space-y-2">
+                    <Image src={photo.url} alt={`Project photo ${index + 1}`} width={200} height={200} className="object-cover w-full h-32 rounded-md" />
+                    <FormField
+                      control={form.control}
+                      name={`projectPhotos.${index}.description`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input placeholder="E.g., 'Hallway wall damage'" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removePhoto(index)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline">Project Scope & Line Items</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <FormField
+              control={form.control}
+              name="projectDescription"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Project Description</FormLabel>
+                  <div className="relative">
+                    <FormControl>
+                      <Textarea
+                        placeholder="Describe the project scope, deliverables, and timeline in detail. The more info you provide, the better the AI estimate will be."
+                        className="resize-y min-h-[120px] pr-12"
+                        {...field}
+                      />
+                    </FormControl>
+                    <div className="absolute bottom-2 right-2">
+                      <AiSuggestionsDialog
+                        projectDescription={form.watch('projectDescription') || ''}
+                        projectLocation={companySettings.companyAddress || ''}
+                        onApplyLineItems={handleApplyLineItems}
+                        onApplyNotes={handleApplyNotes}
+                      />
+                    </div>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="hidden md:block border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[55%]">Description</TableHead>
+                    <TableHead className="w-[15%]">Quantity</TableHead>
+                    <TableHead className="w-[15%]">Price</TableHead>
+                    <TableHead className="text-right w-[15%]">Total</TableHead>
+                    <TableHead><span className="sr-only">Actions</span></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {fields.map((field, index) => (
+                    <TableRow key={field.id}>
+                      <TableCell>
+                        <FormField
                           control={form.control}
-                          name={`projectPhotos.${index}.description`}
+                          name={`lineItems.${index}.description`}
                           render={({ field }) => (
                             <FormItem>
                               <FormControl>
-                                <Input placeholder="E.g., 'Hallway wall damage'" {...field} />
+                                <Input placeholder="e.g., UI/UX Design" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <FormField
+                          control={form.control}
+                          name={`lineItems.${index}.quantity`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input type="number" placeholder="1" {...field} />
                               </FormControl>
                             </FormItem>
                           )}
                         />
-                      <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removePhoto(index)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
+                      </TableCell>
+                      <TableCell>
+                        <FormField
+                          control={form.control}
+                          name={`lineItems.${index}.price`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input type="number" placeholder="1200" {...field} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        ${(lineItems[index]?.quantity * lineItems[index]?.price || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-right">Subtotal</TableCell>
+                    <TableCell className="text-right font-medium">${subtotal.toFixed(2)}</TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                  {taxRate > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right">Tax ({taxRate}%)</TableCell>
+                      <TableCell className="text-right font-medium">${taxAmount.toFixed(2)}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  )}
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-right font-bold text-lg">Total</TableCell>
+                    <TableCell className="text-right font-bold text-lg">${totalAmount.toFixed(2)}</TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+
+            {/* Mobile view */}
+            <div className="md:hidden space-y-4">
+              {fields.map((field, index) => (
+                <div key={field.id} className="border rounded-lg p-4 space-y-4 relative">
+                  <FormField
+                    control={form.control}
+                    name={`lineItems.${index}.description`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="e.g., UI/UX Design" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name={`lineItems.${index}.quantity`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Quantity</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="1" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`lineItems.${index}.price`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Price</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="1200" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t">
+                    <span className="font-medium">Total</span>
+                    <span className="font-bold">${(lineItems[index]?.quantity * lineItems[index]?.price || 0).toFixed(2)}</span>
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1} className="absolute top-2 right-2">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-              )}
+              ))}
+              <div className="pt-4 mt-4 border-t space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                </div>
+                {taxRate > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+                    <span className="font-medium">${taxAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                <Separator />
+                <div className="flex justify-between items-center text-lg font-bold">
+                  <span>Total</span>
+                  <span>${totalAmount.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => append({ description: "", quantity: 1, price: 0 })}
+            >
+              Add Line Item
+            </Button>
           </CardContent>
         </Card>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-headline">Project Scope & Line Items</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="projectDescription"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Project Description</FormLabel>
-                        <div className="relative">
-                          <FormControl>
-                              <Textarea
-                                  placeholder="Describe the project scope, deliverables, and timeline in detail. The more info you provide, the better the AI estimate will be."
-                                  className="resize-y min-h-[120px] pr-12"
-                                  {...field}
-                              />
-                          </FormControl>
-                           <div className="absolute bottom-2 right-2">
-                            <AiSuggestionsDialog 
-                                projectDescription={form.watch('projectDescription') || ''} 
-                                projectLocation={companySettings.companyAddress || ''}
-                                onApplyLineItems={handleApplyLineItems}
-                                onApplyNotes={handleApplyNotes}
-                            />
-                          </div>
-                        </div>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                
-                <div className="hidden md:block border rounded-md">
-                <Table>
-                    <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-[55%]">Description</TableHead>
-                        <TableHead className="w-[15%]">Quantity</TableHead>
-                        <TableHead className="w-[15%]">Price</TableHead>
-                        <TableHead className="text-right w-[15%]">Total</TableHead>
-                        <TableHead><span className="sr-only">Actions</span></TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {fields.map((field, index) => (
-                        <TableRow key={field.id}>
-                        <TableCell>
-                            <FormField
-                            control={form.control}
-                            name={`lineItems.${index}.description`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormControl>
-                                    <Input placeholder="e.g., UI/UX Design" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
-                        </TableCell>
-                        <TableCell>
-                            <FormField
-                            control={form.control}
-                            name={`lineItems.${index}.quantity`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormControl>
-                                    <Input type="number" placeholder="1" {...field} />
-                                </FormControl>
-                                </FormItem>
-                            )}
-                            />
-                        </TableCell>
-                         <TableCell>
-                            <FormField
-                            control={form.control}
-                            name={`lineItems.${index}.price`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormControl>
-                                    <Input type="number" placeholder="1200" {...field} />
-                                </FormControl>
-                                </FormItem>
-                            )}
-                            />
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                            ${(lineItems[index]?.quantity * lineItems[index]?.price || 0).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </TableCell>
-                        </TableRow>
-                    ))}
-                    </TableBody>
-                    <TableFooter>
-                         <TableRow>
-                              <TableCell colSpan={3} className="text-right">Subtotal</TableCell>
-                              <TableCell className="text-right font-medium">${subtotal.toFixed(2)}</TableCell>
-                              <TableCell></TableCell>
-                          </TableRow>
-                          {taxRate > 0 && (
-                            <TableRow>
-                                <TableCell colSpan={3} className="text-right">Tax ({taxRate}%)</TableCell>
-                                <TableCell className="text-right font-medium">${taxAmount.toFixed(2)}</TableCell>
-                                <TableCell></TableCell>
-                            </TableRow>
-                          )}
-                           <TableRow>
-                              <TableCell colSpan={3} className="text-right font-bold text-lg">Total</TableCell>
-                              <TableCell className="text-right font-bold text-lg">${totalAmount.toFixed(2)}</TableCell>
-                              <TableCell></TableCell>
-                          </TableRow>
-                    </TableFooter>
-                </Table>
-                </div>
-
-                {/* Mobile view */}
-                <div className="md:hidden space-y-4">
-                  {fields.map((field, index) => (
-                    <div key={field.id} className="border rounded-lg p-4 space-y-4 relative">
-                        <FormField
-                            control={form.control}
-                            name={`lineItems.${index}.description`}
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Description</FormLabel>
-                                    <FormControl>
-                                        <Textarea placeholder="e.g., UI/UX Design" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                                control={form.control}
-                                name={`lineItems.${index}.quantity`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Quantity</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" placeholder="1" {...field} />
-                                        </FormControl>
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name={`lineItems.${index}.price`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Price</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" placeholder="1200" {...field} />
-                                        </FormControl>
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-                        <div className="flex justify-between items-center pt-2 border-t">
-                            <span className="font-medium">Total</span>
-                            <span className="font-bold">${(lineItems[index]?.quantity * lineItems[index]?.price || 0).toFixed(2)}</span>
-                        </div>
-                         <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1} className="absolute top-2 right-2">
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </div>
-                  ))}
-                   <div className="pt-4 mt-4 border-t space-y-2">
-                        <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Subtotal</span>
-                            <span className="font-medium">${subtotal.toFixed(2)}</span>
-                        </div>
-                        {taxRate > 0 && (
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Tax ({taxRate}%)</span>
-                                <span className="font-medium">${taxAmount.toFixed(2)}</span>
-                            </div>
-                        )}
-                        <Separator />
-                        <div className="flex justify-between items-center text-lg font-bold">
-                            <span>Total</span>
-                            <span>${totalAmount.toFixed(2)}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => append({ description: "", quantity: 1, price: 0 })}
-                >
-                    Add Line Item
-                </Button>
-            </CardContent>
-        </Card>
 
         <Card>
-            <CardHeader><CardTitle className="font-headline">Notes & Terms</CardTitle></CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-4">
-                <FormField
-                    control={form.control}
-                    name="notes"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Notes</FormLabel>
-                        <FormControl>
-                            <Textarea
-                                placeholder="Any additional notes for the client..."
-                                {...field}
-                            />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="terms"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Terms</FormLabel>
-                        <FormControl>
-                            <Textarea
-                                placeholder="e.g., Net 30, 50% upfront"
-                                {...field}
-                            />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-            </CardContent>
+          <CardHeader><CardTitle className="font-headline">Notes & Terms</CardTitle></CardHeader>
+          <CardContent className="grid md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Any additional notes for the client..."
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="terms"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Terms</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="e.g., Net 30, 50% upfront"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
         </Card>
         <div className="flex justify-end gap-2 pb-32">
-            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit">{isEditMode ? 'Update Invoice' : 'Save as Draft'}</Button>
+          <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+          <Button type="submit">{isEditMode ? 'Update Invoice' : 'Save as Draft'}</Button>
         </div>
       </form>
     </Form>
   )
 }
 
-    

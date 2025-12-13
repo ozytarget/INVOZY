@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { useDocuments } from "@/hooks/use-documents-supabase"
+import { useDocuments } from "@/hooks/use-documents"
 import { Client } from "@/lib/types"
 
 const formSchema = z.object({
@@ -38,7 +38,7 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
   const { toast } = useToast();
   const router = useRouter();
   const { addClient } = useDocuments();
-  
+
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -56,9 +56,9 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
       address: data.clientAddress,
       phone: data.clientPhone || "",
     }
-    
+
     await addClient(newClientData);
-    
+
     const newClientWithDefaults: Client = {
       ...newClientData,
       totalBilled: 0,
@@ -81,66 +81,66 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
-            <CardHeader><CardTitle className="font-headline">Client Information</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <CardHeader><CardTitle className="font-headline">Client Information</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
             <FormField
-                control={form.control}
-                name="clientName"
-                render={({ field }) => (
+              control={form.control}
+              name="clientName"
+              render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Client Name</FormLabel>
-                    <FormControl>
+                  <FormLabel>Client Name</FormLabel>
+                  <FormControl>
                     <Input placeholder="Acme Inc." {...field} />
-                    </FormControl>
-                    <FormMessage />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
-                )}
+              )}
             />
             <FormField
-                control={form.control}
-                name="clientEmail"
-                render={({ field }) => (
+              control={form.control}
+              name="clientEmail"
+              render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Client Email</FormLabel>
-                    <FormControl>
+                  <FormLabel>Client Email</FormLabel>
+                  <FormControl>
                     <Input placeholder="contact@acme.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
-                )}
+              )}
             />
             <FormField
-                control={form.control}
-                name="clientAddress"
-                render={({ field }) => (
+              control={form.control}
+              name="clientAddress"
+              render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Client Address</FormLabel>
-                    <FormControl>
+                  <FormLabel>Client Address</FormLabel>
+                  <FormControl>
                     <Textarea placeholder="123 Main St, Anytown, USA" {...field} />
-                    </FormControl>
-                    <FormMessage />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
-                )}
+              )}
             />
             <FormField
-                control={form.control}
-                name="clientPhone"
-                render={({ field }) => (
+              control={form.control}
+              name="clientPhone"
+              render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Client Phone</FormLabel>
-                    <FormControl>
+                  <FormLabel>Client Phone</FormLabel>
+                  <FormControl>
                     <Input placeholder="(123) 456-7890" {...field} />
-                    </FormControl>
-                    <FormMessage />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
-                )}
+              )}
             />
-            </CardContent>
+          </CardContent>
         </Card>
-        
+
         <div className="flex justify-end gap-2 pb-32">
-            {!onSuccess && <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>}
-            <Button type="submit">Save Client</Button>
+          {!onSuccess && <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>}
+          <Button type="submit">Save Client</Button>
         </div>
       </form>
     </Form>

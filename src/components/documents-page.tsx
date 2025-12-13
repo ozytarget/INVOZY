@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu"
-import { useDocuments } from "@/hooks/use-documents-supabase"
+import { useDocuments } from "@/hooks/use-documents"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { DeleteDocumentMenuItem } from "./delete-document-dialog"
@@ -54,7 +54,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
   const { toast } = useToast();
   const title = type === "Estimate" ? "Estimates" : "Invoices"
   const createHref = type === "Estimate" ? "/dashboard/estimates/create" : "/dashboard/invoices/create"
-  
+
   const filteredDocuments = documents.filter(doc => doc.type === type)
 
   const handleRowClick = (doc: Document) => {
@@ -64,16 +64,16 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
   const handleDelete = (docId: string) => {
     deleteDocument(docId);
     toast({
-        title: "Document Deleted",
-        description: `The document has been successfully deleted.`,
+      title: "Document Deleted",
+      description: `The document has been successfully deleted.`,
     });
   }
 
   const handleDuplicate = (doc: Document) => {
     duplicateDocument(doc.id);
-     toast({
-        title: "Document Duplicated",
-        description: `A new draft has been created.`,
+    toast({
+      title: "Document Duplicated",
+      description: `A new draft has been created.`,
     });
     if (doc.type === 'Estimate') {
       router.push("/dashboard/estimates");
@@ -160,13 +160,13 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                           <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                           {doc.type === 'Invoice' && doc.status === 'Sent' && (
+                          {doc.type === 'Invoice' && doc.status === 'Sent' && (
                             <DropdownMenuItem onClick={() => handleRevertToDraft(doc.id)}>
                               Revert to Draft
                             </DropdownMenuItem>
                           )}
                           {doc.type === 'Invoice' && (doc.status === 'Paid' || doc.status === 'Partial') && (
-                             <DropdownMenuItem onClick={() => handleRevertPayment(doc.id)}>
+                            <DropdownMenuItem onClick={() => handleRevertPayment(doc.id)}>
                               Revert Last Payment
                             </DropdownMenuItem>
                           )}
@@ -186,49 +186,49 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
             {filteredDocuments.map((doc) => (
               <div key={doc.id} className="border rounded-lg p-4 space-y-2 cursor-pointer relative" onClick={() => handleRowClick(doc)}>
                 <div className="flex justify-between items-start">
-                    <div>
-                        <div className="font-medium">{doc.clientName}</div>
-                        <div className="text-sm text-muted-foreground">{doc.type} #{doc.type === 'Estimate' ? doc.estimateNumber : doc.invoiceNumber}</div>
-                    </div>
-                    <Badge className={statusStyles[doc.status]} variant="outline">
-                        {doc.status}
-                    </Badge>
+                  <div>
+                    <div className="font-medium">{doc.clientName}</div>
+                    <div className="text-sm text-muted-foreground">{doc.type} #{doc.type === 'Estimate' ? doc.estimateNumber : doc.invoiceNumber}</div>
+                  </div>
+                  <Badge className={statusStyles[doc.status]} variant="outline">
+                    {doc.status}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center text-sm pt-2 border-t">
-                    <div className="text-muted-foreground">
-                        <p>Issued: {doc.issuedDate}</p>
-                        {doc.dueDate && <p>Due: {doc.dueDate}</p>}
-                    </div>
-                    <span className="font-bold text-base">${doc.amount.toLocaleString()}</span>
+                  <div className="text-muted-foreground">
+                    <p>Issued: {doc.issuedDate}</p>
+                    {doc.dueDate && <p>Due: {doc.dueDate}</p>}
+                  </div>
+                  <span className="font-bold text-base">${doc.amount.toLocaleString()}</span>
                 </div>
-                 <div className="absolute top-2 right-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
-                           <DropdownMenuSeparator />
-                           {doc.type === 'Invoice' && doc.status === 'Sent' && (
-                            <DropdownMenuItem onClick={() => handleRevertToDraft(doc.id)}>
-                              Revert to Draft
-                            </DropdownMenuItem>
-                          )}
-                          {doc.type === 'Invoice' && (doc.status === 'Paid' || doc.status === 'Partial') && (
-                             <DropdownMenuItem onClick={() => handleRevertPayment(doc.id)}>
-                              Revert Last Payment
-                            </DropdownMenuItem>
-                          )}
-                           {(doc.type === 'Invoice' && (doc.status === 'Sent' || doc.status === 'Paid' || doc.status === 'Partial')) && <DropdownMenuSeparator />}
-                          <DeleteDocumentMenuItem onDelete={() => handleDelete(doc.id)} />
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                 </div>
+                <div className="absolute top-2 right-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                        <span className="sr-only">Open menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {doc.type === 'Invoice' && doc.status === 'Sent' && (
+                        <DropdownMenuItem onClick={() => handleRevertToDraft(doc.id)}>
+                          Revert to Draft
+                        </DropdownMenuItem>
+                      )}
+                      {doc.type === 'Invoice' && (doc.status === 'Paid' || doc.status === 'Partial') && (
+                        <DropdownMenuItem onClick={() => handleRevertPayment(doc.id)}>
+                          Revert Last Payment
+                        </DropdownMenuItem>
+                      )}
+                      {(doc.type === 'Invoice' && (doc.status === 'Sent' || doc.status === 'Paid' || doc.status === 'Partial')) && <DropdownMenuSeparator />}
+                      <DeleteDocumentMenuItem onDelete={() => handleDelete(doc.id)} />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             ))}
           </div>
