@@ -1,7 +1,7 @@
 'use client';
 
 import { CreateInvoiceForm } from "@/components/invoices/create-invoice-form";
-import { useDocuments } from "@/hooks/use-documents";
+import { useDocuments } from "@/hooks/use-documents-supabase";
 import { Loader2 } from "lucide-react";
 import { useParams, notFound } from "next/navigation";
 

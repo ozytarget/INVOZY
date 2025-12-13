@@ -329,6 +329,13 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   const addClient = useCallback(async (clientData: Omit<Client, 'totalBilled' | 'documentCount'>) => {
     if (!user) return;
 
+    // First, ensure the user exists in the users table
+    const { error: userError } = await supabase
+      .from('users')
+      .upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
+    
+    if (userError) console.error('Error ensuring user exists:', userError);
+
     // Check if client already exists
     const { data: existingClient } = await supabase
       .from('clients')
@@ -352,7 +359,26 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
         address: clientData.address,
       }]);
 
-    if (error) console.error('Error adding client:', error);
+    if (error) {
+      console.error('Error adding client:', error);
+    } else {
+      // Reload clients after successful insert
+      const { data: updatedClientsData } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      const transformedClients: Client[] = (updatedClientsData || []).map(c => ({
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        address: c.address,
+        totalBilled: c.total_billed || 0,
+        documentCount: c.document_count || 0,
+      }));
+      
+      setStoredClients(transformedClients);
+    }
   }, [user]);
 
   const signAndProcessDocument = useCallback(async (docId: string, signature: string): Promise<string | undefined> => {

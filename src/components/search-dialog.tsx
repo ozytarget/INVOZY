@@ -10,7 +10,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { useDocuments } from "@/hooks/use-documents"
 import { useRouter } from "next/navigation"
 import { FileText } from "lucide-react"
 import { Document } from "@/lib/types"
@@ -21,7 +20,7 @@ interface Props {
 
 export function SearchDialog({ children }: Props) {
   const [open, setOpen] = React.useState(false)
-  const { documents } = useDocuments();
+  const [documents, setDocuments] = React.useState<Document[]>([]);
   const router = useRouter();
 
   React.useEffect(() => {

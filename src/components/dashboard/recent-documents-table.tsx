@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { DocumentStatus } from "@/lib/types"
-import { useDocuments } from "@/hooks/use-documents"
+import { useDocuments } from "@/hooks/use-documents-supabase"
 import { useRouter } from "next/navigation";
 
 const statusStyles: Record<DocumentStatus, string> = {

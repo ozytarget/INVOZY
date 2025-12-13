@@ -9,7 +9,6 @@ import { UserNav } from "@/components/user-nav"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useUser } from "@/supabase/provider"
-import { useDocuments } from "@/hooks/use-documents-supabase"
 import { SearchDialog } from "@/components/search-dialog"
 import { NotificationsSheet } from "@/components/notifications-sheet"
 import type { Notification } from "@/lib/types"
@@ -21,7 +20,6 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const { user, isUserLoading } = useUser();
-  const { isLoading: isLoadingDocuments } = useDocuments();
   const router = useRouter();
   
   // Notifications disabled for now - can be added later
@@ -52,7 +50,7 @@ export default function DashboardLayout({
     }
   }, [user, isUserLoading, router]);
 
-  if (isUserLoading || isLoadingDocuments || !user) {
+  if (isUserLoading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useDocuments } from "@/hooks/use-documents"
+import { useDocuments } from "@/hooks/use-documents-supabase"
 import type { Client } from "@/lib/types";
 
 export function ClientsList() {

@@ -40,7 +40,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { useDocuments } from "@/hooks/use-documents"
+import { useDocuments } from "@/hooks/use-documents-supabase"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Client, Document } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"

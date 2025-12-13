@@ -11,7 +11,7 @@ import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
-import { useDocuments } from "@/hooks/use-documents";
+import { useDocuments } from "@/hooks/use-documents-supabase";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail, MessageSquare, ClipboardList, Download } from "lucide-react";
 import Link from "next/link";

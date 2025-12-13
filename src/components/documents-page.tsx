@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu"
-import { useDocuments } from "@/hooks/use-documents"
+import { useDocuments } from "@/hooks/use-documents-supabase"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { DeleteDocumentMenuItem } from "./delete-document-dialog"

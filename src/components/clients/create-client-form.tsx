@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { useDocuments } from "@/hooks/use-documents"
+import { useDocuments } from "@/hooks/use-documents-supabase"
 import { Client } from "@/lib/types"
 
 const formSchema = z.object({

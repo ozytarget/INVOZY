@@ -2,16 +2,17 @@
 'use client';
 
 import { useRef, useState } from "react";
+import { DocumentProvider } from "@/hooks/use-documents-supabase";
 import { ClientsList } from "@/components/clients/clients-list";
 import { Button } from "@/components/ui/button";
-import { useDocuments } from "@/hooks/use-documents";
+import { useDocuments } from "@/hooks/use-documents-supabase";
 import { Download, PlusCircle, Upload, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Papa from "papaparse";
 import { useToast } from "@/hooks/use-toast";
 import type { Client } from "@/lib/types";
 
-export default function ClientsPage() {
+function ClientsPageContent() {
   const { clients, addClient } = useDocuments();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -164,5 +165,13 @@ export default function ClientsPage() {
       </div>
       <ClientsList />
     </div>
+  );
+}
+
+export default function ClientsPage() {
+  return (
+    <DocumentProvider>
+      <ClientsPageContent />
+    </DocumentProvider>
   );
 }
