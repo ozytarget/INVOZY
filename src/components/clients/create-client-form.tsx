@@ -138,7 +138,7 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
             </CardContent>
         </Card>
         
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 pb-32">
             {!onSuccess && <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>}
             <Button type="submit">Save Client</Button>
         </div>

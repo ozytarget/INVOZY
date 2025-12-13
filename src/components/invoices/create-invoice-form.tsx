@@ -717,7 +717,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
                 />
             </CardContent>
         </Card>
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 pb-32">
             <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
             <Button type="submit">{isEditMode ? 'Update Invoice' : 'Save as Draft'}</Button>
         </div>
