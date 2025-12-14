@@ -1,0 +1,99 @@
+# 🔐 LAS 3 LLAVES QUE NECESITAS
+
+## Para que INVOZY funcione, necesitas EXACTAMENTE 3 cosas de Supabase:
+
+---
+
+## 1️⃣ NEXT_PUBLIC_SUPABASE_URL
+
+```
+Dónde: https://supabase.com/dashboard
+       → Selecciona tu proyecto
+       → Project Settings (ícono engranaje)
+       → API (en sidebar)
+       → Busca "Project URL"
+       → Cópialo
+
+Ejemplo:
+https://abcdefghij.supabase.co
+```
+
+---
+
+## 2️⃣ NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+```
+Dónde: https://supabase.com/dashboard
+       → Selecciona tu proyecto
+       → Project Settings → API
+       → Bajo "API Keys" o "Auth"
+       → Primera llave que dice "anon" o "public"
+       → Cópiala
+
+Ejemplo:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3N1cGFiYXNlLmNvIi...
+(es una larga cadena)
+```
+
+---
+
+## 3️⃣ SUPABASE_SERVICE_ROLE_KEY (opcional por ahora)
+
+```
+Dónde: https://supabase.com/dashboard
+       → Selecciona tu proyecto
+       → Project Settings → API
+       → Bajo "API Keys"
+       → Segunda llave que dice "service_role" o "secret"
+       → Cópiala (es más larga que la anon)
+
+Ejemplo:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3N1cGFiYXNlLmNvIi...
+(es mucho más larga)
+```
+
+---
+
+## 📝 CREA ESTE ARCHIVO
+
+En la raíz del proyecto (`c:\Users\urbin\invozy\`):
+
+**Nombre:** `.env.local`
+
+**Contenido:**
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://tuproyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_llave_anon_aqui
+SUPABASE_SERVICE_ROLE_KEY=tu_llave_service_role_aqui
+```
+
+**IMPORTANTE:**
+- No lo commits a git (ya está en .gitignore)
+- Las llaves con `NEXT_PUBLIC_` son públicas (ok en navegador)
+- Las llaves sin prefijo son privadas (nunca en cliente)
+
+---
+
+## ✅ CÓMO VERIFICAR QUE FUNCIONA
+
+1. Copia las 3 llaves en `.env.local`
+2. Refresh http://localhost:9002
+3. Si NO hay errores en la consola del navegador = ✅ Funciona
+
+---
+
+## 🆘 SI NO TIENES SUPABASE AÚN
+
+1. Ve a https://supabase.com
+2. Click "Sign Up"
+3. Crea cuenta con GitHub o email
+4. Crea un "New Project"
+5. Espera a que se cree (2-3 minutos)
+6. Ahora sigue los pasos de arriba
+
+---
+
+**Eso es TODO lo que necesitas. Simple.**
+
+Después, para crear las TABLAS en la BD, lee [SUPABASE_KEYS.md](SUPABASE_KEYS.md).
+
