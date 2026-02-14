@@ -1,0 +1,5 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="5" fill="#000000"/>
+  <text x="5" y="23" fontSize="14" fontWeight="bold" fill="#ffffff" fontFamily="Arial, sans-serif" letterSpacing="-0.5">INV</text>
+  <text x="20" y="23" fontSize="14" fontWeight="bold" fill="#22c55e" fontFamily="Arial, sans-serif" letterSpacing="-0.5">ZY</text>
+</svg>

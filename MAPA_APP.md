@@ -1,4 +1,5 @@
-# 📱 MAPA DE LA APLICACIÓN - INVOZY
+Archivo: c:\Users\urbin\invozy\SQL_SETUP.sql
+Cópialo completamente# 📱 MAPA DE LA APLICACIÓN - INVOZY
 
 ## 🎯 ESTRUCTURA GENERAL
 

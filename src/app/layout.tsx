@@ -1,10 +1,7 @@
-import type { Metadata } from 'next'
-import './globals.css'
+'use client';
 
-export const metadata: Metadata = {
-  title: 'INVOZY - Estimates & Invoices',
-  description: 'Professional estimates and invoices with AI',
-}
+import './globals.css'
+import { AuthProvider } from '@/context/auth-context'
 
 export default function RootLayout({
   children,
@@ -12,8 +9,17 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="es">
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <title>INVOZY - Estimados e Invoices</title>
+        <meta name="description" content="Gestión profesional de estimados e invoices" />
+      </head>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   )
 }

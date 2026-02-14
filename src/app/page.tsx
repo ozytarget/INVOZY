@@ -1,13 +1,29 @@
+'use client';
+
+import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
 export default function Home() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading) {
+      if (user) {
+        router.push('/dashboard');
+      } else {
+        router.push('/auth/login');
+      }
+    }
+  }, [user, loading, router]);
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold text-white mb-4">INVOZY</h1>
-          <p className="text-xl text-slate-300 mb-8">Professional Estimates & Invoices</p>
-          <p className="text-slate-400">🚀 Coming soon...</p>
-        </div>
+    <main className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
+      <div className="text-center text-white">
+        <h1 className="text-5xl font-bold mb-4">INVOZY</h1>
+        <p className="text-xl">Cargando...</p>
       </div>
     </main>
-  )
+  );
 }
