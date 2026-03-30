@@ -84,7 +84,7 @@ export function LoginForm() {
         title: 'Success',
         description: 'Account created successfully.',
       });
-      router.push('/dashboard');
+      router.push('/dashboard/manage');
     } catch (error) {
       handleAuthError(error);
     } finally {

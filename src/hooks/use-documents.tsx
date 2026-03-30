@@ -12,6 +12,10 @@ const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
 const DEMO_CLIENTS_BACKUP_STORAGE_KEY = 'demoClientsBackup';
 const DEMO_DOCUMENTS_BACKUP_STORAGE_KEY = 'demoDocumentsBackup';
 
+const getScopedStorageKey = (baseKey: string, userId?: string | null) => {
+  return userId ? `${baseKey}:${userId}` : `${baseKey}:anonymous`;
+};
+
 const safeParseArray = <T,>(raw: string | null): T[] | null => {
   if (!raw) return null;
   try {
@@ -38,71 +42,34 @@ const mergeDocuments = (existing: Document[], incoming: Document[]) => {
   );
 };
 
-const persistDemoClients = (updatedClients: Client[], merge = true) => {
+const persistDemoClients = (updatedClients: Client[], userId?: string | null, merge = true) => {
   if (typeof window === 'undefined') return;
-  const existing = safeParseArray<Client>(localStorage.getItem(DEMO_CLIENTS_STORAGE_KEY)) || [];
-  localStorage.setItem(DEMO_CLIENTS_BACKUP_STORAGE_KEY, JSON.stringify(existing));
+  const clientsKey = getScopedStorageKey(DEMO_CLIENTS_STORAGE_KEY, userId);
+  const clientsBackupKey = getScopedStorageKey(DEMO_CLIENTS_BACKUP_STORAGE_KEY, userId);
+  const existing = safeParseArray<Client>(localStorage.getItem(clientsKey)) || [];
+  localStorage.setItem(clientsBackupKey, JSON.stringify(existing));
   const finalClients = merge ? mergeClients(existing, updatedClients) : updatedClients;
-  localStorage.setItem(DEMO_CLIENTS_STORAGE_KEY, JSON.stringify(finalClients));
+  localStorage.setItem(clientsKey, JSON.stringify(finalClients));
 };
 
-const persistDemoDocuments = (updatedDocuments: Document[], merge = true) => {
+const persistDemoDocuments = (updatedDocuments: Document[], userId?: string | null, merge = true) => {
   if (typeof window === 'undefined') return;
-  const existing = safeParseArray<Document>(localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY)) || [];
-  localStorage.setItem(DEMO_DOCUMENTS_BACKUP_STORAGE_KEY, JSON.stringify(existing));
+  const documentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, userId);
+  const documentsBackupKey = getScopedStorageKey(DEMO_DOCUMENTS_BACKUP_STORAGE_KEY, userId);
+  const existing = safeParseArray<Document>(localStorage.getItem(documentsKey)) || [];
+  localStorage.setItem(documentsBackupKey, JSON.stringify(existing));
   const finalDocuments = merge ? mergeDocuments(existing, updatedDocuments) : updatedDocuments;
-  localStorage.setItem(DEMO_DOCUMENTS_STORAGE_KEY, JSON.stringify(finalDocuments));
+  localStorage.setItem(documentsKey, JSON.stringify(finalDocuments));
 };
 
 const getDemoSeedData = () => {
-  const defaultClient: Client = {
-    name: 'Acme Property Group',
-    email: 'ops@acmeproperty.com',
-    phone: '(555) 410-2244',
-    address: '1250 Market St, San Diego, CA',
-    totalBilled: 1248,
-    documentCount: 1,
-  };
-
-  const defaultInvoice: Document = {
-    id: 'demo-invoice-001',
-    userId: 'demo-user',
-    share_token: 'demo-share-invoice-001',
-    type: 'Invoice',
-    status: 'Sent',
-    companyName: 'Invozzy Demo Contractor',
-    companyAddress: '900 Sunset Blvd, Los Angeles, CA',
-    companyEmail: 'hello@invozzy-demo.com',
-    companyPhone: '(555) 920-5501',
-    clientName: defaultClient.name,
-    clientEmail: defaultClient.email,
-    clientAddress: defaultClient.address,
-    clientPhone: defaultClient.phone,
-    projectTitle: 'Interior Door Replacement',
-    issuedDate: '2026-03-30',
-    dueDate: '2026-04-29',
-    amount: 1248,
-    taxRate: 8,
-    lineItems: [
-      { id: 'demo-line-1', description: 'Pre-hung door unit', quantity: 1, price: 289 },
-      { id: 'demo-line-2', description: 'Door hardware set', quantity: 1, price: 79 },
-      { id: 'demo-line-3', description: 'Removal and installation labor', quantity: 1, price: 788 },
-    ],
-    notes: 'Demo invoice preloaded for quick app walkthrough and QA.',
-    terms: 'Net 30',
-    payments: [],
-    invoiceNumber: 'INV-001',
-    projectPhotos: [],
-    search_field: 'acme property group interior door replacement inv-001',
-  };
-
   return {
-    clients: [defaultClient],
-    documents: [defaultInvoice],
+    clients: [] as Client[],
+    documents: [] as Document[],
   };
 };
 
-const loadDemoData = () => {
+const loadDemoData = (userId?: string | null) => {
   const seed = getDemoSeedData();
 
   if (typeof window === 'undefined') {
@@ -110,25 +77,30 @@ const loadDemoData = () => {
   }
 
   try {
+    const clientsKey = getScopedStorageKey(DEMO_CLIENTS_STORAGE_KEY, userId);
+    const clientsBackupKey = getScopedStorageKey(DEMO_CLIENTS_BACKUP_STORAGE_KEY, userId);
+    const documentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, userId);
+    const documentsBackupKey = getScopedStorageKey(DEMO_DOCUMENTS_BACKUP_STORAGE_KEY, userId);
+
     const clients =
-      safeParseArray<Client>(localStorage.getItem(DEMO_CLIENTS_STORAGE_KEY)) ||
-      safeParseArray<Client>(localStorage.getItem(DEMO_CLIENTS_BACKUP_STORAGE_KEY)) ||
+      safeParseArray<Client>(localStorage.getItem(clientsKey)) ||
+      safeParseArray<Client>(localStorage.getItem(clientsBackupKey)) ||
       [];
 
     const documents =
-      safeParseArray<Document>(localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY)) ||
-      safeParseArray<Document>(localStorage.getItem(DEMO_DOCUMENTS_BACKUP_STORAGE_KEY)) ||
+      safeParseArray<Document>(localStorage.getItem(documentsKey)) ||
+      safeParseArray<Document>(localStorage.getItem(documentsBackupKey)) ||
       [];
 
     const finalClients = clients.length > 0 ? clients : seed.clients;
     const finalDocuments = documents.length > 0 ? documents : seed.documents;
 
     if (clients.length === 0) {
-      persistDemoClients(finalClients, false);
+      persistDemoClients(finalClients, userId, false);
     }
 
     if (documents.length === 0) {
-      persistDemoDocuments(finalDocuments, false);
+      persistDemoDocuments(finalDocuments, userId, false);
     }
 
     return {
@@ -211,7 +183,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   // Load documents and clients from Supabase
   const loadData = useCallback(async () => {
     if (isDemoMode || !user) {
-      const demoData = loadDemoData();
+      const demoData = loadDemoData(user?.id);
       setStoredClients(demoData.clients);
       setDocuments(demoData.documents);
 
@@ -423,8 +395,9 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       const currentDocs = typeof window !== 'undefined'
         ? (() => {
             try {
-              const raw = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
-              return raw ? (JSON.parse(raw) as Document[]) : documents;
+              const scopedDocumentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, user?.id);
+              const scopedRaw = localStorage.getItem(scopedDocumentsKey);
+              return scopedRaw ? (JSON.parse(scopedRaw) as Document[]) : documents;
             } catch {
               return documents;
             }
@@ -442,7 +415,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       const newDoc: Document = {
         ...docData,
         id: newId,
-        userId: 'demo-user',
+        userId: user?.id || 'demo-user',
         share_token: generateShareToken(),
         estimateNumber: docData.type === 'Estimate' ? docNumber : undefined,
         invoiceNumber: docData.type === 'Invoice' ? docNumber : undefined,
@@ -456,7 +429,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       setDocuments(updatedDocs);
 
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs);
+        persistDemoDocuments(updatedDocs, user?.id);
       }
 
       return newId;
@@ -568,7 +541,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs);
+        persistDemoDocuments(updatedDocs, user?.id);
       }
       return;
     }
@@ -652,7 +625,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       const updatedDocs = documents.filter(doc => doc.id !== docId);
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs, false);
+        persistDemoDocuments(updatedDocs, user?.id, false);
       }
       return;
     }
@@ -706,7 +679,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       setStoredClients(updatedClients);
 
       if (typeof window !== 'undefined') {
-        persistDemoClients(updatedClients);
+        persistDemoClients(updatedClients, user?.id);
       }
 
       return;
@@ -764,7 +737,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
         setDocuments(updatedDocs);
         if (typeof window !== 'undefined') {
-          persistDemoDocuments(updatedDocs);
+          persistDemoDocuments(updatedDocs, user?.id);
         }
         return undefined;
       }
@@ -805,7 +778,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs);
+        persistDemoDocuments(updatedDocs, user?.id);
       }
 
       return newInvoiceId;
@@ -935,7 +908,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs);
+        persistDemoDocuments(updatedDocs, user?.id);
       }
       return;
     }
@@ -982,7 +955,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs);
+        persistDemoDocuments(updatedDocs, user?.id);
       }
       return;
     }
@@ -1035,7 +1008,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs);
+        persistDemoDocuments(updatedDocs, user?.id);
       }
       return;
     }
@@ -1105,7 +1078,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs);
+        persistDemoDocuments(updatedDocs, user?.id);
       }
       return;
     }
@@ -1150,3 +1123,4 @@ export const useDocuments = () => {
   }
   return context;
 };
+

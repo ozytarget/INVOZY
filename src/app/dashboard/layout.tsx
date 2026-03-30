@@ -13,6 +13,7 @@ import { NotificationsSheet } from "@/components/notifications-sheet"
 import type { Notification } from "@/lib/types"
 import { Logo } from "@/components/logo"
 import { useUser } from "@/supabase/provider"
+import { readCompanySettings } from "@/lib/company-settings"
 
 const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
 
@@ -31,6 +32,15 @@ export default function DashboardLayout({
       router.replace('/');
     }
   }, [isUserLoading, user, router]);
+
+  React.useEffect(() => {
+    if (!user || pathname === '/dashboard/manage') return;
+    const settings = readCompanySettings(user.id);
+    const hasCompanyProfile = Boolean(settings.companyName && settings.companyEmail);
+    if (!hasCompanyProfile) {
+      router.replace('/dashboard/manage');
+    }
+  }, [user, pathname, router]);
 
   React.useEffect(() => {
     const loadNotifications = () => {
