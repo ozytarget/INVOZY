@@ -82,14 +82,23 @@ const loadDemoData = (userId?: string | null) => {
     const documentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, userId);
     const documentsBackupKey = getScopedStorageKey(DEMO_DOCUMENTS_BACKUP_STORAGE_KEY, userId);
 
+    const legacyClients = userId
+      ? safeParseArray<Client>(localStorage.getItem(DEMO_CLIENTS_STORAGE_KEY))
+      : null;
+    const legacyDocuments = userId
+      ? safeParseArray<Document>(localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY))
+      : null;
+
     const clients =
       safeParseArray<Client>(localStorage.getItem(clientsKey)) ||
       safeParseArray<Client>(localStorage.getItem(clientsBackupKey)) ||
+      legacyClients ||
       [];
 
     const documents =
       safeParseArray<Document>(localStorage.getItem(documentsKey)) ||
       safeParseArray<Document>(localStorage.getItem(documentsBackupKey)) ||
+      legacyDocuments ||
       [];
 
     const finalClients = clients.length > 0 ? clients : seed.clients;
@@ -100,6 +109,11 @@ const loadDemoData = (userId?: string | null) => {
     }
 
     if (documents.length === 0) {
+      persistDemoDocuments(finalDocuments, userId, false);
+    }
+
+    if (userId && (legacyClients?.length || legacyDocuments?.length)) {
+      persistDemoClients(finalClients, userId, false);
       persistDemoDocuments(finalDocuments, userId, false);
     }
 
