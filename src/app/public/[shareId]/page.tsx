@@ -5,7 +5,6 @@ import type { Document, Notification } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { isSupabaseConfigured, supabase } from '@/supabase/client';
 
 const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
 const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
@@ -36,57 +35,6 @@ const getAllLocalDocuments = (): Document[] => {
 
   return allDocs;
 };
-
-function mapDbDocToDocument(data: any, type: 'Estimate' | 'Invoice'): Document {
-  let items = [];
-  if (data.line_items) {
-    if (Array.isArray(data.line_items)) {
-      items = data.line_items;
-    } else if (typeof data.line_items === 'string') {
-      try {
-        items = JSON.parse(data.line_items);
-      } catch {
-        items = [];
-      }
-    }
-  }
-
-  return {
-    id: data.id || '',
-    userId: data.user_id || '',
-    share_token: data.share_token,
-    type,
-    status: data.status || 'Draft',
-    companyName: data.company_name || '',
-    companyAddress: data.company_address || '',
-    companyEmail: data.company_email || '',
-    companyPhone: data.company_phone || '',
-    companyLogo: data.company_logo,
-    companyWebsite: data.company_website,
-    contractorName: data.contractor_name,
-    schedulingUrl: data.scheduling_url,
-    clientName: data.client_name,
-    clientEmail: data.client_email,
-    clientAddress: data.client_address || '',
-    clientPhone: data.client_phone,
-    projectTitle: data.project_title,
-    issuedDate: data.issued_date,
-    dueDate: data.due_date,
-    amount: data.amount || 0,
-    taxRate: data.tax_rate || 0,
-    lineItems: items,
-    notes: data.notes || '',
-    terms: data.terms || '',
-    taxId: data.tax_id,
-    signature: data.signature,
-    isSigned: data.is_signed || false,
-    payments: [],
-    estimateNumber: data.estimate_number,
-    invoiceNumber: data.invoice_number,
-    projectPhotos: data.project_photos || [],
-    search_field: data.search_field || '',
-  };
-}
 
 function logPublicViewNotification(document: Document) {
   if (typeof window === 'undefined') return;
@@ -138,28 +86,11 @@ export default function PublicDocumentPage() {
 
     const loadDocument = async () => {
       try {
-        if (isSupabaseConfigured) {
-          const { data: estimateData } = await (supabase
-            .from('estimates') as any)
-            .select('*')
-            .eq('share_token', shareId)
-            .single();
-
-          if (estimateData) {
-            const doc = mapDbDocToDocument(estimateData, 'Estimate');
-            setDocument(doc);
-            logPublicViewNotification(doc);
-            return;
-          }
-
-          const { data: invoiceData } = await (supabase
-            .from('invoices') as any)
-            .select('*')
-            .eq('share_token', shareId)
-            .single();
-
-          if (invoiceData) {
-            const doc = mapDbDocToDocument(invoiceData, 'Invoice');
+        const backendResponse = await fetch(`/api/public/document?shareId=${encodeURIComponent(shareId)}`);
+        if (backendResponse.ok) {
+          const payload = await backendResponse.json();
+          if (payload?.document) {
+            const doc = payload.document as Document;
             setDocument(doc);
             logPublicViewNotification(doc);
             return;

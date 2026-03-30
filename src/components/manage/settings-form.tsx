@@ -77,20 +77,52 @@ export function SettingsForm() {
   })
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const parsedSettings = readCompanySettings(user?.id);
-      if (Object.keys(parsedSettings).length > 0) {
-        form.reset(parsedSettings);
-        if (parsedSettings.companyLogo) {
-          setLogoPreview(parsedSettings.companyLogo);
+    const loadSettings = async () => {
+      const localSettings = readCompanySettings(user?.id);
+      if (Object.keys(localSettings).length > 0) {
+        form.reset(localSettings);
+        if (localSettings.companyLogo) {
+          setLogoPreview(localSettings.companyLogo);
         }
+      }
+
+      if (!user) return;
+
+      try {
+        const response = await fetch('/api/company-settings', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const remoteSettings = payload?.settings || {};
+        if (Object.keys(remoteSettings).length > 0) {
+          writeCompanySettings(user.id, remoteSettings);
+          form.reset(remoteSettings);
+          if (remoteSettings.companyLogo) {
+            setLogoPreview(remoteSettings.companyLogo);
+          }
         }
-    }
-    }, [form, user?.id]);
+      } catch (error) {
+        console.error('Error loading company settings from backend:', error);
+      }
+    };
+
+    loadSettings();
+  }, [form, user?.id]);
 
   async function onSubmit(data: SettingsFormValues) {
     try {
         writeCompanySettings(user?.id, data);
+        if (user) {
+          await fetch('/api/company-settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ settings: data }),
+          });
+        }
         toast({
         title: "Settings Saved",
         description: "Your information has been updated successfully.",

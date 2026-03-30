@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/supabase/client';
+import { dbQuery } from '@/lib/server-db';
 
 const generateShareToken = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -19,102 +19,87 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing shareId or signature' }, { status: 400 });
     }
 
-    const admin = supabaseAdmin();
+    const { rows } = await dbQuery<{ user_id: string; documents_json: any[] }>(
+      `
+        SELECT user_id, documents_json
+        FROM app_state
+        WHERE EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements(documents_json) AS doc
+          WHERE doc->>'share_token' = $1
+        )
+        LIMIT 1
+      `,
+      [shareId]
+    );
 
-    const { data: estimateData, error: estimateError } = await (admin
-      .from('estimates') as any)
-      .select('*')
-      .eq('share_token', shareId)
-      .single();
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
 
-    if (!estimateError && estimateData) {
-      const estimate = estimateData;
+    const row = rows[0];
+    const docs = Array.isArray(row.documents_json) ? [...row.documents_json] : [];
+    const idx = docs.findIndex((doc: any) => doc?.share_token === shareId);
 
-      const { error: updateEstimateError } = await (admin
-        .from('estimates') as any)
-        .update({ signature, is_signed: true, status: 'Approved' })
-        .eq('id', estimate.id);
+    if (idx < 0) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
 
-      if (updateEstimateError) {
-        return NextResponse.json({ error: updateEstimateError.message }, { status: 500 });
-      }
+    const original = docs[idx] as any;
 
-      const { data: invoiceRows } = await (admin
-        .from('invoices') as any)
-        .select('id')
-        .eq('user_id', estimate.user_id);
+    if (original.type === 'Estimate') {
+      const approvedEstimate = {
+        ...original,
+        signature,
+        isSigned: true,
+        status: 'Approved',
+      };
+      docs[idx] = approvedEstimate;
 
-      const invoiceNumber = `INV-${String((invoiceRows || []).length + 1).padStart(3, '0')}`;
+      const invoiceCount = docs.filter((doc: any) => doc?.type === 'Invoice').length;
+      const invoiceNumber = `INV-${String(invoiceCount + 1).padStart(3, '0')}`;
+      const newInvoiceId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `invoice-${Date.now()}`;
 
-      const invoicePayload: Record<string, any> = {
-        user_id: estimate.user_id,
+      const newInvoice = {
+        ...original,
+        id: newInvoiceId,
         type: 'Invoice',
         status: 'Sent',
-        share_token: generateShareToken(),
-        company_name: estimate.company_name,
-        company_address: estimate.company_address,
-        company_email: estimate.company_email,
-        company_phone: estimate.company_phone,
-        company_logo: estimate.company_logo,
-        company_website: estimate.company_website,
-        contractor_name: estimate.contractor_name,
-        scheduling_url: estimate.scheduling_url,
-        client_name: estimate.client_name,
-        client_email: estimate.client_email,
-        client_address: estimate.client_address,
-        client_phone: estimate.client_phone,
-        project_title: estimate.project_title,
-        issued_date: new Date().toISOString().slice(0, 10),
-        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-        amount: estimate.amount,
-        tax_rate: estimate.tax_rate,
-        notes: estimate.notes,
-        terms: estimate.terms || 'Net 30',
-        tax_id: estimate.tax_id,
         signature,
-        is_signed: true,
-        invoice_number: invoiceNumber,
-        project_photos: estimate.project_photos || [],
-        search_field: `${estimate.client_name} ${estimate.project_title} ${invoiceNumber}`.toLowerCase(),
+        isSigned: true,
+        share_token: generateShareToken(),
+        invoiceNumber,
+        estimateNumber: undefined,
+        issuedDate: new Date().toISOString().slice(0, 10),
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        search_field: `${original.clientName || ''} ${original.projectTitle || ''} ${invoiceNumber}`.toLowerCase(),
       };
 
-      if (estimate.line_items !== undefined) {
-        invoicePayload.line_items = estimate.line_items;
-      }
+      docs.push(newInvoice);
 
-      const { data: createdInvoice, error: createInvoiceError } = await (admin
-        .from('invoices') as any)
-        .insert([invoicePayload])
-        .select('id')
-        .single();
+      await dbQuery(
+        'UPDATE app_state SET documents_json = $1::jsonb, updated_at = now() WHERE user_id = $2',
+        [JSON.stringify(docs), row.user_id]
+      );
 
-      if (createInvoiceError) {
-        return NextResponse.json({ error: createInvoiceError.message }, { status: 500 });
-      }
-
-      return NextResponse.json({ success: true, type: 'estimate', invoiceId: createdInvoice?.id });
+      return NextResponse.json({ success: true, type: 'estimate', invoiceId: newInvoiceId });
     }
 
-    const { data: invoiceData, error: invoiceError } = await (admin
-      .from('invoices') as any)
-      .select('id')
-      .eq('share_token', shareId)
-      .single();
+    docs[idx] = {
+      ...original,
+      signature,
+      isSigned: true,
+      status: 'Sent',
+    };
 
-    if (!invoiceError && invoiceData) {
-      const { error: updateInvoiceError } = await (admin
-        .from('invoices') as any)
-        .update({ signature, is_signed: true, status: 'Sent' })
-        .eq('id', invoiceData.id);
+    await dbQuery(
+      'UPDATE app_state SET documents_json = $1::jsonb, updated_at = now() WHERE user_id = $2',
+      [JSON.stringify(docs), row.user_id]
+    );
 
-      if (updateInvoiceError) {
-        return NextResponse.json({ error: updateInvoiceError.message }, { status: 500 });
-      }
-
-      return NextResponse.json({ success: true, type: 'invoice' });
-    }
-
-    return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    return NextResponse.json({ success: true, type: 'invoice' });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Unexpected error' }, { status: 500 });
   }

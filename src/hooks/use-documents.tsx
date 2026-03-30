@@ -4,9 +4,8 @@ import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/t
 import React, { useCallback, useMemo, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/supabase/client';
-import { isSupabaseConfigured } from '@/supabase/client';
 import { useUser } from '@/supabase/provider';
-import { readCompanySettings } from '@/lib/company-settings';
+import { readCompanySettings, writeCompanySettings } from '@/lib/company-settings';
 
 const DEMO_CLIENTS_STORAGE_KEY = 'demoClients';
 const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
@@ -43,6 +42,29 @@ const mergeDocuments = (existing: Document[], incoming: Document[]) => {
   );
 };
 
+const syncRemoteState = async (userId?: string | null) => {
+  if (typeof window === 'undefined' || !userId) return;
+
+  const clientsKey = getScopedStorageKey(DEMO_CLIENTS_STORAGE_KEY, userId);
+  const documentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, userId);
+
+  const clients = safeParseArray<Client>(localStorage.getItem(clientsKey)) || [];
+  const documents = safeParseArray<Document>(localStorage.getItem(documentsKey)) || [];
+
+  const companySettings = readCompanySettings(userId);
+
+  try {
+    await fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ clients, documents, companySettings }),
+    });
+  } catch (error) {
+    console.error('Error syncing remote state:', error);
+  }
+};
+
 const persistDemoClients = (updatedClients: Client[], userId?: string | null, merge = true) => {
   if (typeof window === 'undefined') return;
   const clientsKey = getScopedStorageKey(DEMO_CLIENTS_STORAGE_KEY, userId);
@@ -51,6 +73,7 @@ const persistDemoClients = (updatedClients: Client[], userId?: string | null, me
   localStorage.setItem(clientsBackupKey, JSON.stringify(existing));
   const finalClients = merge ? mergeClients(existing, updatedClients) : updatedClients;
   localStorage.setItem(clientsKey, JSON.stringify(finalClients));
+  void syncRemoteState(userId);
 };
 
 const persistDemoDocuments = (updatedDocuments: Document[], userId?: string | null, merge = true) => {
@@ -61,6 +84,7 @@ const persistDemoDocuments = (updatedDocuments: Document[], userId?: string | nu
   localStorage.setItem(documentsBackupKey, JSON.stringify(existing));
   const finalDocuments = merge ? mergeDocuments(existing, updatedDocuments) : updatedDocuments;
   localStorage.setItem(documentsKey, JSON.stringify(finalDocuments));
+  void syncRemoteState(userId);
 };
 
 const getDemoSeedData = () => {
@@ -190,18 +214,49 @@ const DocumentContext = React.createContext<DocumentContextType | undefined>(und
 
 export const DocumentProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, isUserLoading } = useUser();
-  const isDemoMode = !isSupabaseConfigured;
+  const isDemoMode = true;
   const [documents, setDocuments] = useState<Document[]>([]);
   const [storedClients, setStoredClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load documents and clients from Supabase
+  // Load documents and clients from custom backend (with local fallback)
   const loadData = useCallback(async () => {
-    if (isDemoMode || !user) {
-      const demoData = loadDemoData(user?.id);
+    if (!user) {
+      setStoredClients([]);
+      setDocuments([]);
+      setIsLoading(false);
+      return;
+    }
+
+    if (isDemoMode) {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/state', { method: 'GET', credentials: 'include' });
+        if (response.ok) {
+          const payload = await response.json();
+          const remoteClients = Array.isArray(payload.clients) ? (payload.clients as Client[]) : [];
+          const remoteDocuments = Array.isArray(payload.documents) ? (payload.documents as Document[]) : [];
+          const remoteSettings = payload?.companySettings && typeof payload.companySettings === 'object'
+            ? payload.companySettings
+            : {};
+
+          setStoredClients(remoteClients);
+          setDocuments(remoteDocuments.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime()));
+
+          writeCompanySettings(user.id, remoteSettings);
+
+          persistDemoClients(remoteClients, user.id, false);
+          persistDemoDocuments(remoteDocuments, user.id, false);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Error loading backend state:', error);
+      }
+
+      const demoData = loadDemoData(user.id);
       setStoredClients(demoData.clients);
       setDocuments(demoData.documents);
-
       setIsLoading(false);
       return;
     }

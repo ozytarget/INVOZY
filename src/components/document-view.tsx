@@ -21,7 +21,6 @@ import { RecordPaymentDialog } from "./invoices/record-payment-dialog";
 import { cn } from "@/lib/utils";
 import { SendEmailDialog } from "./emails/send-email-dialog";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "./ui/carousel";
-import { isSupabaseConfigured } from "@/supabase/client";
 
 type DocumentViewProps = {
   document: Document;
@@ -192,19 +191,22 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     const signature = sigCanvas.current!.toDataURL('image/png');
 
     if (isPublic) {
-      if (isSupabaseConfigured) {
-        const response = await fetch('/api/public/sign', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            shareId: documentData.share_token,
-            signature,
-          }),
-        });
+      const response = await fetch('/api/public/sign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shareId: documentData.share_token,
+          signature,
+        }),
+      });
 
-        if (!response.ok) {
+      if (!response.ok) {
+        if (documentData.userId === 'demo-user') {
+          // Keep demo-only fallback for purely local mode.
+          await handlePublicSign(signature);
+        } else {
           const payload = await response.json().catch(() => ({}));
           toast({
             variant: 'destructive',
@@ -213,8 +215,6 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
           });
           return;
         }
-      } else {
-        await handlePublicSign(signature);
       }
 
       toast({

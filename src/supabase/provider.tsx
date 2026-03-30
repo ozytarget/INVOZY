@@ -1,21 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from '@/supabase/client';
 
 type LocalUser = {
   id: string;
   email: string;
 };
-
-type StoredUser = {
-  id: string;
-  email: string;
-  password: string;
-};
-
-const USERS_STORAGE_KEY = 'appUsers';
-const SESSION_STORAGE_KEY = 'appSessionUser';
 
 // Define the shape of the Supabase context state
 export interface SupabaseContextState {
@@ -39,125 +29,69 @@ export function SupabaseClientProvider({ children }: SupabaseClientProviderProps
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
+    const loadSession = async () => {
       try {
-        const rawSession = localStorage.getItem(SESSION_STORAGE_KEY);
-        if (rawSession) {
-          const sessionUser = JSON.parse(rawSession) as LocalUser;
-          setUser(sessionUser);
+        const response = await fetch('/api/auth/me', { method: 'GET', credentials: 'include' });
+        if (!response.ok) {
+          setUser(null);
+          return;
         }
-      } catch (error) {
-        console.error('Error loading local session:', error);
+
+        const payload = await response.json();
+        setUser(payload.user || null);
+      } catch {
+        setUser(null);
       } finally {
         setIsUserLoading(false);
       }
-      return;
-    }
-
-    let isMounted = true;
-
-    const initializeSupabaseSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Error loading Supabase session:', error.message);
-      }
-
-      if (!isMounted) return;
-
-      const sessionUser = data.session?.user;
-      setUser(sessionUser ? { id: sessionUser.id, email: sessionUser.email || '' } : null);
-      setIsUserLoading(false);
     };
 
-    initializeSupabaseSession();
-
-    const { data: authSubscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      const currentUser = session?.user;
-      setUser(currentUser ? { id: currentUser.id, email: currentUser.email || '' } : null);
-      setIsUserLoading(false);
-    });
-
-    return () => {
-      isMounted = false;
-      authSubscription.subscription.unsubscribe();
-    };
+    loadSession();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    if (isSupabaseConfigured) {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
-      });
+    const response = await fetch('/api/auth/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, password }),
+    });
 
-      if (error) {
-        throw new Error(error.message || 'Invalid login credentials');
-      }
-
-      return;
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Invalid login credentials');
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const rawUsers = localStorage.getItem(USERS_STORAGE_KEY);
-    const users = rawUsers ? (JSON.parse(rawUsers) as StoredUser[]) : [];
-    const existingUser = users.find(storedUser => storedUser.email.toLowerCase() === normalizedEmail);
-
-    if (!existingUser || existingUser.password !== password) {
-      throw new Error('Invalid login credentials');
-    }
-
-    const sessionUser: LocalUser = { id: existingUser.id, email: existingUser.email };
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionUser));
-    setUser(sessionUser);
+    setUser(payload.user || null);
   };
 
   const signUp = async (email: string, password: string) => {
-    if (isSupabaseConfigured) {
-      const { error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
-      });
+    const response = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, password }),
+    });
 
-      if (error) {
-        throw new Error(error.message || 'User already registered');
-      }
-
-      return;
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'User already registered');
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const rawUsers = localStorage.getItem(USERS_STORAGE_KEY);
-    const users = rawUsers ? (JSON.parse(rawUsers) as StoredUser[]) : [];
-    const alreadyExists = users.some(storedUser => storedUser.email.toLowerCase() === normalizedEmail);
-
-    if (alreadyExists) {
-      throw new Error('User already registered');
-    }
-
-    const newUser: StoredUser = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `user-${Date.now()}`,
-      email: normalizedEmail,
-      password,
-    };
-
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify([...users, newUser]));
-
-    const sessionUser: LocalUser = { id: newUser.id, email: newUser.email };
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionUser));
-    setUser(sessionUser);
+    setUser(payload.user || null);
   };
 
   const signOut = async () => {
-    if (isSupabaseConfigured) {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw new Error(error.message || 'Logout failed');
-      }
-      setUser(null);
-      return;
+    const response = await fetch('/api/auth/signout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Logout failed');
     }
 
-    localStorage.removeItem(SESSION_STORAGE_KEY);
     setUser(null);
   };
 
