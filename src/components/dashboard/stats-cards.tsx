@@ -2,7 +2,6 @@
 
 'use client';
 
-import { useState } from "react";
 import {
     Card,
     CardContent,
@@ -19,7 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { useDocuments } from "@/hooks/use-documents"
 import { DollarSign, FileSignature, TrendingUp, Construction, Percent, Download, FileText } from "lucide-react"
-import { Document, LineItem } from "@/lib/types";
+import { Document } from "@/lib/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "../ui/table";
 import { ScrollArea } from "../ui/scroll-area";
 import { Badge } from "../ui/badge";
@@ -148,7 +147,12 @@ export function StatsCards() {
 
     const { totalRevenue, grossProfit, materialsCost, taxesCollected, revenueDetails, profitDetails, materialDetails } = paidInvoices.reduce(
         (acc, invoice) => {
-            const amountPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+            const explicitPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+            const amountPaid = explicitPaid > 0
+                ? explicitPaid
+                : invoice.status === 'Paid'
+                    ? invoice.amount
+                    : 0;
             const paymentRatio = invoice.amount > 0 ? amountPaid / invoice.amount : 0;
 
             acc.totalRevenue += amountPaid;
@@ -206,7 +210,7 @@ export function StatsCards() {
     );
 
     const invoiceCount = documents.filter(doc => doc.type === 'Invoice').length;
-    const estimateCount = documents.filter(doc => doc.type === 'Estimate').length;
+    const estimateCount = documents.filter(doc => doc.type === 'Estimate' && doc.status !== 'Approved').length;
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

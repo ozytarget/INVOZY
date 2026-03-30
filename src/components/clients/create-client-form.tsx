@@ -77,9 +77,17 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
     }
   }
 
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    const target = event.target as HTMLElement;
+    if (event.key === 'Enter' && target.tagName !== 'TEXTAREA') {
+      event.preventDefault();
+      (event.currentTarget as HTMLFormElement).requestSubmit();
+    }
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} onKeyDown={handleFormKeyDown} className="space-y-8">
         <Card>
           <CardHeader><CardTitle className="font-headline">Client Information</CardTitle></CardHeader>
           <CardContent className="space-y-4">

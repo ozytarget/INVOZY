@@ -6,6 +6,140 @@ import { format } from 'date-fns';
 import { supabase } from '@/supabase/client';
 import { useUser } from '@/supabase/provider';
 
+const DEMO_CLIENTS_STORAGE_KEY = 'demoClients';
+const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
+const DEMO_CLIENTS_BACKUP_STORAGE_KEY = 'demoClientsBackup';
+const DEMO_DOCUMENTS_BACKUP_STORAGE_KEY = 'demoDocumentsBackup';
+
+const safeParseArray = <T,>(raw: string | null): T[] | null => {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : null;
+  } catch {
+    return null;
+  }
+};
+
+const mergeClients = (existing: Client[], incoming: Client[]) => {
+  const clientMap = new Map<string, Client>();
+  existing.forEach(client => clientMap.set(client.email.toLowerCase(), client));
+  incoming.forEach(client => clientMap.set(client.email.toLowerCase(), client));
+  return Array.from(clientMap.values());
+};
+
+const mergeDocuments = (existing: Document[], incoming: Document[]) => {
+  const documentMap = new Map<string, Document>();
+  existing.forEach(document => documentMap.set(document.id, document));
+  incoming.forEach(document => documentMap.set(document.id, document));
+  return Array.from(documentMap.values()).sort(
+    (a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime()
+  );
+};
+
+const persistDemoClients = (updatedClients: Client[], merge = true) => {
+  if (typeof window === 'undefined') return;
+  const existing = safeParseArray<Client>(localStorage.getItem(DEMO_CLIENTS_STORAGE_KEY)) || [];
+  localStorage.setItem(DEMO_CLIENTS_BACKUP_STORAGE_KEY, JSON.stringify(existing));
+  const finalClients = merge ? mergeClients(existing, updatedClients) : updatedClients;
+  localStorage.setItem(DEMO_CLIENTS_STORAGE_KEY, JSON.stringify(finalClients));
+};
+
+const persistDemoDocuments = (updatedDocuments: Document[], merge = true) => {
+  if (typeof window === 'undefined') return;
+  const existing = safeParseArray<Document>(localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY)) || [];
+  localStorage.setItem(DEMO_DOCUMENTS_BACKUP_STORAGE_KEY, JSON.stringify(existing));
+  const finalDocuments = merge ? mergeDocuments(existing, updatedDocuments) : updatedDocuments;
+  localStorage.setItem(DEMO_DOCUMENTS_STORAGE_KEY, JSON.stringify(finalDocuments));
+};
+
+const getDemoSeedData = () => {
+  const defaultClient: Client = {
+    name: 'Acme Property Group',
+    email: 'ops@acmeproperty.com',
+    phone: '(555) 410-2244',
+    address: '1250 Market St, San Diego, CA',
+    totalBilled: 1248,
+    documentCount: 1,
+  };
+
+  const defaultInvoice: Document = {
+    id: 'demo-invoice-001',
+    userId: 'demo-user',
+    share_token: 'demo-share-invoice-001',
+    type: 'Invoice',
+    status: 'Sent',
+    companyName: 'Invozzy Demo Contractor',
+    companyAddress: '900 Sunset Blvd, Los Angeles, CA',
+    companyEmail: 'hello@invozzy-demo.com',
+    companyPhone: '(555) 920-5501',
+    clientName: defaultClient.name,
+    clientEmail: defaultClient.email,
+    clientAddress: defaultClient.address,
+    clientPhone: defaultClient.phone,
+    projectTitle: 'Interior Door Replacement',
+    issuedDate: '2026-03-30',
+    dueDate: '2026-04-29',
+    amount: 1248,
+    taxRate: 8,
+    lineItems: [
+      { id: 'demo-line-1', description: 'Pre-hung door unit', quantity: 1, price: 289 },
+      { id: 'demo-line-2', description: 'Door hardware set', quantity: 1, price: 79 },
+      { id: 'demo-line-3', description: 'Removal and installation labor', quantity: 1, price: 788 },
+    ],
+    notes: 'Demo invoice preloaded for quick app walkthrough and QA.',
+    terms: 'Net 30',
+    payments: [],
+    invoiceNumber: 'INV-001',
+    projectPhotos: [],
+    search_field: 'acme property group interior door replacement inv-001',
+  };
+
+  return {
+    clients: [defaultClient],
+    documents: [defaultInvoice],
+  };
+};
+
+const loadDemoData = () => {
+  const seed = getDemoSeedData();
+
+  if (typeof window === 'undefined') {
+    return seed;
+  }
+
+  try {
+    const clients =
+      safeParseArray<Client>(localStorage.getItem(DEMO_CLIENTS_STORAGE_KEY)) ||
+      safeParseArray<Client>(localStorage.getItem(DEMO_CLIENTS_BACKUP_STORAGE_KEY)) ||
+      [];
+
+    const documents =
+      safeParseArray<Document>(localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY)) ||
+      safeParseArray<Document>(localStorage.getItem(DEMO_DOCUMENTS_BACKUP_STORAGE_KEY)) ||
+      [];
+
+    const finalClients = clients.length > 0 ? clients : seed.clients;
+    const finalDocuments = documents.length > 0 ? documents : seed.documents;
+
+    if (clients.length === 0) {
+      persistDemoClients(finalClients, false);
+    }
+
+    if (documents.length === 0) {
+      persistDemoDocuments(finalDocuments, false);
+    }
+
+    return {
+      clients: finalClients,
+      documents: finalDocuments,
+    };
+  } catch (error) {
+    console.error('Error loading demo data:', error);
+    return seed;
+  }
+};
+
 // Generate UUID for share tokens
 const generateShareToken = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -75,6 +209,10 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   // Load documents and clients from Supabase
   const loadData = useCallback(async () => {
     if (!user) {
+      const demoData = loadDemoData();
+      setStoredClients(demoData.clients);
+      setDocuments(demoData.documents);
+
       setIsLoading(false);
       return;
     }
@@ -98,6 +236,34 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
         .from('clients')
         .select('*')
         .eq('user_id', user.id) as { data: any[]; error: any };
+
+      // Fetch payments for invoices
+      const invoiceIds = (invoicesData || []).map(invoice => invoice.id).filter(Boolean);
+      const paymentsByInvoice = new Map<string, Payment[]>();
+
+      if (invoiceIds.length > 0) {
+        const { data: paymentsData, error: paymentsError } = await (supabase
+          .from('payments') as any)
+          .select('*')
+          .in('invoice_id', invoiceIds)
+          .order('payment_date', { ascending: true });
+
+        if (paymentsError) {
+          console.error('Error loading payments:', paymentsError);
+        } else {
+          (paymentsData || []).forEach((payment: any) => {
+            const mappedPayment: Payment = {
+              id: payment.id,
+              amount: payment.amount || 0,
+              date: payment.payment_date || new Date().toISOString().slice(0, 10),
+              method: payment.method || 'Cash',
+            };
+
+            const currentPayments = paymentsByInvoice.get(payment.invoice_id) || [];
+            paymentsByInvoice.set(payment.invoice_id, [...currentPayments, mappedPayment]);
+          });
+        }
+      }
 
       if (estimatesError) console.error('Error loading estimates:', estimatesError);
       if (invoicesError) console.error('Error loading invoices:', invoicesError);
@@ -219,7 +385,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
           taxId: doc.tax_id,
           signature: doc.signature,
           isSigned: doc.is_signed || false,
-          payments: [],
+          payments: paymentsByInvoice.get(doc.id) || [],
           invoiceNumber: doc.invoice_number,
           projectPhotos: doc.project_photos || [],
           search_field: doc.search_field || '',
@@ -252,8 +418,46 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
   const addDocument = useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber' | 'search_field'>): Promise<string | undefined> => {
     if (!user) {
-      console.error('No user found when trying to add document');
-      return undefined;
+      const currentDocs = typeof window !== 'undefined'
+        ? (() => {
+            try {
+              const raw = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
+              return raw ? (JSON.parse(raw) as Document[]) : documents;
+            } catch {
+              return documents;
+            }
+          })()
+        : documents;
+
+      const docCount = currentDocs.filter(d => d.type === docData.type).length;
+      const prefix = docData.type === 'Estimate' ? 'EST' : 'INV';
+      const number = (docCount + 1).toString().padStart(3, '0');
+      const docNumber = `${prefix}-${number}`;
+      const newId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `demo-${docData.type.toLowerCase()}-${Date.now()}`;
+
+      const newDoc: Document = {
+        ...docData,
+        id: newId,
+        userId: 'demo-user',
+        share_token: generateShareToken(),
+        estimateNumber: docData.type === 'Estimate' ? docNumber : undefined,
+        invoiceNumber: docData.type === 'Invoice' ? docNumber : undefined,
+        search_field: `${docData.clientName} ${docData.projectTitle} ${docNumber}`.toLowerCase(),
+      };
+
+      const updatedDocs = [newDoc, ...currentDocs].sort(
+        (a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime()
+      );
+
+      setDocuments(updatedDocs);
+
+      if (typeof window !== 'undefined') {
+        persistDemoDocuments(updatedDocs);
+      }
+
+      return newId;
     }
 
     console.log('Adding document for user:', user.id);
@@ -343,7 +547,29 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, loadData]);
 
   const updateDocument = useCallback(async (docId: string, docData: Partial<Document>) => {
-    if (!user) return;
+    if (!user) {
+      const originalDoc = documents.find(d => d.id === docId);
+      if (!originalDoc) return;
+
+      const docNumber = originalDoc.type === 'Estimate' ? originalDoc.estimateNumber : originalDoc.invoiceNumber;
+      const clientName = docData.clientName || originalDoc.clientName;
+      const projectTitle = docData.projectTitle || originalDoc.projectTitle;
+
+      const updatedDocs = documents.map(doc => {
+        if (doc.id !== docId) return doc;
+        return {
+          ...doc,
+          ...docData,
+          search_field: `${clientName} ${projectTitle} ${docNumber}`.toLowerCase(),
+        };
+      });
+
+      setDocuments(updatedDocs);
+      if (typeof window !== 'undefined') {
+        persistDemoDocuments(updatedDocs);
+      }
+      return;
+    }
 
     const originalDoc = documents.find(d => d.id === docId);
     if (!originalDoc) return;
@@ -420,7 +646,14 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, documents, loadData]);
 
   const deleteDocument = useCallback(async (docId: string) => {
-    if (!user) return;
+    if (!user) {
+      const updatedDocs = documents.filter(doc => doc.id !== docId);
+      setDocuments(updatedDocs);
+      if (typeof window !== 'undefined') {
+        persistDemoDocuments(updatedDocs, false);
+      }
+      return;
+    }
 
     const docToDelete = documents.find(d => d.id === docId);
     if (!docToDelete) return;
@@ -436,8 +669,6 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, documents]);
 
   const duplicateDocument = useCallback(async (docId: string) => {
-    if (!user) return;
-
     const originalDoc = documents.find(d => d.id === docId);
     if (!originalDoc) return;
 
@@ -451,10 +682,33 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     };
 
     await addDocument(newDoc);
-  }, [user, documents, addDocument]);
+  }, [documents, addDocument]);
 
   const addClient = useCallback(async (clientData: Omit<Client, 'totalBilled' | 'documentCount'>) => {
-    if (!user) return;
+    if (!user) {
+      const normalizedEmail = clientData.email.toLowerCase();
+      const alreadyExists = storedClients.some(c => c.email.toLowerCase() === normalizedEmail);
+
+      if (alreadyExists) {
+        console.log('Client already exists in demo mode');
+        return;
+      }
+
+      const newClient: Client = {
+        ...clientData,
+        totalBilled: 0,
+        documentCount: 0,
+      };
+
+      const updatedClients = [...storedClients, newClient];
+      setStoredClients(updatedClients);
+
+      if (typeof window !== 'undefined') {
+        persistDemoClients(updatedClients);
+      }
+
+      return;
+    }
 
     // First, ensure the user exists in the users table
     const { error: userError } = await (supabase
@@ -492,13 +746,68 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       // Reload all data after successful insert
       await loadData();
     }
-  }, [user, loadData]);
+  }, [user, loadData, storedClients]);
 
   const signAndProcessDocument = useCallback(async (docId: string, signature: string): Promise<string | undefined> => {
-    if (!user) return;
-
     const originalDoc = documents.find(d => d.id === docId);
     if (!originalDoc) return;
+
+    if (!user) {
+      if (originalDoc.type !== 'Estimate') {
+        const updatedDocs = documents.map(doc =>
+          doc.id === docId
+            ? { ...doc, signature, isSigned: true, status: 'Sent' as DocumentStatus }
+            : doc
+        );
+
+        setDocuments(updatedDocs);
+        if (typeof window !== 'undefined') {
+          persistDemoDocuments(updatedDocs);
+        }
+        return undefined;
+      }
+
+      const invoiceCount = documents.filter(d => d.type === 'Invoice').length;
+      const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
+      const newInvoiceId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `demo-invoice-${Date.now()}`;
+
+      const approvedEstimate: Document = {
+        ...originalDoc,
+        signature,
+        isSigned: true,
+        status: 'Approved',
+      };
+
+      const newInvoice: Document = {
+        ...originalDoc,
+        id: newInvoiceId,
+        userId: 'demo-user',
+        share_token: generateShareToken(),
+        type: 'Invoice',
+        status: 'Sent',
+        signature,
+        isSigned: true,
+        issuedDate: format(new Date(), "yyyy-MM-dd"),
+        dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
+        invoiceNumber: newInvoiceNumber,
+        estimateNumber: undefined,
+        search_field: `${originalDoc.clientName} ${originalDoc.projectTitle} ${newInvoiceNumber}`.toLowerCase(),
+      };
+
+      const updatedDocs = [
+        ...documents.map(doc => (doc.id === docId ? approvedEstimate : doc)),
+        newInvoice,
+      ].sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
+
+      setDocuments(updatedDocs);
+      if (typeof window !== 'undefined') {
+        persistDemoDocuments(updatedDocs);
+      }
+
+      return newInvoiceId;
+    }
 
     if (originalDoc.type === 'Estimate') {
       console.log('🔄 SIGNING ESTIMATE AND CONVERTING TO INVOICE');
@@ -598,8 +907,6 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, documents, loadData]);
 
   const recordPayment = useCallback(async (invoiceId: string, payment: Omit<Payment, 'id' | 'date'>) => {
-    if (!user) return;
-
     const invoice = documents.find(d => d.id === invoiceId);
     if (!invoice) return;
 
@@ -608,6 +915,28 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       id: crypto.randomUUID(),
       date: format(new Date(), "yyyy-MM-dd"),
     };
+
+    if (!user) {
+      const updatedDocs = documents.map(doc => {
+        if (doc.id !== invoiceId) return doc;
+
+        const updatedPayments = [...(doc.payments || []), newPayment];
+        const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
+        const newStatus: DocumentStatus = totalPaid >= doc.amount ? 'Paid' : 'Partial';
+
+        return {
+          ...doc,
+          payments: updatedPayments,
+          status: newStatus,
+        };
+      });
+
+      setDocuments(updatedDocs);
+      if (typeof window !== 'undefined') {
+        persistDemoDocuments(updatedDocs);
+      }
+      return;
+    }
 
     const { error: paymentError } = await (supabase
       .from('payments') as any)
@@ -632,10 +961,29 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       .from('invoices') as any)
       .update({ status: newStatus })
       .eq('id', invoiceId);
-  }, [user, documents]);
+
+    await loadData();
+  }, [user, documents, loadData]);
 
   const revertInvoiceToDraft = useCallback(async (invoiceId: string) => {
-    if (!user) return;
+    if (!user) {
+      const updatedDocs = documents.map(doc => {
+        if (doc.id !== invoiceId || doc.type !== 'Invoice') return doc;
+        return {
+          ...doc,
+          status: 'Draft' as DocumentStatus,
+          isSigned: false,
+          signature: undefined,
+          payments: [],
+        };
+      });
+
+      setDocuments(updatedDocs);
+      if (typeof window !== 'undefined') {
+        persistDemoDocuments(updatedDocs);
+      }
+      return;
+    }
 
     const { error } = await (supabase
       .from('invoices') as any)
@@ -654,10 +1002,41 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     // ✅ Recargar estado desde BD
     await loadData();
     console.log('✅ Invoice reverted and state resynced');
-  }, [user, loadData]);
+  }, [user, loadData, documents]);
 
   const revertLastPayment = useCallback(async (invoiceId: string) => {
-    if (!user) return;
+    if (!user) {
+      const invoice = documents.find(d => d.id === invoiceId && d.type === 'Invoice');
+      if (!invoice) return;
+
+      const existingPayments = invoice.payments || [];
+      if (existingPayments.length === 0) return;
+
+      const updatedPayments = existingPayments.slice(0, -1);
+      const totalPaid = updatedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+
+      let newStatus: DocumentStatus = 'Draft';
+      if (totalPaid > 0) {
+        newStatus = 'Partial';
+      } else if (invoice.isSigned) {
+        newStatus = 'Sent';
+      }
+
+      const updatedDocs = documents.map(doc => {
+        if (doc.id !== invoiceId || doc.type !== 'Invoice') return doc;
+        return {
+          ...doc,
+          payments: updatedPayments,
+          status: newStatus,
+        };
+      });
+
+      setDocuments(updatedDocs);
+      if (typeof window !== 'undefined') {
+        persistDemoDocuments(updatedDocs);
+      }
+      return;
+    }
 
     const invoice = documents.find(d => d.id === invoiceId);
     if (!invoice) return;
@@ -712,7 +1091,22 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, documents, loadData]);
 
   const sendDocument = useCallback(async (docId: string, type: DocumentType) => {
-    if (!user) return;
+    if (!user) {
+      const updatedDocs = documents.map(doc => {
+        if (doc.id !== docId || doc.type !== type) return doc;
+        if (doc.status !== 'Draft') return doc;
+        return {
+          ...doc,
+          status: 'Sent' as DocumentStatus,
+        };
+      });
+
+      setDocuments(updatedDocs);
+      if (typeof window !== 'undefined') {
+        persistDemoDocuments(updatedDocs);
+      }
+      return;
+    }
 
     const tableName = type === 'Estimate' ? 'estimates' : 'invoices';
 
@@ -734,7 +1128,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     }
     // ✅ Recargar estado inmediatamente tras update
     await loadData();
-  }, [user, loadData]);
+  }, [user, loadData, documents]);
 
   const clients = useMemo(() => {
     return getCombinedClients(documents, storedClients);

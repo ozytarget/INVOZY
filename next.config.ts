@@ -1,6 +1,12 @@
 
 import type {NextConfig} from 'next';
 
+const allowedOrigins = [
+  process.env.NEXT_PUBLIC_APP_URL,
+  'http://localhost:9002',
+  'http://127.0.0.1:9002',
+].filter((origin): origin is string => Boolean(origin));
+
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
@@ -33,7 +39,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: [process.env.NEXT_PUBLIC_APP_URL!],
+      allowedOrigins,
     },
   },
 };

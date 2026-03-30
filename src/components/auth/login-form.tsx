@@ -41,17 +41,27 @@ export function LoginForm() {
     },
   });
 
-  const handleAuthError = (error: any) => {
+  const handleAuthError = (error: unknown) => {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     let title = 'An error occurred';
-    let description = error.message || 'Unknown error';
+    let description = errorMessage || 'Unknown error';
 
-    if (error.message?.includes('Invalid login credentials')) {
+    if (errorMessage.includes('Missing NEXT_PUBLIC_SUPABASE_URL')) {
+      title = 'Supabase Not Configured';
+      description = 'Add NEXT_PUBLIC_SUPABASE_URL to .env.local and restart the app.';
+    } else if (errorMessage.includes('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY')) {
+      title = 'Supabase Not Configured';
+      description = 'Add NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local and restart the app.';
+    } else if (errorMessage.includes('Failed to fetch')) {
+      title = 'Supabase Connection Error';
+      description = 'Could not reach Supabase. Verify URL/ANON key and your internet/DNS connection.';
+    } else if (errorMessage.includes('Invalid login credentials')) {
       title = 'Invalid Credentials';
       description = 'Email or password is incorrect.';
-    } else if (error.message?.includes('User already registered')) {
+    } else if (errorMessage.includes('User already registered')) {
       title = 'Email Already in Use';
       description = 'This email is already registered. Please log in instead.';
-    } else if (error.message?.includes('Password')) {
+    } else if (errorMessage.includes('Password')) {
       title = 'Weak Password';
       description = 'Password must be at least 6 characters long.';
     }
@@ -90,6 +100,14 @@ export function LoginForm() {
     }
   }
 
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    const target = event.target as HTMLElement;
+    if (event.key === 'Enter' && target.tagName !== 'TEXTAREA') {
+      event.preventDefault();
+      form.handleSubmit(handleSignIn)();
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -97,7 +115,7 @@ export function LoginForm() {
         <CardDescription>Enter your credentials to access your account.</CardDescription>
       </CardHeader>
       <Form {...form}>
-        <form className="space-y-4">
+        <form className="space-y-4" onKeyDown={handleFormKeyDown}>
           <CardContent className='space-y-4'>
             <FormField
               control={form.control}
@@ -139,7 +157,7 @@ export function LoginForm() {
                 Sign Up
               </Button>
               <Button
-                type="button"
+                type="submit"
                 className="w-full"
                 onClick={form.handleSubmit(handleSignIn)}
                 disabled={isLoading}

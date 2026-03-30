@@ -37,7 +37,7 @@ const LineItemSchema = z.object({
 const AIPoweredEstimateSuggestionsOutputSchema = z.object({
     materialLineItems: z.array(LineItemSchema).describe("A detailed list of ONLY the required materials to complete the project."),
     laborLineItems: z.array(LineItemSchema).describe("A detailed list of ONLY the required labor tasks to complete the project."),
-    notes: z.string().describe("A high-level summary note for the final client. This should NOT mention Home Depot, pricing strategies, or internal calculations."),
+  notes: z.string().describe("A high-level summary note for the final client. This should NOT mention Home Depot, location benchmarks, pricing strategies, or internal calculations."),
 });
 
 export type AIPoweredEstimateSuggestionsOutput = z.infer<typeof AIPoweredEstimateSuggestionsOutputSchema>;
@@ -80,7 +80,7 @@ Project Photo:
 
 4.  **Categorize Correctly:** You MUST categorize every line item as either a material cost or a labor cost and place it in the correct output array (\`materialLineItems\` or \`laborLineItems\`).
 
-5.  **Client-Facing Notes:** The \`notes\` field should be a high-level summary for the client. **It MUST NOT mention Home Depot, pricing strategies, or any other internal calculation details.** It should be professional and concise.
+5.  **Client-Facing Notes:** The \`notes\` field should be a high-level summary for the client. **It MUST NOT mention Home Depot, store names, county/city/state pricing references, pricing strategies, or any internal calculation details.** It should be professional and concise.
 
 6.  **Output Format:** Present the estimate strictly in the specified JSON format, ensuring all fields are populated with extreme accuracy and all calculations are correct, reflecting the granular detail requested.
 

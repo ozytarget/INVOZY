@@ -346,6 +346,10 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     form.setValue('notes', notes);
   }, [form]);
 
+  const handleApplyTerms = useCallback((terms: string) => {
+    form.setValue('terms', terms);
+  }, [form]);
+
 
   const handleClientCreated = (newClient: Client) => {
     handleClientChange(newClient.email);
@@ -369,10 +373,18 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     newPhotos.forEach(url => appendPhoto({ url, description: '' }));
   };
 
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    const target = event.target as HTMLElement;
+    if (event.key === 'Enter' && target.tagName !== 'TEXTAREA') {
+      event.preventDefault();
+      (event.currentTarget as HTMLFormElement).requestSubmit();
+    }
+  };
+
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} onKeyDown={handleFormKeyDown} className="space-y-8">
         <div className="grid lg:grid-cols-2 gap-8">
           <Card>
             <CardHeader>
@@ -553,6 +565,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
                         projectLocation={companySettings.companyAddress || ''}
                         onApplyLineItems={handleApplyLineItems}
                         onApplyNotes={handleApplyNotes}
+                        onApplyTerms={handleApplyTerms}
                       />
                     </div>
                   </div>

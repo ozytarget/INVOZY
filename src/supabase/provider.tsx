@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from './client';
+import { getSupabaseConfigError, isSupabaseConfigured, supabase } from './client';
 
 // Define the shape of the Supabase context state
 export interface SupabaseContextState {
@@ -26,6 +26,11 @@ export function SupabaseClientProvider({ children }: SupabaseClientProviderProps
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setIsUserLoading(false);
+      return;
+    }
+
     // Check if user is already logged in
     const checkUser = async () => {
       try {
@@ -56,6 +61,9 @@ export function SupabaseClientProvider({ children }: SupabaseClientProviderProps
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    const configError = getSupabaseConfigError();
+    if (configError) throw new Error(configError);
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -64,6 +72,9 @@ export function SupabaseClientProvider({ children }: SupabaseClientProviderProps
   };
 
   const signUp = async (email: string, password: string) => {
+    const configError = getSupabaseConfigError();
+    if (configError) throw new Error(configError);
+
     const { error } = await supabase.auth.signUp({
       email,
       password,

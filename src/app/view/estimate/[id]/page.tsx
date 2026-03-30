@@ -8,6 +8,8 @@ import { supabase } from "@/supabase/client";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
+const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
+
 function EstimateViewContent() {
   const params = useParams();
   const id = typeof params.id === 'string' ? params.id : '';
@@ -29,6 +31,22 @@ function EstimateViewContent() {
           .single() as { data: any; error: any };
 
         if (fetchError || !data) {
+          if (typeof window !== 'undefined') {
+            const rawDocuments = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
+            if (rawDocuments) {
+              try {
+                const demoDocuments = JSON.parse(rawDocuments) as Document[];
+                const demoEstimate = demoDocuments.find(doc => doc.id === id && doc.type === 'Estimate');
+                if (demoEstimate) {
+                  setDocument(demoEstimate);
+                  return;
+                }
+              } catch (error) {
+                console.error('Error reading demo estimate documents:', error);
+              }
+            }
+          }
+
           notFound();
           return;
         }

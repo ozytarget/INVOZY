@@ -2,16 +2,17 @@
 "use client"
 
 import * as React from "react"
-import { FileText, User, Users, CreditCard, Settings, Search, Bell, Loader2 } from "lucide-react"
-import { usePathname, useRouter } from "next/navigation"
+import { FileText, User, Users, CreditCard, Settings, Search, Bell } from "lucide-react"
+import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { UserNav } from "@/components/user-nav"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { useUser } from "@/supabase/provider"
 import { SearchDialog } from "@/components/search-dialog"
 import { NotificationsSheet } from "@/components/notifications-sheet"
 import type { Notification } from "@/lib/types"
+
+const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
 
 export default function DashboardLayout({
   children,
@@ -19,11 +20,23 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const { user, isUserLoading } = useUser();
-  const router = useRouter();
-  
-  // Notifications disabled for now - can be added later
-  const unreadNotifications: Notification[] = [];
+  const [unreadNotifications, setUnreadNotifications] = React.useState<Notification[]>([]);
+
+  React.useEffect(() => {
+    const loadNotifications = () => {
+      if (typeof window === 'undefined') return;
+      const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+      const parsed = raw ? (JSON.parse(raw) as Notification[]) : [];
+      setUnreadNotifications(parsed.filter(notification => !notification.isRead));
+    };
+
+    loadNotifications();
+    window.addEventListener('storage', loadNotifications);
+
+    return () => {
+      window.removeEventListener('storage', loadNotifications);
+    };
+  }, []);
 
   const navItems = [
     { href: "/dashboard/estimates", icon: <FileText />, label: "Estimates" },
@@ -42,20 +55,6 @@ export default function DashboardLayout({
     const currentNavItem = navItems.find(item => pathname.startsWith(item.href));
     if (currentNavItem) return currentNavItem.label;
     return "Dashboard";
-  }
-
-  React.useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push('/');
-    }
-  }, [user, isUserLoading, router]);
-
-  if (isUserLoading || !user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
   }
   
   return (

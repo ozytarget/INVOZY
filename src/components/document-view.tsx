@@ -27,6 +27,16 @@ type DocumentViewProps = {
   isPublic?: boolean;
 }
 
+const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
+
+const generateShareToken = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 const statusStyles: Record<Document['status'], string> = {
   Paid: "border-primary text-primary",
   Sent: "border-blue-500 text-blue-500",
@@ -86,16 +96,14 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
       return;
     }
     const signature = sigCanvas.current!.toDataURL('image/png');
-    const newInvoiceId = await signAndProcessDocument(documentData.id, signature);
+    await signAndProcessDocument(documentData.id, signature);
 
     toast({
       title: `${documentData.type} Approved!`,
       description: `Thank you for your business. ${documentData.type === 'Estimate' ? 'A new invoice has been generated.' : ''}`,
     });
 
-    if (documentData.type === 'Estimate' && newInvoiceId) {
-      router.push(`/view/invoice/${newInvoiceId}`);
-    }
+    router.push('/dashboard');
   }
 
   const handleDelete = async () => {
@@ -108,18 +116,36 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
   };
 
   const handleShare = async () => {
-    if (!documentData.share_token) {
+    let shareToken = documentData.share_token;
+
+    if (!shareToken && documentData.userId === 'demo-user' && typeof window !== 'undefined') {
+      const rawDocs = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
+      const demoDocs = rawDocs ? (JSON.parse(rawDocs) as Document[]) : [];
+      const newToken = generateShareToken();
+
+      const updatedDocs = demoDocs.map(doc => {
+        if (doc.id !== documentData.id) return doc;
+        return { ...doc, share_token: newToken };
+      });
+
+      localStorage.setItem(DEMO_DOCUMENTS_STORAGE_KEY, JSON.stringify(updatedDocs));
+      shareToken = newToken;
+    }
+
+    if (!shareToken) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "This document does not have a public share link.",
+        title: "Share Link Unavailable",
+        description: "This document has no public token yet. Save and try again.",
       });
       return;
     }
 
     // Construct the public share URL
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
-    const publicUrl = `${appUrl}/public/${documentData.share_token}`;
+    const appUrl = typeof window !== 'undefined'
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
+    const publicUrl = `${appUrl}/public/${shareToken}`;
 
     try {
       // Try using the native Share API first
@@ -144,6 +170,8 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
         });
       }
     }
+
+    window.open(publicUrl, '_blank', 'noopener,noreferrer');
     setIsFabMenuOpen(false);
   };
 

@@ -9,27 +9,53 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { useUser } from "@/supabase/provider"
 import type { Notification } from "@/lib/types"
 import { formatDistanceToNow } from 'date-fns'
 import { Button } from "./ui/button"
 import { ScrollArea } from "./ui/scroll-area"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useEffect, useState } from "react"
+
+const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
 
 export function NotificationsSheet({ children }: { children: React.ReactNode }) {
-  const { user } = useUser();
   const router = useRouter();
-  
-  // Notifications disabled for now - will be added later
-  const notifications: Notification[] = [];
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    const loadNotifications = () => {
+      if (typeof window === 'undefined') return;
+      const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+      const parsed = raw ? (JSON.parse(raw) as Notification[]) : [];
+      parsed.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setNotifications(parsed);
+    };
+
+    loadNotifications();
+    window.addEventListener('storage', loadNotifications);
+
+    return () => {
+      window.removeEventListener('storage', loadNotifications);
+    };
+  }, []);
+
+  const persistNotifications = (updated: Notification[]) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(updated));
+    setNotifications(updated);
+  };
 
   const handleMarkAllAsRead = async () => {
-    // TODO: Implement when notifications are ready
+    const updated = notifications.map(notification => ({ ...notification, isRead: true }));
+    persistNotifications(updated);
   }
 
   const handleNotificationClick = (notification: Notification) => {
-    // TODO: Implement when notifications are ready
+    const updated = notifications.map(item =>
+      item.id === notification.id ? { ...item, isRead: true } : item
+    );
+    persistNotifications(updated);
     router.push(`/view/${notification.documentType.toLowerCase()}/${notification.documentId}?internal=true`);
   }
 

@@ -63,6 +63,14 @@ export function RecordPaymentDialog({ document: documentData, onRecordPayment, c
     form.reset();
     setIsOpen(false);
   }
+  
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    const target = event.target as HTMLElement;
+    if (event.key === 'Enter' && target.tagName !== 'TEXTAREA') {
+      event.preventDefault();
+      (event.currentTarget as HTMLFormElement).requestSubmit();
+    }
+  };
 
   const handleSetFullPayment = () => {
     form.setValue('amount', balanceDue);
@@ -81,7 +89,7 @@ export function RecordPaymentDialog({ document: documentData, onRecordPayment, c
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 py-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} onKeyDown={handleFormKeyDown} className="space-y-8 py-4">
             <FormField
               control={form.control}
               name="amount"

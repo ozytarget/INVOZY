@@ -55,7 +55,11 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
   const title = type === "Estimate" ? "Estimates" : "Invoices"
   const createHref = type === "Estimate" ? "/dashboard/estimates/create" : "/dashboard/invoices/create"
 
-  const filteredDocuments = documents.filter(doc => doc.type === type)
+  const filteredDocuments = documents.filter(doc => {
+    if (doc.type !== type) return false;
+    if (type === 'Estimate' && doc.status === 'Approved') return false;
+    return true;
+  })
 
   const handleRowClick = (doc: Document) => {
     router.push(`/view/${doc.type.toLowerCase()}/${doc.id}?internal=true`);

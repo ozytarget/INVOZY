@@ -20,18 +20,22 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Checkbox } from '../ui/checkbox';
 import type { LineItem } from '@/lib/types';
 
+const DIMENSIONS_REGEX = /(\d+(?:\.\d+)?)\s*(?:x|by|\*)\s*(\d+(?:\.\d+)?)/i;
+
 type AiSuggestionsDialogProps = {
   projectDescription: string;
   projectLocation: string;
   onApplyLineItems: (lineItems: Omit<LineItem, 'id'>[]) => void;
   onApplyNotes: (notes: string) => void;
+  onApplyTerms: (terms: string) => void;
 };
 
 export function AiSuggestionsDialog({
   projectDescription,
   projectLocation,
   onApplyLineItems,
-  onApplyNotes
+  onApplyNotes,
+  onApplyTerms
 }: AiSuggestionsDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,27 +62,49 @@ export function AiSuggestionsDialog({
       location: projectLocation,
     };
 
-    const result = await getSuggestions(input);
+    try {
+      const result = await getSuggestions(input);
 
-    setIsLoading(false);
-    if (result.success && result.data) {
-      setSuggestions(result.data);
-    } else {
+      if (result.success && result.data) {
+        setSuggestions(result.data);
+        return;
+      }
+
+      const errorMessage =
+        'error' in result && typeof result.error === 'string'
+          ? result.error
+          : undefined;
+
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: result.error || 'Could not generate suggestions.',
+        description: errorMessage || 'Could not generate suggestions.',
       });
       setIsOpen(false);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Could not generate suggestions.',
+      });
+      setIsOpen(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleOpen = () => {
-    toast({
-        variant: 'default',
-        title: 'AI Feature Paused',
-        description: 'AI suggestions are temporarily disabled. We are migrating to a more robust infrastructure.',
-    });
+  const handleOpen = async () => {
+    if (!projectDescription?.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Project Description Required',
+        description: 'Add a project description to generate AI suggestions.',
+      });
+      return;
+    }
+
+    setIsOpen(true);
+    await handleGenerate();
   }
   
   const handleApplyAndClose = () => {
@@ -87,13 +113,40 @@ export function AiSuggestionsDialog({
       const laborToApply = suggestions.laborLineItems.filter((_, index) => selectedLabor.includes(index));
       const itemsToApply = [...materialsToApply, ...laborToApply];
 
+      const materialNames = materialsToApply.map(item => item.description).slice(0, 5);
+      const laborNames = laborToApply.map(item => item.description).slice(0, 5);
+      const dimensions = projectDescription.match(DIMENSIONS_REGEX);
+      const sqftSummary = dimensions
+        ? `Measured area: ${dimensions[1]} x ${dimensions[2]} = ${Math.round(Number(dimensions[1]) * Number(dimensions[2]))} sq ft.`
+        : null;
+
+      const notes = [
+        `Scope summary: ${projectDescription.trim()}.`,
+        sqftSummary,
+        materialNames.length > 0
+          ? `Included materials: ${materialNames.join(', ')}${materialsToApply.length > 5 ? ', and additional materials' : ''}.`
+          : 'No material items were selected in this estimate draft.',
+        laborNames.length > 0
+          ? `Included labor: ${laborNames.join(', ')}${laborToApply.length > 5 ? ', and additional labor tasks' : ''}.`
+          : 'No labor tasks were selected in this estimate draft.',
+        'Scope, quantities, and labor tasks are based on the selected line items and can be adjusted before sending.',
+      ].filter(Boolean).join('\n\n');
+
+      const terms = [
+        `This estimate includes ${materialsToApply.length} material item(s) and ${laborToApply.length} labor task(s) listed above.`,
+        'Any work, materials, or scope changes not included in these line items will be quoted separately as a change order.',
+        'Client approval is required before work starts. Estimated timeline and scheduling are subject to material availability and site access.',
+        'Payment terms: 50% deposit to schedule, remaining balance due at project completion unless otherwise agreed in writing.',
+      ].join('\n\n');
+
       if (itemsToApply.length > 0) {
         onApplyLineItems(itemsToApply);
       }
-      onApplyNotes(suggestions.notes);
+      onApplyNotes(notes);
+      onApplyTerms(terms);
       toast({
         title: 'Suggestions Applied',
-        description: `${itemsToApply.length} line item(s) and notes have been added to your estimate.`,
+        description: `${itemsToApply.length} line item(s), notes, and terms were added to your estimate.`,
       });
     }
     setIsOpen(false);

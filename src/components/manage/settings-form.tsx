@@ -47,6 +47,13 @@ const fileToDataUrl = (file: File): Promise<string> => {
 }
 
 export function SettingsForm() {
+    const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+      const target = event.target as HTMLElement;
+      if (event.key === 'Enter' && target.tagName !== 'TEXTAREA') {
+        event.preventDefault();
+        (event.currentTarget as HTMLFormElement).requestSubmit();
+      }
+    };
   const { toast } = useToast();
   const router = useRouter();
   const { signOut } = useAuth();
@@ -151,7 +158,7 @@ export function SettingsForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-32">
+      <form onSubmit={form.handleSubmit(onSubmit)} onKeyDown={handleFormKeyDown} className="space-y-6 pb-32">
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Company Information</CardTitle>
