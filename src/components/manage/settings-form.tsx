@@ -21,7 +21,8 @@ import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon, Perce
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/supabase/provider"
+import { useAuth, useUser } from "@/supabase/provider"
+import { readCompanySettings, writeCompanySettings } from "@/lib/company-settings"
 
 const settingsSchema = z.object({
   companyName: z.string().min(2, "Company name is required."),
@@ -56,6 +57,7 @@ export function SettingsForm() {
     };
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useUser();
   const { signOut } = useAuth();
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   
@@ -76,20 +78,19 @@ export function SettingsForm() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-        const savedSettings = localStorage.getItem("companySettings");
-        if (savedSettings) {
-            const parsedSettings = JSON.parse(savedSettings);
-            form.reset(parsedSettings);
-            if (parsedSettings.companyLogo) {
-                setLogoPreview(parsedSettings.companyLogo);
-            }
+      const parsedSettings = readCompanySettings(user?.id);
+      if (Object.keys(parsedSettings).length > 0) {
+        form.reset(parsedSettings);
+        if (parsedSettings.companyLogo) {
+          setLogoPreview(parsedSettings.companyLogo);
+        }
         }
     }
-  }, [form]);
+    }, [form, user?.id]);
 
   async function onSubmit(data: SettingsFormValues) {
     try {
-        localStorage.setItem("companySettings", JSON.stringify(data));
+        writeCompanySettings(user?.id, data);
         toast({
         title: "Settings Saved",
         description: "Your information has been updated successfully.",
@@ -126,9 +127,8 @@ export function SettingsForm() {
   // Add a listener to update nav when settings change in another tab
   useEffect(() => {
     const handleStorageChange = () => {
-      const savedSettings = localStorage.getItem('companySettings');
-      if (savedSettings) {
-        const parsed = JSON.parse(savedSettings);
+      const parsed = readCompanySettings(user?.id);
+      if (Object.keys(parsed).length > 0) {
         form.reset(parsed);
          if (parsed.companyLogo) {
           setLogoPreview(parsed.companyLogo);
@@ -137,7 +137,7 @@ export function SettingsForm() {
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [form]);
+  }, [form, user?.id]);
 
   const handleLogout = async () => {
     try {

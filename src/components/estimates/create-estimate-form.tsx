@@ -46,6 +46,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Client, Document, ProjectPhoto } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
 import { Separator } from "../ui/separator"
+import { readCompanySettings, CompanySettings } from "@/lib/company-settings"
+import { useUser } from "@/supabase/provider"
 
 const lineItemSchema = z.object({
   id: z.string().optional(), // Keep id for existing items
@@ -74,11 +76,6 @@ const formSchema = z.object({
 
 type EstimateFormValues = z.infer<typeof formSchema>
 
-type CompanySettings = {
-  companyAddress?: string;
-  taxRate?: number;
-};
-
 type CreateEstimateFormProps = {
   documentToEdit?: Document;
 }
@@ -95,6 +92,7 @@ const fileToDataUrl = (file: File): Promise<string> => {
 export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) {
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useUser();
   const { addDocument, updateDocument, clients } = useDocuments();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings>({});
@@ -233,17 +231,14 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
   // Load company settings
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedSettings = localStorage.getItem("companySettings");
-      if (savedSettings) {
-        try {
-          const parsedSettings: CompanySettings = JSON.parse(savedSettings);
-          setCompanySettings(parsedSettings);
-        } catch (error) {
-          console.error('Error loading company settings:', error);
-        }
+      try {
+        const parsedSettings = readCompanySettings(user?.id);
+        setCompanySettings(parsedSettings);
+      } catch (error) {
+        console.error('Error loading company settings:', error);
       }
     }
-  }, []);
+  }, [user?.id]);
 
 
   const { fields, append, remove } = useFieldArray({
@@ -282,6 +277,14 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     console.log('📝 Mapped lineItems count:', mappedLineItems.length);
 
     const docData: Partial<Document> = {
+      companyName: companySettings.companyName || 'Your Company',
+      companyAddress: companySettings.companyAddress || '',
+      companyEmail: companySettings.companyEmail || '',
+      companyPhone: companySettings.companyPhone || '',
+      companyLogo: companySettings.companyLogo || undefined,
+      companyWebsite: companySettings.companyWebsite || undefined,
+      contractorName: companySettings.contractorName || undefined,
+      schedulingUrl: companySettings.schedulingUrl || undefined,
       clientName: client.name,
       clientEmail: client.email,
       clientAddress: client.address,

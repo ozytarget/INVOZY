@@ -5,6 +5,7 @@ import React, { useCallback, useMemo, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/supabase/client';
 import { useUser } from '@/supabase/provider';
+import { readCompanySettings } from '@/lib/company-settings';
 
 const DEMO_CLIENTS_STORAGE_KEY = 'demoClients';
 const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
@@ -463,7 +464,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
     console.log('Adding document for user:', user.id);
 
-    const companySettings = JSON.parse(localStorage.getItem('companySettings') || '{}');
+    const companySettings = readCompanySettings(user.id);
     const tableName = docData.type === 'Estimate' ? 'estimates' : 'invoices';
     const docCount = documents.filter(d => d.type === docData.type).length;
 

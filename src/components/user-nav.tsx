@@ -18,6 +18,7 @@ import { User as UserIcon, Settings } from "lucide-react";
 import { useAuth, useUser } from "@/supabase/provider";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { readCompanySettings } from "@/lib/company-settings";
 
 type UserSettings = {
     contractorName: string;
@@ -34,9 +35,9 @@ export function UserNav() {
 
   const updateSettingsFromStorage = () => {
     if (typeof window !== 'undefined') {
-        const savedSettings = localStorage.getItem("companySettings");
-        if (savedSettings) {
-            setSettings(JSON.parse(savedSettings));
+        const parsed = readCompanySettings(user?.id) as UserSettings;
+        if (Object.keys(parsed).length > 0) {
+          setSettings(parsed);
         }
     }
   };
@@ -50,7 +51,7 @@ export function UserNav() {
     return () => {
       window.removeEventListener('storage', updateSettingsFromStorage);
     };
-  }, []);
+  }, [user?.id]);
 
   const handleLogout = async () => {
     try {

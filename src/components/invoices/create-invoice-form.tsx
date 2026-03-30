@@ -46,6 +46,8 @@ import { Client, Document } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
 import { AiSuggestionsDialog } from "../estimates/ai-suggestions-dialog"
 import { Separator } from "../ui/separator"
+import { readCompanySettings, CompanySettings } from "@/lib/company-settings"
+import { useUser } from "@/supabase/provider"
 
 const lineItemSchema = z.object({
   id: z.string().optional(),
@@ -77,11 +79,6 @@ const formSchema = z.object({
 
 type InvoiceFormValues = z.infer<typeof formSchema>
 
-type CompanySettings = {
-  companyAddress?: string;
-  taxRate?: number;
-};
-
 type CreateInvoiceFormProps = {
   documentToEdit?: Document;
 }
@@ -98,6 +95,7 @@ const fileToDataUrl = (file: File): Promise<string> => {
 export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useUser();
   const { addDocument, updateDocument, clients } = useDocuments();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings>({});
@@ -246,17 +244,14 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
   // Load company settings
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedSettings = localStorage.getItem("companySettings");
-      if (savedSettings) {
-        try {
-          const parsedSettings: CompanySettings = JSON.parse(savedSettings);
-          setCompanySettings(parsedSettings);
-        } catch (error) {
-          console.error('Error loading company settings:', error);
-        }
+      try {
+        const parsedSettings = readCompanySettings(user?.id);
+        setCompanySettings(parsedSettings);
+      } catch (error) {
+        console.error('Error loading company settings:', error);
       }
     }
-  }, []);
+  }, [user?.id]);
 
 
   const { fields, append, remove } = useFieldArray({
@@ -295,6 +290,14 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     console.log('📝 Invoice mapped lineItems count:', mappedLineItems.length);
 
     const docData: Partial<Document> = {
+      companyName: companySettings.companyName || 'Your Company',
+      companyAddress: companySettings.companyAddress || '',
+      companyEmail: companySettings.companyEmail || '',
+      companyPhone: companySettings.companyPhone || '',
+      companyLogo: companySettings.companyLogo || undefined,
+      companyWebsite: companySettings.companyWebsite || undefined,
+      contractorName: companySettings.contractorName || undefined,
+      schedulingUrl: companySettings.schedulingUrl || undefined,
       clientName: client.name,
       clientEmail: client.email,
       clientAddress: client.address,
