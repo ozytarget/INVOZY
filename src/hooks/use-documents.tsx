@@ -4,6 +4,7 @@ import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/t
 import React, { useCallback, useMemo, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/supabase/client';
+import { isSupabaseConfigured } from '@/supabase/client';
 import { useUser } from '@/supabase/provider';
 import { readCompanySettings } from '@/lib/company-settings';
 
@@ -189,7 +190,7 @@ const DocumentContext = React.createContext<DocumentContextType | undefined>(und
 
 export const DocumentProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, isUserLoading } = useUser();
-  const isDemoMode = true;
+  const isDemoMode = !isSupabaseConfigured;
   const [documents, setDocuments] = useState<Document[]>([]);
   const [storedClients, setStoredClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -21,6 +21,7 @@ import { RecordPaymentDialog } from "./invoices/record-payment-dialog";
 import { cn } from "@/lib/utils";
 import { SendEmailDialog } from "./emails/send-email-dialog";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "./ui/carousel";
+import { isSupabaseConfigured } from "@/supabase/client";
 
 type DocumentViewProps = {
   document: Document;
@@ -191,7 +192,30 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     const signature = sigCanvas.current!.toDataURL('image/png');
 
     if (isPublic) {
-      await handlePublicSign(signature);
+      if (isSupabaseConfigured) {
+        const response = await fetch('/api/public/sign', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            shareId: documentData.share_token,
+            signature,
+          }),
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          toast({
+            variant: 'destructive',
+            title: 'Signature Error',
+            description: payload?.error || 'Could not save signature.',
+          });
+          return;
+        }
+      } else {
+        await handlePublicSign(signature);
+      }
 
       toast({
         title: `${documentData.type} Approved!`,

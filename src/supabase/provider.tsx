@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import { supabase, isSupabaseConfigured } from '@/supabase/client';
 
 type LocalUser = {
   id: string;
@@ -38,20 +39,64 @@ export function SupabaseClientProvider({ children }: SupabaseClientProviderProps
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const rawSession = localStorage.getItem(SESSION_STORAGE_KEY);
-      if (rawSession) {
-        const sessionUser = JSON.parse(rawSession) as LocalUser;
-        setUser(sessionUser);
+    if (!isSupabaseConfigured) {
+      try {
+        const rawSession = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (rawSession) {
+          const sessionUser = JSON.parse(rawSession) as LocalUser;
+          setUser(sessionUser);
+        }
+      } catch (error) {
+        console.error('Error loading local session:', error);
+      } finally {
+        setIsUserLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading local session:', error);
-    } finally {
-      setIsUserLoading(false);
+      return;
     }
+
+    let isMounted = true;
+
+    const initializeSupabaseSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Error loading Supabase session:', error.message);
+      }
+
+      if (!isMounted) return;
+
+      const sessionUser = data.session?.user;
+      setUser(sessionUser ? { id: sessionUser.id, email: sessionUser.email || '' } : null);
+      setIsUserLoading(false);
+    };
+
+    initializeSupabaseSession();
+
+    const { data: authSubscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user;
+      setUser(currentUser ? { id: currentUser.id, email: currentUser.email || '' } : null);
+      setIsUserLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+      authSubscription.subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Invalid login credentials');
+      }
+
+      return;
+    }
+
     const normalizedEmail = email.trim().toLowerCase();
     const rawUsers = localStorage.getItem(USERS_STORAGE_KEY);
     const users = rawUsers ? (JSON.parse(rawUsers) as StoredUser[]) : [];
@@ -67,6 +112,19 @@ export function SupabaseClientProvider({ children }: SupabaseClientProviderProps
   };
 
   const signUp = async (email: string, password: string) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) {
+        throw new Error(error.message || 'User already registered');
+      }
+
+      return;
+    }
+
     const normalizedEmail = email.trim().toLowerCase();
     const rawUsers = localStorage.getItem(USERS_STORAGE_KEY);
     const users = rawUsers ? (JSON.parse(rawUsers) as StoredUser[]) : [];
@@ -90,6 +148,15 @@ export function SupabaseClientProvider({ children }: SupabaseClientProviderProps
   };
 
   const signOut = async () => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw new Error(error.message || 'Logout failed');
+      }
+      setUser(null);
+      return;
+    }
+
     localStorage.removeItem(SESSION_STORAGE_KEY);
     setUser(null);
   };
