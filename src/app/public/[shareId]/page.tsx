@@ -9,6 +9,33 @@ import { useEffect, useState } from 'react';
 const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
 const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
 
+const getAllLocalDocuments = (): Document[] => {
+  if (typeof window === 'undefined') return [];
+
+  const allDocs: Document[] = [];
+  const seen = new Set<string>();
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (key === DEMO_DOCUMENTS_STORAGE_KEY || key.startsWith(`${DEMO_DOCUMENTS_STORAGE_KEY}:`)) {
+      try {
+        const raw = localStorage.getItem(key);
+        const docs = raw ? (JSON.parse(raw) as Document[]) : [];
+        docs.forEach((doc) => {
+          if (!doc?.id || seen.has(doc.id)) return;
+          seen.add(doc.id);
+          allDocs.push(doc);
+        });
+      } catch {
+        // Ignore malformed local storage entries.
+      }
+    }
+  }
+
+  return allDocs;
+};
+
 function logPublicViewNotification(document: Document) {
   if (typeof window === 'undefined') return;
 
@@ -60,8 +87,7 @@ export default function PublicDocumentPage() {
     const loadDocument = async () => {
       try {
         if (typeof window !== 'undefined') {
-          const rawDocs = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
-          const demoDocs = rawDocs ? (JSON.parse(rawDocs) as Document[]) : [];
+          const demoDocs = getAllLocalDocuments();
           const demoDoc = demoDocs.find(doc => doc.share_token === shareId);
 
           if (demoDoc) {

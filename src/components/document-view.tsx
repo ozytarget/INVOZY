@@ -29,6 +29,42 @@ type DocumentViewProps = {
 
 const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
 
+const getDocumentsStorageKey = (userId?: string | null) =>
+  userId ? `${DEMO_DOCUMENTS_STORAGE_KEY}:${userId}` : `${DEMO_DOCUMENTS_STORAGE_KEY}:anonymous`;
+
+const loadStoredDocuments = (userId?: string | null): Document[] => {
+  if (typeof window === 'undefined') return [];
+  const key = getDocumentsStorageKey(userId);
+  const raw = localStorage.getItem(key);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as Document[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  if (userId) {
+    const legacyRaw = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
+    if (!legacyRaw) return [];
+    try {
+      const legacyParsed = JSON.parse(legacyRaw) as Document[];
+      return Array.isArray(legacyParsed) ? legacyParsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+};
+
+const persistStoredDocuments = (documents: Document[], userId?: string | null) => {
+  if (typeof window === 'undefined') return;
+  const key = getDocumentsStorageKey(userId);
+  localStorage.setItem(key, JSON.stringify(documents));
+};
+
 const generateShareToken = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
@@ -86,6 +122,63 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     sigCanvas.current?.clear();
   }
 
+  const handlePublicSign = async (signature: string): Promise<string | undefined> => {
+    const ownerId = documentData.userId;
+    const ownerDocs = loadStoredDocuments(ownerId);
+    const originalDoc = ownerDocs.find(doc => doc.id === documentData.id);
+
+    if (!originalDoc) {
+      return undefined;
+    }
+
+    if (originalDoc.type !== 'Estimate') {
+      const updatedDocs = ownerDocs.map(doc =>
+        doc.id === originalDoc.id
+          ? { ...doc, signature, isSigned: true, status: 'Sent' as Document['status'] }
+          : doc
+      );
+      persistStoredDocuments(updatedDocs, ownerId);
+      return undefined;
+    }
+
+    const invoiceCount = ownerDocs.filter(doc => doc.type === 'Invoice').length;
+    const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
+    const newInvoiceId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `demo-invoice-${Date.now()}`;
+
+    const approvedEstimate: Document = {
+      ...originalDoc,
+      signature,
+      isSigned: true,
+      status: 'Approved',
+    };
+
+    const newInvoice: Document = {
+      ...originalDoc,
+      id: newInvoiceId,
+      userId: ownerId || originalDoc.userId,
+      share_token: generateShareToken(),
+      type: 'Invoice',
+      status: 'Sent',
+      signature,
+      isSigned: true,
+      issuedDate: new Date().toISOString().slice(0, 10),
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      invoiceNumber: newInvoiceNumber,
+      estimateNumber: undefined,
+      search_field: `${originalDoc.clientName} ${originalDoc.projectTitle} ${newInvoiceNumber}`.toLowerCase(),
+    };
+
+    const updatedDocs = [
+      ...ownerDocs.map(doc => (doc.id === originalDoc.id ? approvedEstimate : doc)),
+      newInvoice,
+    ].sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
+
+    persistStoredDocuments(updatedDocs, ownerId);
+    return newInvoiceId;
+  };
+
   const handleSignAndApprove = async () => {
     if (sigCanvas.current?.isEmpty()) {
       toast({
@@ -96,6 +189,19 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
       return;
     }
     const signature = sigCanvas.current!.toDataURL('image/png');
+
+    if (isPublic) {
+      await handlePublicSign(signature);
+
+      toast({
+        title: `${documentData.type} Approved!`,
+        description: `Thank you for your business. ${documentData.type === 'Estimate' ? 'A new invoice has been generated.' : ''}`,
+      });
+
+      window.location.reload();
+      return;
+    }
+
     await signAndProcessDocument(documentData.id, signature);
 
     toast({
@@ -546,6 +652,3 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     </div>
   );
 }
-
-
-
