@@ -82,8 +82,9 @@ export function LoginForm() {
       await signUp(data.email, data.password);
       toast({
         title: 'Success',
-        description: 'Account created! Please check your email to confirm.',
+        description: 'Account created successfully.',
       });
+      router.push('/dashboard');
     } catch (error) {
       handleAuthError(error);
     } finally {

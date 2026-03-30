@@ -2,8 +2,8 @@
 "use client"
 
 import * as React from "react"
-import { FileText, User, Users, CreditCard, Settings, Search, Bell } from "lucide-react"
-import { usePathname } from "next/navigation"
+import { FileText, User, CreditCard, Settings, Search, Bell, Loader2 } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { UserNav } from "@/components/user-nav"
 import { cn } from "@/lib/utils"
@@ -12,6 +12,7 @@ import { SearchDialog } from "@/components/search-dialog"
 import { NotificationsSheet } from "@/components/notifications-sheet"
 import type { Notification } from "@/lib/types"
 import { Logo } from "@/components/logo"
+import { useUser } from "@/supabase/provider"
 
 const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
 
@@ -21,7 +22,15 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { user, isUserLoading } = useUser()
   const [unreadNotifications, setUnreadNotifications] = React.useState<Notification[]>([]);
+
+  React.useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace('/');
+    }
+  }, [isUserLoading, user, router]);
 
   React.useEffect(() => {
     const loadNotifications = () => {
@@ -56,6 +65,14 @@ export default function DashboardLayout({
     const currentNavItem = navItems.find(item => pathname.startsWith(item.href));
     if (currentNavItem) return currentNavItem.label;
     return "Dashboard";
+  }
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
   
   return (
