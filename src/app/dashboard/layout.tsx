@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { SearchDialog } from "@/components/search-dialog"
 import { NotificationsSheet } from "@/components/notifications-sheet"
 import type { Notification } from "@/lib/types"
+import { Logo } from "@/components/logo"
 
 const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
 
@@ -60,9 +61,12 @@ export default function DashboardLayout({
   return (
     <div className="flex flex-col h-screen bg-background">
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 px-4 sm:px-6" style={{ backgroundColor: 'hsl(var(--nav-background))', color: 'hsl(var(--nav-foreground))' }}>
-        <h1 className="text-xl font-bold">
-          {getTitle()}
-        </h1>
+        <div className="flex items-center gap-4">
+          <Logo />
+          <h1 className="text-xl font-bold">
+            {getTitle()}
+          </h1>
+        </div>
         <div className="flex items-center gap-2">
           <SearchDialog>
             <Button variant="ghost" size="icon" className="text-current hover:bg-white/10 hover:text-white">

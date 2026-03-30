@@ -9,6 +9,13 @@ export const metadata: Metadata = {
   title: 'invozzy',
   description: 'Create estimates and invoices with the power of AI.',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/icons/icon-192x192.png',
+  },
 };
 
 export default function RootLayout({
