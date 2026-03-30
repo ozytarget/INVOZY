@@ -4,7 +4,6 @@
 import { DocumentView } from "@/components/document-view";
 import { notFound, useParams } from "next/navigation";
 import type { Document } from "@/lib/types";
-import { supabase } from "@/supabase/client";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -24,83 +23,17 @@ function EstimateViewContent() {
 
     const fetchEstimate = async () => {
       try {
-        const { data, error: fetchError } = await supabase
-          .from('estimates')
-          .select('*')
-          .eq('id', id)
-          .single() as { data: any; error: any };
-
-        if (fetchError || !data) {
-          if (typeof window !== 'undefined') {
-            const rawDocuments = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
-            if (rawDocuments) {
-              try {
-                const demoDocuments = JSON.parse(rawDocuments) as Document[];
-                const demoEstimate = demoDocuments.find(doc => doc.id === id && doc.type === 'Estimate');
-                if (demoEstimate) {
-                  setDocument(demoEstimate);
-                  return;
-                }
-              } catch (error) {
-                console.error('Error reading demo estimate documents:', error);
-              }
-            }
-          }
-
-          notFound();
-          return;
-        }
-
-        // ✅ Parse lineItems defensively
-        let lineItems = [];
-        if (data?.line_items) {
-          if (Array.isArray(data.line_items)) {
-            lineItems = data.line_items;
-          } else if (typeof data.line_items === 'string') {
-            try {
-              lineItems = JSON.parse(data.line_items);
-            } catch (e) {
-              console.error('Error parsing line_items:', e);
-              lineItems = [];
-            }
+        if (typeof window !== 'undefined') {
+          const rawDocuments = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
+          const demoDocuments = rawDocuments ? (JSON.parse(rawDocuments) as Document[]) : [];
+          const demoEstimate = demoDocuments.find(doc => doc.id === id && doc.type === 'Estimate');
+          if (demoEstimate) {
+            setDocument(demoEstimate);
+            return;
           }
         }
 
-        const transformedDoc: Document = {
-          id: data.id || '',
-          userId: data.user_id || '',
-          type: 'Estimate',
-          status: data.status || 'Draft',
-          companyName: data.company_name || '',
-          companyAddress: data.company_address || '',
-          companyEmail: data.company_email || '',
-          companyPhone: data.company_phone || '',
-          companyLogo: data.company_logo,
-          companyWebsite: data.company_website,
-          contractorName: data.contractor_name,
-          schedulingUrl: data.scheduling_url,
-          clientName: data.client_name,
-          clientEmail: data.client_email,
-          clientAddress: data.client_address || '',
-          clientPhone: data.client_phone,
-          projectTitle: data.project_title,
-          issuedDate: data.issued_date,
-          dueDate: data.due_date,
-          amount: data.amount,
-          taxRate: data.tax_rate,
-          lineItems: lineItems,
-          notes: data.notes || '',
-          terms: data.terms || '',
-          taxId: data.tax_id,
-          signature: data.signature,
-          isSigned: data.is_signed || false,
-          payments: [],
-          estimateNumber: data.estimate_number,
-          projectPhotos: data.project_photos || [],
-          search_field: data.search_field || '',
-        };
-
-        setDocument(transformedDoc);
+        notFound();
       } finally {
         setIsLoading(false);
       }

@@ -4,7 +4,6 @@
 
 import { notFound, useParams } from "next/navigation";
 import type { Document } from "@/lib/types";
-import { supabase } from "@/supabase/client";
 import { ClipboardList, HardHat, Wrench, Loader2, User, Home, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,8 @@ import { WorkOrderOutput } from "@/ai/flows/generate-work-order";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+
+const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
 
 function WorkOrderDisplay({ workOrder, document: documentData }: { workOrder: WorkOrderOutput, document: Document }) {
     return (
@@ -92,52 +93,21 @@ function WorkOrderPageContent() {
 
     const fetchInvoice = async () => {
       try {
-        const { data, error: fetchError } = await supabase
-          .from('invoices')
-          .select('*')
-          .eq('id', id)
-          .single() as { data: any; error: any };
-
-        if (fetchError || !data) {
+        if (typeof window === 'undefined') {
           notFound();
           return;
         }
 
-        const transformedDoc: Document = {
-          id: data.id || '',
-          userId: data.user_id || '',
-          type: 'Invoice',
-          status: data.status || 'Draft',
-          companyName: data.company_name || '',
-          companyAddress: data.company_address || '',
-          companyEmail: data.company_email || '',
-          companyPhone: data.company_phone || '',
-          companyLogo: data.company_logo,
-          companyWebsite: data.company_website,
-          contractorName: data.contractor_name,
-          schedulingUrl: data.scheduling_url,
-          clientName: data.client_name,
-          clientEmail: data.client_email,
-          clientAddress: data.client_address || '',
-          clientPhone: data.client_phone,
-          projectTitle: data.project_title,
-          issuedDate: data.issued_date,
-          dueDate: data.due_date,
-          amount: data.amount,
-          taxRate: data.tax_rate,
-          lineItems: [],
-          notes: data.notes || '',
-          terms: data.terms || '',
-          taxId: data.tax_id,
-          signature: data.signature,
-          isSigned: data.is_signed || false,
-          payments: [],
-          invoiceNumber: data.invoice_number,
-          projectPhotos: data.project_photos || [],
-          search_field: data.search_field || '',
-        };
+        const raw = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
+        const documents = raw ? (JSON.parse(raw) as Document[]) : [];
+        const doc = documents.find((d) => d.id === id && d.type === 'Invoice') || null;
 
-        setDocumentData(transformedDoc);
+        if (!doc) {
+          notFound();
+          return;
+        }
+
+        setDocumentData(doc);
       } finally {
         setIsLoading(false);
       }

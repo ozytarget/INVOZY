@@ -202,13 +202,14 @@ const DocumentContext = React.createContext<DocumentContextType | undefined>(und
 
 export const DocumentProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, isUserLoading } = useUser();
+  const isDemoMode = true;
   const [documents, setDocuments] = useState<Document[]>([]);
   const [storedClients, setStoredClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load documents and clients from Supabase
   const loadData = useCallback(async () => {
-    if (!user) {
+    if (isDemoMode || !user) {
       const demoData = loadDemoData();
       setStoredClients(demoData.clients);
       setDocuments(demoData.documents);
@@ -417,7 +418,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user]);
 
   const addDocument = useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber' | 'search_field'>): Promise<string | undefined> => {
-    if (!user) {
+    if (isDemoMode || !user) {
       const currentDocs = typeof window !== 'undefined'
         ? (() => {
             try {
@@ -547,7 +548,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, loadData]);
 
   const updateDocument = useCallback(async (docId: string, docData: Partial<Document>) => {
-    if (!user) {
+    if (isDemoMode || !user) {
       const originalDoc = documents.find(d => d.id === docId);
       if (!originalDoc) return;
 
@@ -646,7 +647,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, documents, loadData]);
 
   const deleteDocument = useCallback(async (docId: string) => {
-    if (!user) {
+    if (isDemoMode || !user) {
       const updatedDocs = documents.filter(doc => doc.id !== docId);
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
@@ -685,7 +686,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [documents, addDocument]);
 
   const addClient = useCallback(async (clientData: Omit<Client, 'totalBilled' | 'documentCount'>) => {
-    if (!user) {
+    if (isDemoMode || !user) {
       const normalizedEmail = clientData.email.toLowerCase();
       const alreadyExists = storedClients.some(c => c.email.toLowerCase() === normalizedEmail);
 
@@ -752,7 +753,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     const originalDoc = documents.find(d => d.id === docId);
     if (!originalDoc) return;
 
-    if (!user) {
+    if (isDemoMode || !user) {
       if (originalDoc.type !== 'Estimate') {
         const updatedDocs = documents.map(doc =>
           doc.id === docId
@@ -916,7 +917,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       date: format(new Date(), "yyyy-MM-dd"),
     };
 
-    if (!user) {
+    if (isDemoMode || !user) {
       const updatedDocs = documents.map(doc => {
         if (doc.id !== invoiceId) return doc;
 
@@ -966,7 +967,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, documents, loadData]);
 
   const revertInvoiceToDraft = useCallback(async (invoiceId: string) => {
-    if (!user) {
+    if (isDemoMode || !user) {
       const updatedDocs = documents.map(doc => {
         if (doc.id !== invoiceId || doc.type !== 'Invoice') return doc;
         return {
@@ -1005,7 +1006,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, loadData, documents]);
 
   const revertLastPayment = useCallback(async (invoiceId: string) => {
-    if (!user) {
+    if (isDemoMode || !user) {
       const invoice = documents.find(d => d.id === invoiceId && d.type === 'Invoice');
       if (!invoice) return;
 
@@ -1091,7 +1092,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, documents, loadData]);
 
   const sendDocument = useCallback(async (docId: string, type: DocumentType) => {
-    if (!user) {
+    if (isDemoMode || !user) {
       const updatedDocs = documents.map(doc => {
         if (doc.id !== docId || doc.type !== type) return doc;
         if (doc.status !== 'Draft') return doc;

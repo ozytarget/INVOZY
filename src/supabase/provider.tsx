@@ -1,12 +1,24 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { User } from '@supabase/supabase-js';
-import { getSupabaseConfigError, isSupabaseConfigured, supabase } from './client';
+
+type LocalUser = {
+  id: string;
+  email: string;
+};
+
+type StoredUser = {
+  id: string;
+  email: string;
+  password: string;
+};
+
+const USERS_STORAGE_KEY = 'appUsers';
+const SESSION_STORAGE_KEY = 'appSessionUser';
 
 // Define the shape of the Supabase context state
 export interface SupabaseContextState {
-  user: User | null;
+  user: LocalUser | null;
   isUserLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
@@ -22,69 +34,64 @@ interface SupabaseClientProviderProps {
 }
 
 export function SupabaseClientProvider({ children }: SupabaseClientProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<LocalUser | null>(null);
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
+    try {
+      const rawSession = localStorage.getItem(SESSION_STORAGE_KEY);
+      if (rawSession) {
+        const sessionUser = JSON.parse(rawSession) as LocalUser;
+        setUser(sessionUser);
+      }
+    } catch (error) {
+      console.error('Error loading local session:', error);
+    } finally {
       setIsUserLoading(false);
-      return;
     }
-
-    // Check if user is already logged in
-    const checkUser = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        setUser(user);
-      } catch (error) {
-        console.error('Error checking user:', error);
-      } finally {
-        setIsUserLoading(false);
-      }
-    };
-
-    checkUser();
-
-    // Subscribe to auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      // ✅ Verificar que listener existe ANTES de desusc ribirse
-      if (authListener?.subscription) {
-        authListener.subscription.unsubscribe();
-      }
-    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const configError = getSupabaseConfigError();
-    if (configError) throw new Error(configError);
+    const normalizedEmail = email.trim().toLowerCase();
+    const rawUsers = localStorage.getItem(USERS_STORAGE_KEY);
+    const users = rawUsers ? (JSON.parse(rawUsers) as StoredUser[]) : [];
+    const existingUser = users.find(storedUser => storedUser.email.toLowerCase() === normalizedEmail);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
+    if (!existingUser || existingUser.password !== password) {
+      throw new Error('Invalid login credentials');
+    }
+
+    const sessionUser: LocalUser = { id: existingUser.id, email: existingUser.email };
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionUser));
+    setUser(sessionUser);
   };
 
   const signUp = async (email: string, password: string) => {
-    const configError = getSupabaseConfigError();
-    if (configError) throw new Error(configError);
+    const normalizedEmail = email.trim().toLowerCase();
+    const rawUsers = localStorage.getItem(USERS_STORAGE_KEY);
+    const users = rawUsers ? (JSON.parse(rawUsers) as StoredUser[]) : [];
+    const alreadyExists = users.some(storedUser => storedUser.email.toLowerCase() === normalizedEmail);
 
-    const { error } = await supabase.auth.signUp({
-      email,
+    if (alreadyExists) {
+      throw new Error('User already registered');
+    }
+
+    const newUser: StoredUser = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `user-${Date.now()}`,
+      email: normalizedEmail,
       password,
-    });
-    if (error) throw error;
+    };
+
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify([...users, newUser]));
+
+    const sessionUser: LocalUser = { id: newUser.id, email: newUser.email };
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionUser));
+    setUser(sessionUser);
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    setUser(null);
   };
 
   const value: SupabaseContextState = {

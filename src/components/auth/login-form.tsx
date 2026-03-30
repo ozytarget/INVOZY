@@ -46,16 +46,7 @@ export function LoginForm() {
     let title = 'An error occurred';
     let description = errorMessage || 'Unknown error';
 
-    if (errorMessage.includes('Missing NEXT_PUBLIC_SUPABASE_URL')) {
-      title = 'Supabase Not Configured';
-      description = 'Add NEXT_PUBLIC_SUPABASE_URL to .env.local and restart the app.';
-    } else if (errorMessage.includes('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY')) {
-      title = 'Supabase Not Configured';
-      description = 'Add NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local and restart the app.';
-    } else if (errorMessage.includes('Failed to fetch')) {
-      title = 'Supabase Connection Error';
-      description = 'Could not reach Supabase. Verify URL/ANON key and your internet/DNS connection.';
-    } else if (errorMessage.includes('Invalid login credentials')) {
+    if (errorMessage.includes('Invalid login credentials')) {
       title = 'Invalid Credentials';
       description = 'Email or password is incorrect.';
     } else if (errorMessage.includes('User already registered')) {
