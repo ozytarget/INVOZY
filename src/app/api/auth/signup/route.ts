@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { dbQuery } from '@/lib/server-db';
 import { createSession } from '@/lib/server-auth';
+import { createOnboardingSeed } from '@/lib/onboarding-seed';
 
 export async function POST(request: Request) {
   try {
@@ -30,9 +31,20 @@ export async function POST(request: Request) {
 
     const user = inserted[0];
 
+    const seed = createOnboardingSeed(user.id);
+
     await dbQuery(
-      'INSERT INTO app_state (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
-      [user.id]
+      `
+        INSERT INTO app_state (user_id, clients_json, documents_json, company_settings_json, updated_at)
+        VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, now())
+        ON CONFLICT (user_id) DO NOTHING
+      `,
+      [
+        user.id,
+        JSON.stringify(seed.clients),
+        JSON.stringify(seed.documents),
+        JSON.stringify(seed.companySettings),
+      ]
     );
 
     await createSession(user.id);

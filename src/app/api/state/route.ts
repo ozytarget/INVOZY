@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { dbQuery } from '@/lib/server-db';
 import { getAuthenticatedUser } from '@/lib/server-auth';
+import { createOnboardingSeed } from '@/lib/onboarding-seed';
 
 export async function GET() {
   try {
@@ -20,8 +21,21 @@ export async function GET() {
     );
 
     if (rows.length === 0) {
-      await dbQuery('INSERT INTO app_state (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING', [user.id]);
-      return NextResponse.json({ clients: [], documents: [], companySettings: {} });
+      const seed = createOnboardingSeed(user.id);
+      await dbQuery(
+        `
+          INSERT INTO app_state (user_id, clients_json, documents_json, company_settings_json, updated_at)
+          VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, now())
+          ON CONFLICT (user_id) DO NOTHING
+        `,
+        [
+          user.id,
+          JSON.stringify(seed.clients),
+          JSON.stringify(seed.documents),
+          JSON.stringify(seed.companySettings),
+        ]
+      );
+      return NextResponse.json(seed);
     }
 
     const row = rows[0];
