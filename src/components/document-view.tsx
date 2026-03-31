@@ -380,9 +380,39 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
       return;
     }
 
-    const publicUrl = new URL(window.location.href);
-    publicUrl.searchParams.delete('internal');
-    const message = `View your ${documentData.type.toLowerCase()}: ${documentData.projectTitle}\n${publicUrl.toString()}`;
+    let shareToken = documentData.share_token;
+
+    // Generate token if needed (same as handleShare)
+    if (!shareToken && documentData.userId === 'demo-user' && typeof window !== 'undefined') {
+      const rawDocs = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
+      const demoDocs = rawDocs ? (JSON.parse(rawDocs) as Document[]) : [];
+      const newToken = generateShareToken();
+
+      const updatedDocs = demoDocs.map(doc => {
+        if (doc.id !== documentData.id) return doc;
+        return { ...doc, share_token: newToken };
+      });
+
+      localStorage.setItem(DEMO_DOCUMENTS_STORAGE_KEY, JSON.stringify(updatedDocs));
+      shareToken = newToken;
+    }
+
+    if (!shareToken) {
+      toast({
+        variant: "destructive",
+        title: "Share Link Unavailable",
+        description: "This document has no public token yet. Save and try again.",
+      });
+      return;
+    }
+
+    // Use same URL format as handleShare
+    const appUrl = typeof window !== 'undefined'
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
+    const publicUrl = `${appUrl}/public/${shareToken}`;
+
+    const message = `View your ${documentData.type.toLowerCase()}: ${documentData.projectTitle}\n${publicUrl}`;
     const smsUrl = `sms:${documentData.clientPhone}?body=${encodeURIComponent(message)}`;
 
     window.open(smsUrl, '_blank');
