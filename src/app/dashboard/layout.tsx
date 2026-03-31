@@ -42,21 +42,30 @@ export default function DashboardLayout({
     }
   }, [user, pathname, router]);
 
-  React.useEffect(() => {
-    const loadNotifications = () => {
-      if (typeof window === 'undefined') return;
-      const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-      const parsed = raw ? (JSON.parse(raw) as Notification[]) : [];
-      setUnreadNotifications(parsed.filter(notification => !notification.isRead));
-    };
-
-    loadNotifications();
-    window.addEventListener('storage', loadNotifications);
-
-    return () => {
-      window.removeEventListener('storage', loadNotifications);
-    };
+  const loadUnreadCount = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.notifications)) {
+          setUnreadNotifications(data.notifications.filter((n: Notification) => !n.isRead));
+          return;
+        }
+      }
+    } catch {}
+    // Fallback: localStorage
+    if (typeof window === 'undefined') return;
+    const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Notification[]) : [];
+    setUnreadNotifications(parsed.filter(n => !n.isRead));
   }, []);
+
+  React.useEffect(() => {
+    if (!user) return;
+    loadUnreadCount();
+    const interval = setInterval(loadUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [user, loadUnreadCount]);
 
   const navItems = [
     { href: "/dashboard/estimates", icon: <FileText />, label: "Estimates" },

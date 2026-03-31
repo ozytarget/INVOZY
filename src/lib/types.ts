@@ -78,6 +78,7 @@ export type Client = {
 export type Notification = {
   id: string;
   userId: string;
+  event?: 'viewed' | 'signed';
   message: string;
   documentId: string;
   documentType: 'Invoice' | 'Estimate';
