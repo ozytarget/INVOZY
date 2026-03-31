@@ -105,20 +105,30 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     contractorName?: string; schedulingUrl?: string; taxRate?: number;
   }>({});
 
-  // For internal views, load live company settings from DB so they always reflect current data
+  // Load live company settings from DB (for internal views, or owner's settings for public views)
+  // Poll every 60s to pick up company changes in real-time
   useEffect(() => {
-    if (isPublic) return;
     const load = async () => {
       try {
-        const res = await fetch('/api/company-settings');
+        let endpoint = '/api/company-settings'; // Internal view (authenticated)
+        
+        if (isPublic && documentData.share_token) {
+          // Public view: load owner's settings
+          endpoint = `/api/public/company-settings?shareId=${encodeURIComponent(documentData.share_token)}`;
+        }
+        
+        const res = await fetch(endpoint);
         if (res.ok) {
           const data = await res.json();
           if (data) setLiveSettings(data);
         }
       } catch {}
     };
+    
     load();
-  }, [isPublic]);
+    const interval = setInterval(load, 60000); // Poll every 60s
+    return () => clearInterval(interval);
+  }, [isPublic, documentData.share_token]);
 
   // Merge: live settings take priority for internal views; doc data (already merged server-side) for public
   const co = {
