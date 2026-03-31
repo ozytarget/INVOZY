@@ -50,8 +50,12 @@ const ensureSchema = async () => {
         clients_json JSONB NOT NULL DEFAULT '[]'::jsonb,
         documents_json JSONB NOT NULL DEFAULT '[]'::jsonb,
         company_settings_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+        notifications_json JSONB NOT NULL DEFAULT '[]'::jsonb,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
+    `);
+    await db.query(`
+      ALTER TABLE app_state ADD COLUMN IF NOT EXISTS notifications_json JSONB NOT NULL DEFAULT '[]'::jsonb;
     `);
   })();
 

@@ -1,13 +1,12 @@
 'use client';
 
 import { DocumentView } from '@/components/document-view';
-import type { Document, Notification } from '@/lib/types';
+import type { Document } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
-const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
 
 const getAllLocalDocuments = (): Document[] => {
   if (typeof window === 'undefined') return [];
@@ -37,39 +36,14 @@ const getAllLocalDocuments = (): Document[] => {
 };
 
 function logPublicViewNotification(document: Document) {
-  if (typeof window === 'undefined') return;
-
-  const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-  const notifications = raw ? (JSON.parse(raw) as Notification[]) : [];
-
-  const now = Date.now();
-  const lastForDoc = notifications.find(
-    n => n.documentId === document.id && n.documentType === document.type
-  );
-
-  // Avoid notification spam when the same public page auto-refreshes.
-  if (lastForDoc && now - new Date(lastForDoc.timestamp).getTime() < 30000) {
-    return;
+  // Fire-and-forget: notify the document owner server-side
+  if (document.share_token) {
+    fetch('/api/public/view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shareId: document.share_token }),
+    }).catch(() => {});
   }
-
-  const docNumber = document.type === 'Estimate' ? document.estimateNumber : document.invoiceNumber;
-
-  const newNotification: Notification = {
-    id: typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `notif-${Date.now()}`,
-    userId: document.userId || 'demo-user',
-    message: `Public view opened: ${document.type} ${docNumber || document.id}`,
-    documentId: document.id,
-    documentType: document.type,
-    timestamp: new Date().toISOString(),
-    isRead: false,
-  };
-
-  localStorage.setItem(
-    NOTIFICATIONS_STORAGE_KEY,
-    JSON.stringify([newNotification, ...notifications])
-  );
 }
 
 export default function PublicDocumentPage() {

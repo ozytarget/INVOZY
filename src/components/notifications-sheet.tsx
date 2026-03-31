@@ -24,7 +24,22 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    const loadNotifications = () => {
+    const loadNotifications = async () => {
+      try {
+        const res = await fetch('/api/notifications');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.notifications)) {
+            const sorted = [...data.notifications].sort(
+              (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+            setNotifications(sorted);
+            return;
+          }
+        }
+      } catch {
+        // fall back to localStorage
+      }
       if (typeof window === 'undefined') return;
       const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
       const parsed = raw ? (JSON.parse(raw) as Notification[]) : [];
@@ -33,17 +48,21 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
     };
 
     loadNotifications();
-    window.addEventListener('storage', loadNotifications);
-
-    return () => {
-      window.removeEventListener('storage', loadNotifications);
-    };
   }, []);
 
-  const persistNotifications = (updated: Notification[]) => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(updated));
+  const persistNotifications = async (updated: Notification[]) => {
     setNotifications(updated);
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notifications: updated }),
+      });
+    } catch {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(updated));
+      }
+    }
   };
 
   const handleMarkAllAsRead = async () => {

@@ -19,9 +19,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing shareId or signature' }, { status: 400 });
     }
 
-    const { rows } = await dbQuery<{ user_id: string; documents_json: any[] }>(
+    const { rows } = await dbQuery<{ user_id: string; documents_json: any[]; notifications_json: any[] }>(
       `
-        SELECT user_id, documents_json
+        SELECT user_id, documents_json, notifications_json
         FROM app_state
         WHERE EXISTS (
           SELECT 1
@@ -46,6 +46,20 @@ export async function POST(request: Request) {
     }
 
     const original = docs[idx] as any;
+
+    const notifications = Array.isArray(row.notifications_json) ? [...row.notifications_json] : [];
+    const docNumber = original.type === 'Estimate' ? original.estimateNumber : original.invoiceNumber;
+    const signedNotification = {
+      id: crypto.randomUUID(),
+      userId: row.user_id,
+      event: 'signed',
+      message: `Client signed ${original.type} ${docNumber || original.id}`,
+      documentId: original.id,
+      documentType: original.type,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+    };
+    notifications.unshift(signedNotification);
 
     if (original.type === 'Estimate') {
       const approvedEstimate = {
@@ -80,8 +94,8 @@ export async function POST(request: Request) {
       docs.push(newInvoice);
 
       await dbQuery(
-        'UPDATE app_state SET documents_json = $1::jsonb, updated_at = now() WHERE user_id = $2',
-        [JSON.stringify(docs), row.user_id]
+        'UPDATE app_state SET documents_json = $1::jsonb, notifications_json = $2::jsonb, updated_at = now() WHERE user_id = $3',
+        [JSON.stringify(docs), JSON.stringify(notifications), row.user_id]
       );
 
       return NextResponse.json({ success: true, type: 'estimate', invoiceId: newInvoiceId });
@@ -95,8 +109,8 @@ export async function POST(request: Request) {
     };
 
     await dbQuery(
-      'UPDATE app_state SET documents_json = $1::jsonb, updated_at = now() WHERE user_id = $2',
-      [JSON.stringify(docs), row.user_id]
+      'UPDATE app_state SET documents_json = $1::jsonb, notifications_json = $2::jsonb, updated_at = now() WHERE user_id = $3',
+      [JSON.stringify(docs), JSON.stringify(notifications), row.user_id]
     );
 
     return NextResponse.json({ success: true, type: 'invoice' });
