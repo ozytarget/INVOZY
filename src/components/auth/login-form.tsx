@@ -19,6 +19,7 @@ import { useAuth } from '@/supabase/provider';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
+import { Logo } from '@/components/logo';
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address.'),
@@ -102,8 +103,8 @@ export function LoginForm() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="font-headline">Welcome</CardTitle>
+      <CardHeader className="items-center">
+        <Logo />
         <CardDescription>Enter your credentials to access your account.</CardDescription>
       </CardHeader>
       <Form {...form}>
