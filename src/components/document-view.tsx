@@ -103,7 +103,18 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     companyName?: string; companyAddress?: string; companyLogo?: string;
     companyEmail?: string; companyPhone?: string; companyWebsite?: string;
     contractorName?: string; schedulingUrl?: string; taxRate?: number;
-  }>({});
+  }>({
+    // Pre-populate with document data so it displays immediately
+    companyName: documentData.companyName,
+    companyAddress: documentData.companyAddress,
+    companyLogo: documentData.companyLogo,
+    companyEmail: documentData.companyEmail,
+    companyPhone: documentData.companyPhone,
+    companyWebsite: documentData.companyWebsite,
+    contractorName: documentData.contractorName,
+    schedulingUrl: documentData.schedulingUrl,
+    taxRate: documentData.taxRate,
+  });
 
   // Load live company settings from DB (for internal views, or owner's settings for public views)
   // Poll every 60s to pick up company changes in real-time
@@ -132,15 +143,15 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
 
   // Merge: live settings take priority for internal views; doc data (already merged server-side) for public
   const co = {
-    companyName: liveSettings.companyName || documentData.companyName,
-    companyAddress: liveSettings.companyAddress || documentData.companyAddress,
-    companyLogo: liveSettings.companyLogo || documentData.companyLogo,
-    companyEmail: liveSettings.companyEmail || documentData.companyEmail,
-    companyPhone: liveSettings.companyPhone || documentData.companyPhone,
-    companyWebsite: liveSettings.companyWebsite || documentData.companyWebsite,
-    contractorName: liveSettings.contractorName || documentData.contractorName,
-    schedulingUrl: liveSettings.schedulingUrl || documentData.schedulingUrl,
-    taxRate: liveSettings.taxRate ?? documentData.taxRate,
+    companyName: liveSettings.companyName,
+    companyAddress: liveSettings.companyAddress,
+    companyLogo: liveSettings.companyLogo,
+    companyEmail: liveSettings.companyEmail,
+    companyPhone: liveSettings.companyPhone,
+    companyWebsite: liveSettings.companyWebsite,
+    contractorName: liveSettings.contractorName,
+    schedulingUrl: liveSettings.schedulingUrl,
+    taxRate: liveSettings.taxRate,
   };
 
   const downloadHandler = (photoUrl: string, filename: string) => {
