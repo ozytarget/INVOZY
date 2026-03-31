@@ -483,6 +483,9 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
                 <div className="text-muted-foreground">
                   <p className="font-bold text-foreground">{co.companyName || "Your Company"}</p>
                   <p className="whitespace-pre-line">{co.companyAddress || ""}</p>
+                  {co.companyPhone && <p>{co.companyPhone}</p>}
+                  {co.companyEmail && <p>{co.companyEmail}</p>}
+                  {co.companyWebsite && <p>{co.companyWebsite}</p>}
                   {documentData.taxId && <p>Tax ID: {documentData.taxId}</p>}
                 </div>
               </div>
