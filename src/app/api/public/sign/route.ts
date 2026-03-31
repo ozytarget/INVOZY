@@ -62,13 +62,8 @@ export async function POST(request: Request) {
     notifications.unshift(signedNotification);
 
     if (original.type === 'Estimate') {
-      const approvedEstimate = {
-        ...original,
-        signature,
-        isSigned: true,
-        status: 'Approved',
-      };
-      docs[idx] = approvedEstimate;
+      // Remove the estimate entirely — the invoice replaces it
+      docs.splice(idx, 1);
 
       const invoiceCount = docs.filter((doc: any) => doc?.type === 'Invoice').length;
       const invoiceNumber = `INV-${String(invoiceCount + 1).padStart(3, '0')}`;
@@ -92,6 +87,11 @@ export async function POST(request: Request) {
       };
 
       docs.push(newInvoice);
+
+      // Update notification to point to the new invoice
+      notifications[0].documentId = newInvoiceId;
+      notifications[0].documentType = 'Invoice';
+      notifications[0].message = `Client signed Estimate ${docNumber || original.id} → Invoice ${invoiceNumber} created`;
 
       await dbQuery(
         'UPDATE app_state SET documents_json = $1::jsonb, notifications_json = $2::jsonb, updated_at = now() WHERE user_id = $3',

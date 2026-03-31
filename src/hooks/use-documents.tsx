@@ -841,8 +841,9 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
         search_field: `${originalDoc.clientName} ${originalDoc.projectTitle} ${newInvoiceNumber}`.toLowerCase(),
       };
 
+      // Remove the original estimate and add the invoice
       const updatedDocs = [
-        ...documents.map(doc => (doc.id === docId ? approvedEstimate : doc)),
+        ...documents.filter(doc => doc.id !== docId),
         newInvoice,
       ].sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
 
@@ -1193,4 +1194,3 @@ export const useDocuments = () => {
   }
   return context;
 };
-
