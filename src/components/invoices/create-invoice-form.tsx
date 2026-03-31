@@ -241,16 +241,29 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
 
   }, [documentToEdit, isEditMode]);
 
-  // Load company settings
+  // Load company settings — DB first, localStorage as fallback
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const load = async () => {
       try {
-        const parsedSettings = readCompanySettings(user?.id);
-        setCompanySettings(parsedSettings);
-      } catch (error) {
-        console.error('Error loading company settings:', error);
+        const res = await fetch('/api/company-settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Object.keys(data).length > 0) {
+            setCompanySettings(data);
+            return;
+          }
+        }
+      } catch {}
+      if (typeof window !== 'undefined') {
+        try {
+          const parsedSettings = readCompanySettings(user?.id);
+          setCompanySettings(parsedSettings);
+        } catch (error) {
+          console.error('Error loading company settings:', error);
+        }
       }
-    }
+    };
+    load();
   }, [user?.id]);
 
 
@@ -843,4 +856,3 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     </Form>
   )
 }
-

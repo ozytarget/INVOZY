@@ -99,6 +99,39 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
   const searchParams = useSearchParams();
   const isDashboardView = searchParams.get('internal') === 'true';
   const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
+  const [liveSettings, setLiveSettings] = useState<{
+    companyName?: string; companyAddress?: string; companyLogo?: string;
+    companyEmail?: string; companyPhone?: string; companyWebsite?: string;
+    contractorName?: string; schedulingUrl?: string; taxRate?: number;
+  }>({});
+
+  // For internal views, load live company settings from DB so they always reflect current data
+  useEffect(() => {
+    if (isPublic) return;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/company-settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data) setLiveSettings(data);
+        }
+      } catch {}
+    };
+    load();
+  }, [isPublic]);
+
+  // Merge: live settings take priority for internal views; doc data used for public views
+  const co = isPublic ? documentData : {
+    companyName: liveSettings.companyName || documentData.companyName,
+    companyAddress: liveSettings.companyAddress || documentData.companyAddress,
+    companyLogo: liveSettings.companyLogo || documentData.companyLogo,
+    companyEmail: liveSettings.companyEmail || documentData.companyEmail,
+    companyPhone: liveSettings.companyPhone || documentData.companyPhone,
+    companyWebsite: liveSettings.companyWebsite || documentData.companyWebsite,
+    contractorName: liveSettings.contractorName || documentData.contractorName,
+    schedulingUrl: liveSettings.schedulingUrl || documentData.schedulingUrl,
+    taxRate: liveSettings.taxRate ?? documentData.taxRate,
+  };
 
   const downloadHandler = (photoUrl: string, filename: string) => {
     if (typeof window === "undefined") return;
@@ -280,7 +313,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     try {
       // Try using the native Share API first
       await navigator.share({
-        title: `${documentData.type} from ${documentData.companyName || 'INVOZY'}`,
+        title: `${documentData.type} from ${co.companyName || 'INVOZY'}`,
         text: `View your ${documentData.type.toLowerCase()}: ${documentData.projectTitle}`,
         url: publicUrl,
       });
@@ -375,12 +408,12 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
           <CardContent className="p-0">
             <header className="flex justify-between items-start mb-8">
               <div>
-                {documentData.companyLogo && (
-                  <Image src={documentData.companyLogo} alt={documentData.companyName || 'Company Logo'} width={120} height={50} className="object-contain mb-2" />
+                {co.companyLogo && (
+                  <Image src={co.companyLogo} alt={co.companyName || 'Company Logo'} width={120} height={50} className="object-contain mb-2" />
                 )}
                 <div className="text-muted-foreground">
-                  <p className="font-bold text-foreground">{documentData.companyName || "Your Company"}</p>
-                  <p className="whitespace-pre-line">{documentData.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
+                  <p className="font-bold text-foreground">{co.companyName || "Your Company"}</p>
+                  <p className="whitespace-pre-line">{co.companyAddress || ""}</p>
                   {documentData.taxId && <p>Tax ID: {documentData.taxId}</p>}
                 </div>
               </div>
@@ -625,7 +658,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
                 )}
                 <SendEmailDialog
                   document={documentData}
-                  companyName={documentData.companyName || "Your Company"}
+                  companyName={co.companyName || "Your Company"}
                   onEmailSent={handleEmailSent}
                 >
                   <FabMenuItem
