@@ -10,9 +10,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing shareId' }, { status: 400 });
     }
 
-    const { rows } = await dbQuery<{ user_id: string; doc: any }>(
+    const { rows } = await dbQuery<{ user_id: string; doc: any; company_settings_json: any }>(
       `
-        SELECT user_id, doc
+        SELECT user_id, doc, company_settings_json
         FROM app_state,
         LATERAL jsonb_array_elements(documents_json) AS doc
         WHERE doc->>'share_token' = $1
@@ -25,7 +25,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ document: rows[0].doc, ownerId: rows[0].user_id });
+    const doc = rows[0].doc;
+    const companySettings = rows[0].company_settings_json || {};
+
+    // Merge: company settings (current) override incomplete doc data
+    const mergedDoc = {
+      ...doc,
+      companyName: companySettings.companyName || doc.companyName || 'Your Company',
+      companyAddress: companySettings.companyAddress || doc.companyAddress || '',
+      companyEmail: companySettings.companyEmail || doc.companyEmail || '',
+      companyPhone: companySettings.companyPhone || doc.companyPhone || '',
+      companyLogo: companySettings.companyLogo || doc.companyLogo,
+      companyWebsite: companySettings.companyWebsite || doc.companyWebsite,
+      contractorName: companySettings.contractorName || doc.contractorName,
+      schedulingUrl: companySettings.schedulingUrl || doc.schedulingUrl,
+    };
+
+    return NextResponse.json({ document: mergedDoc, ownerId: rows[0].user_id });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Could not fetch public document' }, { status: 500 });
   }

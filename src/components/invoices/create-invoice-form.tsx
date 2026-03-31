@@ -298,19 +298,29 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       return;
     }
 
+    // Fetch fresh company settings to ensure we have real data
+    let freshSettings = companySettings;
+    try {
+      const res = await fetch('/api/company-settings');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Object.keys(data).length > 0) freshSettings = data;
+      }
+    } catch {}
+
     const mappedLineItems = data.lineItems.map((item, index) => ({ ...item, id: item.id || `${Date.now()}-${index}` }));
     console.log('📝 Invoice mapped lineItems:', mappedLineItems);
     console.log('📝 Invoice mapped lineItems count:', mappedLineItems.length);
 
     const docData: Partial<Document> = {
-      companyName: companySettings.companyName || 'Your Company',
-      companyAddress: companySettings.companyAddress || '',
-      companyEmail: companySettings.companyEmail || '',
-      companyPhone: companySettings.companyPhone || '',
-      companyLogo: companySettings.companyLogo || undefined,
-      companyWebsite: companySettings.companyWebsite || undefined,
-      contractorName: companySettings.contractorName || undefined,
-      schedulingUrl: companySettings.schedulingUrl || undefined,
+      companyName: freshSettings.companyName || 'Your Company',
+      companyAddress: freshSettings.companyAddress || '',
+      companyEmail: freshSettings.companyEmail || '',
+      companyPhone: freshSettings.companyPhone || '',
+      companyLogo: freshSettings.companyLogo || undefined,
+      companyWebsite: freshSettings.companyWebsite || undefined,
+      contractorName: freshSettings.contractorName || undefined,
+      schedulingUrl: freshSettings.schedulingUrl || undefined,
       clientName: client.name,
       clientEmail: client.email,
       clientAddress: client.address,

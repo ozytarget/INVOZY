@@ -120,8 +120,8 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     load();
   }, [isPublic]);
 
-  // Merge: live settings take priority for internal views; doc data used for public views
-  const co = isPublic ? documentData : {
+  // Merge: live settings take priority for internal views; doc data (already merged server-side) for public
+  const co = {
     companyName: liveSettings.companyName || documentData.companyName,
     companyAddress: liveSettings.companyAddress || documentData.companyAddress,
     companyLogo: liveSettings.companyLogo || documentData.companyLogo,
