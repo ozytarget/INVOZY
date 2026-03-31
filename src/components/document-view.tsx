@@ -128,12 +128,30 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
           endpoint = `/api/public/company-settings?shareId=${encodeURIComponent(documentData.share_token)}`;
         }
         
+        console.log('[DocumentView] Loading company settings from:', endpoint);
         const res = await fetch(endpoint);
+        console.log('[DocumentView] API Response Status:', res.status);
+        
         if (res.ok) {
           const data = await res.json();
-          if (data) setLiveSettings(data);
+          console.log('[DocumentView] Received data:', data);
+          
+          // Handle both { settings: {...} } and { ...settings } formats
+          const settingsData = data?.settings || data?.company_settings_json || data;
+          console.log('[DocumentView] Extracted settings:', settingsData);
+          
+          if (settingsData && Object.keys(settingsData).length > 0) {
+            console.log('[DocumentView] ✓ Updating liveSettings with:', Object.keys(settingsData));
+            setLiveSettings(settingsData);
+          } else {
+            console.log('[DocumentView] ⚠ Received empty settings object');
+          }
+        } else {
+          console.log('[DocumentView] ✗ API returned error status:', res.status);
         }
-      } catch {}
+      } catch (err) {
+        console.error('[DocumentView] Exception loading settings:', err);
+      }
     };
     
     load();

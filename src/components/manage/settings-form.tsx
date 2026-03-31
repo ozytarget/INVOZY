@@ -114,27 +114,57 @@ export function SettingsForm() {
 
   async function onSubmit(data: SettingsFormValues) {
     try {
+        // Step 1: Save to localStorage
+        console.log('[Settings] 1. Saving to localStorage:', data);
         writeCompanySettings(user?.id, data);
+        console.log('[Settings] ✓ Saved to localStorage for user:', user?.id);
+
+        // Step 2: Save to backend if authenticated
         if (user) {
-          await fetch('/api/company-settings', {
+          console.log('[Settings] 2. Sending to API /api/company-settings (PUT)...');
+          const response = await fetch('/api/company-settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({ settings: data }),
           });
+
+          console.log('[Settings] API Response Status:', response.status, response.statusText);
+          
+          if (!response.ok) {
+            const errorPayload = await response.json().catch(() => ({}));
+            console.error('[Settings] ✗ API Error:', errorPayload);
+            toast({
+              variant: "destructive",
+              title: "Backend Save Failed",
+              description: `API Error (${response.status}): ${errorPayload?.error || 'Unknown error'}`,
+            });
+            return;
+          }
+
+          const successPayload = await response.json();
+          console.log('[Settings] ✓ API Success:', successPayload);
+        } else {
+          console.log('[Settings] ⚠ No user authenticated - skipping backend save');
         }
-        toast({
-        title: "Settings Saved",
-        description: "Your information has been updated successfully.",
-        });
+
+        console.log('[Settings] 3. Broadcasting storage event for UI sync...');
         // This will force a re-render of components that depend on localStorage
         window.dispatchEvent(new Event("storage"));
+
+        toast({
+          title: "Settings Saved",
+          description: "Your information has been updated successfully.",
+        });
+
+        console.log('[Settings] ✓ All steps completed - redirecting to dashboard');
         router.push('/dashboard');
     } catch (error) {
+        console.error('[Settings] ✗ Exception during save:', error);
         toast({
             variant: "destructive",
             title: "Error Saving",
-            description: "Could not save settings to your browser's local storage.",
+            description: error instanceof Error ? error.message : "Could not save settings.",
         });
     }
   }

@@ -6,6 +6,7 @@ export async function GET() {
   try {
     const user = await getAuthenticatedUser();
     if (!user) {
+      console.log('[API] company-settings GET: No authenticated user');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -14,8 +15,13 @@ export async function GET() {
       [user.id]
     );
 
-    return NextResponse.json({ settings: rows[0]?.company_settings_json || {} });
+    const settings = rows[0]?.company_settings_json || {};
+    console.log('[API] company-settings GET: User', user.id, 'retrieved:', Object.keys(settings).length, 'fields');
+    console.log('[API] company-settings GET: Data:', settings);
+
+    return NextResponse.json({ settings });
   } catch (error: any) {
+    console.error('[API] company-settings GET: ERROR', error);
     return NextResponse.json({ error: error?.message || 'Could not load company settings' }, { status: 500 });
   }
 }
@@ -24,13 +30,16 @@ export async function PUT(request: Request) {
   try {
     const user = await getAuthenticatedUser();
     if (!user) {
+      console.log('[API] company-settings PUT: No authenticated user');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
     const settings = body?.settings && typeof body.settings === 'object' ? body.settings : {};
 
-    await dbQuery(
+    console.log('[API] company-settings PUT: User', user.id, 'saving:', Object.keys(settings));
+
+    const result = await dbQuery(
       `
         INSERT INTO app_state (user_id, company_settings_json, updated_at)
         VALUES ($1, $2::jsonb, now())
@@ -38,12 +47,18 @@ export async function PUT(request: Request) {
         DO UPDATE SET
           company_settings_json = EXCLUDED.company_settings_json,
           updated_at = now()
+        RETURNING company_settings_json
       `,
       [user.id, JSON.stringify(settings)]
     );
 
-    return NextResponse.json({ success: true });
+    const savedSettings = result.rows[0]?.company_settings_json || settings;
+    console.log('[API] company-settings PUT: ✓ Saved successfully for user', user.id);
+    console.log('[API] company-settings PUT: Saved data:', savedSettings);
+
+    return NextResponse.json({ success: true, saved: savedSettings });
   } catch (error: any) {
+    console.error('[API] company-settings PUT: ERROR', error);
     return NextResponse.json({ error: error?.message || 'Could not save company settings' }, { status: 500 });
   }
 }

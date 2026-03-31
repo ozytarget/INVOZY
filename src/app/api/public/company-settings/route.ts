@@ -6,7 +6,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const shareId = searchParams.get('shareId') || '';
 
+    console.log('[API] public/company-settings GET: shareId =', shareId);
+
     if (!shareId) {
+      console.log('[API] public/company-settings GET: ✗ Missing shareId');
       return NextResponse.json({ error: 'Missing shareId' }, { status: 400 });
     }
 
@@ -26,13 +29,19 @@ export async function GET(request: Request) {
     );
 
     if (rows.length === 0) {
+      console.log('[API] public/company-settings GET: ✗ Owner not found for shareId:', shareId);
       return NextResponse.json({ error: 'Owner not found' }, { status: 404 });
     }
 
     const settings = rows[0].company_settings_json || {};
-    return NextResponse.json(settings);
+    console.log('[API] public/company-settings GET: ✓ Found owner:', rows[0].user_id);
+    console.log('[API] public/company-settings GET: Returning settings:', Object.keys(settings).length, 'fields');
+    console.log('[API] public/company-settings GET: Settings data:', settings);
+    
+    // Return in same format as authenticated endpoint: { settings: {...} }
+    return NextResponse.json({ settings });
   } catch (error: any) {
-    console.error('Error fetching public company settings:', error);
+    console.error('[API] public/company-settings GET: ERROR', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
