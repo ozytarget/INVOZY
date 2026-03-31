@@ -7,8 +7,6 @@ import type { Document } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
-const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
-
 function EstimateViewContent() {
   const params = useParams();
   const id = typeof params.id === 'string' ? params.id : '';
@@ -17,23 +15,33 @@ function EstimateViewContent() {
 
   useEffect(() => {
     if (!id) {
-      notFound();
+      setIsLoading(false);
       return;
     }
 
     const fetchEstimate = async () => {
       try {
+        // Try backend first
+        const res = await fetch('/api/state');
+        if (res.ok) {
+          const data = await res.json();
+          const docs: Document[] = Array.isArray(data.documents) ? data.documents : [];
+          const found = docs.find(doc => doc.id === id && doc.type === 'Estimate');
+          if (found) { setDocument(found); return; }
+        }
+        // Fall back to any scoped localStorage key
         if (typeof window !== 'undefined') {
-          const rawDocuments = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
-          const demoDocuments = rawDocuments ? (JSON.parse(rawDocuments) as Document[]) : [];
-          const demoEstimate = demoDocuments.find(doc => doc.id === id && doc.type === 'Estimate');
-          if (demoEstimate) {
-            setDocument(demoEstimate);
-            return;
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (!key || (!key.startsWith('demoDocuments:') && key !== 'demoDocuments')) continue;
+            const raw = localStorage.getItem(key);
+            const docs: Document[] = raw ? JSON.parse(raw) : [];
+            const found = docs.find(doc => doc.id === id && doc.type === 'Estimate');
+            if (found) { setDocument(found); return; }
           }
         }
-
-        notFound();
+      } catch (e) {
+        console.error(e);
       } finally {
         setIsLoading(false);
       }
