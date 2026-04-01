@@ -32,7 +32,16 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
 
   const handleSendEmail = async () => {
     setIsLoading(true);
-    const documentUrl = window.location.href;
+    
+    // Build public share URL instead of current page URL
+    const appUrl = typeof window !== 'undefined'
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
+    
+    const documentUrl = `${appUrl}/public/${documentData.share_token}`;
+    
+    console.log('[SendEmail] Sending to:', documentData.clientEmail);
+    console.log('[SendEmail] Document URL:', documentUrl);
     
     const result = await sendDocumentEmail({
         to: documentData.clientEmail,

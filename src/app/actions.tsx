@@ -129,8 +129,16 @@ export async function sendDocumentEmail({
 }) {
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    
     if (!resendApiKey) {
-      return { success: false, error: 'Missing RESEND_API_KEY.' };
+      console.error('[Email] Missing RESEND_API_KEY');
+      return { success: false, error: 'Missing RESEND_API_KEY in environment.' };
+    }
+
+    if (!to || !to.includes('@')) {
+      console.error('[Email] Invalid client email:', to);
+      return { success: false, error: 'Invalid client email address.' };
     }
 
     const resend = new Resend(resendApiKey);
@@ -144,23 +152,24 @@ export async function sendDocumentEmail({
       />
     );
 
+    console.log('[Email] Sending', documentType, documentNumber, 'to:', to);
+
     const { data, error } = await resend.emails.send({
-      from: `invozzy <onboarding@resend.dev>`,
-      // NOTE: In Resend's sandbox mode, emails can only be sent TO the verified address.
-      // Hardcoding to your verified email for testing purposes.
-      to: ['ozytargetcom@gmail.com'],
+      from: `${companyName} <${fromEmail}>`,
+      to: [to],
       subject: `${documentType} ${documentNumber} from ${companyName}`,
       html: emailHtml,
     });
 
     if (error) {
-      console.error('Resend error:', error);
+      console.error('[Email] Resend API error:', error);
       return { success: false, error: error.message };
     }
 
+    console.log('[Email] ✓ Sent successfully to', to);
     return { success: true, data };
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error('[Email] Exception:', error);
     return { success: false, error: 'Failed to send email.' };
   }
 }
