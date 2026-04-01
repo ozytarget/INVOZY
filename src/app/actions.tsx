@@ -129,11 +129,19 @@ export async function sendDocumentEmail({
 }) {
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    const fromEmail = process.env.RESEND_FROM_EMAIL;
     
     if (!resendApiKey) {
       console.error('[Email] Missing RESEND_API_KEY');
       return { success: false, error: 'Missing RESEND_API_KEY in environment.' };
+    }
+
+    if (!fromEmail) {
+      console.error('[Email] Missing RESEND_FROM_EMAIL');
+      return {
+        success: false,
+        error: 'Missing RESEND_FROM_EMAIL. Set a verified sender like noreply@mail.invozzy.com',
+      };
     }
 
     if (!to || !to.includes('@')) {
