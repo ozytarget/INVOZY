@@ -130,6 +130,7 @@ export async function sendDocumentEmail({
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
     const fromEmail = process.env.RESEND_FROM_EMAIL;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     
     if (!resendApiKey) {
       console.error('[Email] Missing RESEND_API_KEY');
@@ -141,6 +142,17 @@ export async function sendDocumentEmail({
       return {
         success: false,
         error: 'Missing RESEND_FROM_EMAIL. Set a verified sender like noreply@mail.invozzy.com',
+      };
+    }
+
+    const rawFrom = fromEmail.trim();
+    const normalizedFromEmail = rawFrom.includes('@') ? rawFrom : `noreply@${rawFrom}`;
+
+    if (!emailRegex.test(normalizedFromEmail)) {
+      console.error('[Email] Invalid RESEND_FROM_EMAIL format:', fromEmail);
+      return {
+        success: false,
+        error: `Invalid RESEND_FROM_EMAIL format: ${fromEmail}. Use example: noreply@mail.invozzy.com`,
       };
     }
 
@@ -164,7 +176,7 @@ export async function sendDocumentEmail({
 
     const { data, error } = await resend.emails.send({
       // Use plain verified sender to avoid invalid display-name formatting issues.
-      from: fromEmail,
+      from: normalizedFromEmail,
       to: [to],
       subject: `${documentType} ${documentNumber} from ${companyName}`,
       html: emailHtml,
