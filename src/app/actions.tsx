@@ -163,7 +163,8 @@ export async function sendDocumentEmail({
     console.log('[Email] Sending', documentType, documentNumber, 'to:', to);
 
     const { data, error } = await resend.emails.send({
-      from: `${companyName} <${fromEmail}>`,
+      // Use plain verified sender to avoid invalid display-name formatting issues.
+      from: fromEmail,
       to: [to],
       subject: `${documentType} ${documentNumber} from ${companyName}`,
       html: emailHtml,
