@@ -120,12 +120,14 @@ export async function sendDocumentEmail({
   documentType,
   documentNumber,
   companyName,
+  companyEmail,
 }: {
   to: string;
   documentUrl: string;
   documentType: 'Estimate' | 'Invoice';
   documentNumber: string;
   companyName: string;
+  companyEmail?: string;
 }) {
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
@@ -147,6 +149,9 @@ export async function sendDocumentEmail({
 
     const rawFrom = fromEmail.trim();
     const normalizedFromEmail = rawFrom.includes('@') ? rawFrom : `noreply@${rawFrom}`;
+    const safeCompanyName = (companyName || 'INVOZY').replace(/[^a-zA-Z0-9 .,&-]/g, '').trim() || 'INVOZY';
+    const fromValue = `${safeCompanyName} <${normalizedFromEmail}>`;
+    const replyTo = companyEmail && emailRegex.test(companyEmail) ? companyEmail : normalizedFromEmail;
 
     if (!emailRegex.test(normalizedFromEmail)) {
       console.error('[Email] Invalid RESEND_FROM_EMAIL format:', fromEmail);
@@ -172,14 +177,24 @@ export async function sendDocumentEmail({
       />
     );
 
+    const emailText = [
+      `${documentType} ${documentNumber} from ${companyName}`,
+      '',
+      `You have received a new ${documentType.toLowerCase()} from ${companyName}.`,
+      `View ${documentType.toLowerCase()}: ${documentUrl}`,
+      '',
+      `If you have any questions, reply to ${replyTo}.`,
+    ].join('\n');
+
     console.log('[Email] Sending', documentType, documentNumber, 'to:', to);
 
     const { data, error } = await resend.emails.send({
-      // Use plain verified sender to avoid invalid display-name formatting issues.
-      from: normalizedFromEmail,
+      from: fromValue,
+      reply_to: replyTo,
       to: [to],
-      subject: `${documentType} ${documentNumber} from ${companyName}`,
+      subject: `${companyName} - ${documentType} ${documentNumber}`,
       html: emailHtml,
+      text: emailText,
     });
 
     if (error) {
