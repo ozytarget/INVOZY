@@ -21,15 +21,7 @@ function InvoiceViewContent() {
 
     const fetchInvoice = async () => {
       try {
-        // Try backend first
-        const res = await fetch('/api/state');
-        if (res.ok) {
-          const data = await res.json();
-          const docs: Document[] = Array.isArray(data.documents) ? data.documents : [];
-          const found = docs.find(doc => doc.id === id && doc.type === 'Invoice');
-          if (found) { setDocument(found); return; }
-        }
-        // Fall back to any scoped localStorage key
+        // Prefer localStorage for the freshest draft edits
         if (typeof window !== 'undefined') {
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -39,6 +31,14 @@ function InvoiceViewContent() {
             const found = docs.find(doc => doc.id === id && doc.type === 'Invoice');
             if (found) { setDocument(found); return; }
           }
+        }
+        // Fall back to backend
+        const res = await fetch('/api/state');
+        if (res.ok) {
+          const data = await res.json();
+          const docs: Document[] = Array.isArray(data.documents) ? data.documents : [];
+          const found = docs.find(doc => doc.id === id && doc.type === 'Invoice');
+          if (found) { setDocument(found); return; }
         }
       } catch (e) {
         console.error(e);

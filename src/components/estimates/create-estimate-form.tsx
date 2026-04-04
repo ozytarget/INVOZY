@@ -7,7 +7,7 @@ import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format, parseISO } from "date-fns"
 import { CalendarIcon, Trash2, X, UploadCloud } from "lucide-react"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import Image from "next/image"
 
 import { cn } from "@/lib/utils"
@@ -98,6 +98,10 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
   const [companySettings, setCompanySettings] = useState<CompanySettings>({});
 
   const isEditMode = !!documentToEdit;
+  const lastLoadedRef = useRef<{ id: string | null; signature: string | null }>({
+    id: null,
+    signature: null,
+  });
 
   const findClientByEmail = useCallback((email?: string) => {
     if (!email) return undefined;
@@ -171,6 +175,30 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       lineItems: documentToEdit.lineItems?.length,
     });
 
+    const docId = documentToEdit.id;
+    const docSignature = JSON.stringify({
+      id: documentToEdit.id,
+      clientEmail: documentToEdit.clientEmail,
+      projectTitle: documentToEdit.projectTitle,
+      issuedDate: documentToEdit.issuedDate,
+      notes: documentToEdit.notes,
+      terms: documentToEdit.terms,
+      lineItems: documentToEdit.lineItems,
+      projectPhotos: documentToEdit.projectPhotos,
+    });
+
+    const isNewDoc = lastLoadedRef.current.id !== docId;
+    const hasSameSignature = lastLoadedRef.current.signature === docSignature;
+
+    if (!isNewDoc && hasSameSignature) {
+      return;
+    }
+
+    if (!isNewDoc && isDirty) {
+      console.log('Skipping reset to preserve in-progress edits');
+      return;
+    }
+
     const issuedDate = documentToEdit.issuedDate ? parseISO(documentToEdit.issuedDate) : new Date();
     const lineItems = Array.isArray(documentToEdit.lineItems) && documentToEdit.lineItems.length > 0
       ? documentToEdit.lineItems
@@ -191,9 +219,10 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       projectPhotos,
     });
 
+    lastLoadedRef.current = { id: docId, signature: docSignature };
     console.log('✓✓✓ Form population complete');
 
-  }, [documentToEdit, isEditMode, form]);
+  }, [documentToEdit, isEditMode, form, isDirty]);
 
   useEffect(() => {
     if (!isEditMode || !documentToEdit) return;
