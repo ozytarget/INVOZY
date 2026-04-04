@@ -5,6 +5,7 @@ import { getAIPoweredEstimateSuggestions, AIPoweredEstimateSuggestionsInput } fr
 import { generateWorkOrder, WorkOrderInput } from "@/ai/flows/generate-work-order";
 import { Resend } from 'resend';
 import DocumentEmail from '@/components/emails/document-email';
+import WorkOrderEmail from '@/components/emails/work-order-email';
 import { render } from '@react-email/components';
 
 const DIMENSIONS_REGEX = /(\d+(?:\.\d+)?)\s*(?:x|by|\*)\s*(\d+(?:\.\d+)?)/i;
@@ -255,53 +256,49 @@ export async function sendWorkOrderEmail({
 
     const resend = new Resend(resendApiKey);
 
-    const tasksList = tasks.map((t, i) => `${i + 1}. ${t}`).join('\n');
-    const materialsList = materials.join(', ');
-    const toolsList = tools.join(', ');
+    const emailHtml = render(
+      <WorkOrderEmail
+        subcontractorName={subcontractorName}
+        projectTitle={projectTitle}
+        clientName={clientName}
+        clientAddress={clientAddress}
+        tasks={tasks}
+        materials={materials}
+        tools={tools}
+        companyName={safeCompanyName}
+      />
+    );
 
-    const emailHtml = `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-        <h1 style="color:#333;border-bottom:2px solid #22c55e;padding-bottom:10px;">Work Order</h1>
-        <p>Hi <strong>${subcontractorName}</strong>,</p>
-        <p>You have a new work order from <strong>${safeCompanyName}</strong>.</p>
-        <table style="width:100%;margin:16px 0;border-collapse:collapse;">
-          <tr><td style="padding:8px;font-weight:bold;color:#666;">Project</td><td style="padding:8px;">${projectTitle}</td></tr>
-          <tr><td style="padding:8px;font-weight:bold;color:#666;">Client</td><td style="padding:8px;">${clientName}</td></tr>
-          <tr><td style="padding:8px;font-weight:bold;color:#666;">Address</td><td style="padding:8px;">${clientAddress}</td></tr>
-        </table>
-        <h2 style="color:#333;">Tasks</h2>
-        <ol>${tasks.map(t => `<li style="margin:4px 0;">${t}</li>`).join('')}</ol>
-        <h2 style="color:#333;">Materials</h2>
-        <p>${materialsList}</p>
-        <h2 style="color:#333;">Tools</h2>
-        <p>${toolsList}</p>
-        <hr style="margin:24px 0;border:none;border-top:1px solid #eee;" />
-        <p style="color:#999;font-size:12px;">Sent by ${safeCompanyName} via INVOZY</p>
-      </div>
-    `;
+    const tasksList = tasks.map((t, i) => `${i + 1}. ${t}`).join('\n');
 
     const emailText = [
-      `Work Order: ${projectTitle}`,
+      `${safeCompanyName} — Work Order: ${projectTitle}`,
+      '',
       `Hi ${subcontractorName},`,
+      '',
+      'Please review the details below for the upcoming job.',
       '',
       `Project: ${projectTitle}`,
       `Client: ${clientName}`,
-      `Address: ${clientAddress}`,
+      `Job Site: ${clientAddress}`,
       '',
-      'Tasks:',
+      'Scope of Work:',
       tasksList,
       '',
-      `Materials: ${materialsList}`,
-      `Tools: ${toolsList}`,
+      `Materials: ${materials.join(', ')}`,
+      `Tools: ${tools.join(', ')}`,
       '',
-      `— ${safeCompanyName}`,
+      'If you have any questions, please reply to this email.',
+      '',
+      `Thank you,`,
+      safeCompanyName,
     ].join('\n');
 
     const { data, error } = await resend.emails.send({
       from: fromValue,
       reply_to: replyTo,
       to: [to],
-      subject: `${safeCompanyName} - Work Order: ${projectTitle}`,
+      subject: `${safeCompanyName} — Work Order for ${projectTitle}`,
       html: emailHtml,
       text: emailText,
     });
