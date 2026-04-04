@@ -190,7 +190,6 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
         projectTitle: d.projectTitle || '',
         projectDescription: d.projectDescription || '',
         issuedDate: d.issuedDate ? new Date(d.issuedDate) : new Date(),
-        dueDate: d.dueDate ? new Date(d.dueDate) : new Date(),
         lineItems: d.lineItems || [{ description: '', quantity: 1, price: 0 }],
         notes: d.notes || '',
         terms: d.terms || '',
