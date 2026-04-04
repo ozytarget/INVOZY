@@ -4,7 +4,7 @@
 
 import { notFound, useParams } from "next/navigation";
 import type { Document, Subcontractor } from "@/lib/types";
-import { ClipboardList, HardHat, Wrench, Loader2, User, Home, MessageSquare, Mail, Send, ChevronsUpDown, Check, Plus } from "lucide-react";
+import { ClipboardList, HardHat, Wrench, Loader2, User, Home, MessageSquare, Mail, Send, ChevronsUpDown, Check, Plus, RefreshCw, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -239,6 +239,7 @@ function WorkOrderPageContent() {
   const [workOrder, setWorkOrder] = useState<WorkOrderOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(true);
+  const [generationFailed, setGenerationFailed] = useState(false);
 
   useEffect(() => {
     if (!id || docsLoading) return;
@@ -250,29 +251,48 @@ function WorkOrderPageContent() {
     setIsLoading(false);
   }, [id, documents, docsLoading]);
 
-  useEffect(() => {
-    if (documentData) {
-      const generate = async () => {
-        setIsGenerating(true);
-        const result = await getWorkOrder({
-          projectTitle: documentData.projectTitle,
-          projectDescription: documentData.notes,
-          lineItems: documentData.lineItems.map(item => ({ description: item.description, quantity: item.quantity })),
-        });
-        if (result.success && result.data) {
-          setWorkOrder(result.data);
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Generation Error",
-            description: "Could not generate the work order. Please try again.",
-          });
-        }
-        setIsGenerating(false);
-      };
-      generate();
+  const generateOfflineFallback = (doc: Document): WorkOrderOutput => {
+    const tasks = doc.lineItems.map((item, i) => `${i + 1}. ${item.description} (Qty: ${item.quantity})`);
+    const materials = doc.lineItems.map(item => item.description);
+    return {
+      tasks: tasks.length > 0 ? tasks : ['Review project scope on site', 'Complete work as discussed'],
+      materials: materials.length > 0 ? materials : ['As specified in invoice'],
+      tools: ['Standard tools for the job scope'],
+    };
+  };
+
+  const handleGenerate = async (doc: Document) => {
+    setIsGenerating(true);
+    setGenerationFailed(false);
+    try {
+      const result = await getWorkOrder({
+        projectTitle: doc.projectTitle,
+        projectDescription: doc.notes,
+        lineItems: doc.lineItems.map(item => ({ description: item.description, quantity: item.quantity })),
+      });
+      if (result.success && result.data) {
+        setWorkOrder(result.data);
+      } else {
+        setGenerationFailed(true);
+      }
+    } catch {
+      setGenerationFailed(true);
     }
-  }, [documentData, toast]);
+    setIsGenerating(false);
+  };
+
+  const handleUseOffline = () => {
+    if (!documentData) return;
+    setWorkOrder(generateOfflineFallback(documentData));
+    setGenerationFailed(false);
+  };
+
+  useEffect(() => {
+    if (documentData && !workOrder && !generationFailed) {
+      handleGenerate(documentData);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentData]);
 
   if (isLoading || docsLoading) {
     return (
@@ -341,6 +361,21 @@ function WorkOrderPageContent() {
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
                             <h3 className="font-semibold text-lg">Generating Work Order...</h3>
                             <p className="text-muted-foreground">The AI is analyzing the project details to create the task, material, and tool lists.</p>
+                        </div>
+                    )}
+                    {generationFailed && !isGenerating && (
+                        <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
+                            <AlertTriangle className="h-10 w-10 text-destructive" />
+                            <h3 className="font-semibold text-lg">Generation Failed</h3>
+                            <p className="text-muted-foreground">The AI could not generate the work order. You can retry or use a basic version.</p>
+                            <div className="flex gap-3">
+                              <Button onClick={() => handleGenerate(documentData!)} variant="outline">
+                                <RefreshCw className="mr-2 h-4 w-4" /> Retry
+                              </Button>
+                              <Button onClick={handleUseOffline}>
+                                Use Basic Version
+                              </Button>
+                            </div>
                         </div>
                     )}
                     {workOrder && <WorkOrderDisplay workOrder={workOrder} document={documentData} />}
