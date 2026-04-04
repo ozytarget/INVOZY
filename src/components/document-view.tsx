@@ -206,7 +206,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     if (originalDoc.type !== 'Estimate') {
       const updatedDocs = ownerDocs.map(doc =>
         doc.id === originalDoc.id
-          ? { ...doc, signature, isSigned: true, status: 'Sent' as Document['status'] }
+          ? { ...doc, signature, isSigned: true, status: 'Approved' as Document['status'] }
           : doc
       );
       persistStoredDocuments(updatedDocs, ownerId);

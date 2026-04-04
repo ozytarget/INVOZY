@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       ...original,
       signature,
       isSigned: true,
-      status: 'Sent',
+      status: 'Approved',
     };
 
     await dbQuery(

@@ -458,7 +458,24 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
   useEffect(() => {
     loadData();
-  }, [user]);
+  }, [loadData]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refresh = () => {
+      void loadData();
+    };
+
+    // Keep dashboard in sync when clients sign/open docs from public links.
+    const interval = window.setInterval(refresh, 20000);
+    window.addEventListener('focus', refresh);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [user, loadData]);
 
   const addDocument = useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber' | 'search_field'>): Promise<string | undefined> => {
     if (isDemoMode || !user) {
