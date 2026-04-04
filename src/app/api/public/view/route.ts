@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { dbQuery } from '@/lib/server-db';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const shareId = String(body?.shareId || '');
 
-    if (!shareId) {
-      return NextResponse.json({ error: 'Missing shareId' }, { status: 400 });
+    if (!shareId || !UUID_REGEX.test(shareId)) {
+      return NextResponse.json({ error: 'Invalid shareId' }, { status: 400 });
     }
 
     // Find the owner of this document

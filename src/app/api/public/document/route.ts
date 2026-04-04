@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { dbQuery } from '@/lib/server-db';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const shareId = searchParams.get('shareId') || '';
 
-    if (!shareId) {
-      return NextResponse.json({ error: 'Missing shareId' }, { status: 400 });
+    if (!shareId || !UUID_REGEX.test(shareId)) {
+      return NextResponse.json({ error: 'Invalid shareId' }, { status: 400 });
     }
 
     const { rows } = await dbQuery<{ user_id: string; doc: any; company_settings_json: any }>(

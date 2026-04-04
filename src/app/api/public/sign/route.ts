@@ -2,12 +2,11 @@ import { NextResponse } from 'next/server';
 import { dbQuery } from '@/lib/server-db';
 
 const generateShareToken = (): string => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  return crypto.randomUUID();
 };
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_SIGNATURE_LENGTH = 50000;
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +16,14 @@ export async function POST(request: Request) {
 
     if (!shareId || !signature) {
       return NextResponse.json({ error: 'Missing shareId or signature' }, { status: 400 });
+    }
+
+    // Validate input formats
+    if (!UUID_REGEX.test(shareId)) {
+      return NextResponse.json({ error: 'Invalid shareId format' }, { status: 400 });
+    }
+    if (signature.length > MAX_SIGNATURE_LENGTH) {
+      return NextResponse.json({ error: 'Signature too large' }, { status: 400 });
     }
 
     const { rows } = await dbQuery<{ user_id: string; documents_json: any[]; notifications_json: any[] }>(
@@ -46,6 +53,14 @@ export async function POST(request: Request) {
     }
 
     const original = docs[idx] as any;
+
+    // Validate document can be signed
+    if (original.isSigned) {
+      return NextResponse.json({ error: 'Document already signed' }, { status: 409 });
+    }
+    if (original.status === 'Cancelled' || original.status === 'Rejected') {
+      return NextResponse.json({ error: 'Document cannot be signed in current status' }, { status: 400 });
+    }
 
     const notifications = Array.isArray(row.notifications_json) ? [...row.notifications_json] : [];
     const docNumber = original.type === 'Estimate' ? original.estimateNumber : original.invoiceNumber;

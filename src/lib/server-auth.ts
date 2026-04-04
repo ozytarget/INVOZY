@@ -9,9 +9,10 @@ export type AuthenticatedUser = {
 };
 
 export const createSession = async (userId: string) => {
-  const token = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  // Always use cryptographically secure token generation
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  const token = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
@@ -23,8 +24,8 @@ export const createSession = async (userId: string) => {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true,
+    sameSite: 'strict',
     path: '/',
     expires: expiresAt,
   });

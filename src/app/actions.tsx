@@ -152,8 +152,8 @@ export async function sendDocumentEmail({
 
     const rawFrom = fromEmail.trim();
     const normalizedFromEmail = rawFrom.includes('@') ? rawFrom : `noreply@${rawFrom}`;
-    const safeCompanyName = (companyName || 'INVOZY').replace(/[^a-zA-Z0-9 .,&-]/g, '').trim() || 'INVOZY';
-    const fromValue = `${safeCompanyName} <${normalizedFromEmail}>`;
+    const safeCompanyName = (companyName || 'INVOZY').replace(/[^a-zA-Z0-9 .,&\-]/g, '').trim().slice(0, 100) || 'INVOZY';
+    const fromValue = `"${safeCompanyName}" <${normalizedFromEmail}>`;
     const replyTo = companyEmail && emailRegex.test(companyEmail) ? companyEmail : normalizedFromEmail;
 
     if (!emailRegex.test(normalizedFromEmail)) {
@@ -250,8 +250,8 @@ export async function sendWorkOrderEmail({
 
     const rawFrom = fromEmail.trim();
     const normalizedFromEmail = rawFrom.includes('@') ? rawFrom : `noreply@${rawFrom}`;
-    const safeCompanyName = (companyName || 'INVOZY').replace(/[^a-zA-Z0-9 .,&-]/g, '').trim() || 'INVOZY';
-    const fromValue = `${safeCompanyName} <${normalizedFromEmail}>`;
+    const safeCompanyName = (companyName || 'INVOZY').replace(/[^a-zA-Z0-9 .,&\-]/g, '').trim().slice(0, 100) || 'INVOZY';
+    const fromValue = `"${safeCompanyName}" <${normalizedFromEmail}>`;
     const replyTo = companyEmail && emailRegex.test(companyEmail) ? companyEmail : normalizedFromEmail;
 
     if (!to || !emailRegex.test(to)) return { success: false, error: 'Invalid subcontractor email.' };

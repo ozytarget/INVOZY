@@ -156,13 +156,9 @@ const loadDemoData = (userId?: string | null) => {
   }
 };
 
-// Generate UUID for share tokens
+// Generate cryptographically secure UUID for share tokens
 const generateShareToken = (): string => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  return crypto.randomUUID();
 };
 
 // Helper function to extract unique clients

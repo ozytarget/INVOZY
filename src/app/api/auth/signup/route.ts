@@ -4,14 +4,41 @@ import { dbQuery } from '@/lib/server-db';
 import { createSession } from '@/lib/server-auth';
 import { createOnboardingSeed } from '@/lib/onboarding-seed';
 
+// Simple in-memory rate limiter
+const signupAttempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_SIGNUPS = 5;
+const WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function isRateLimited(key: string): boolean {
+  const now = Date.now();
+  const entry = signupAttempts.get(key);
+  if (!entry || now > entry.resetAt) {
+    signupAttempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > MAX_SIGNUPS;
+}
+
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    if (isRateLimited(ip)) {
+      return NextResponse.json({ error: 'Too many signup attempts. Try again later.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const email = String(body?.email || '').trim().toLowerCase();
     const password = String(body?.password || '');
 
-    if (!email || !password || password.length < 6) {
-      return NextResponse.json({ error: 'Invalid signup data' }, { status: 400 });
+    if (!email || !password || password.length < 8) {
+      return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
 
     const { rows: existing } = await dbQuery<{ id: string }>(
