@@ -75,6 +75,14 @@ export type Client = {
   documentCount: number;
 };
 
+export type Subcontractor = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  specialty: string;
+};
+
 export type Notification = {
   id: string;
   userId: string;

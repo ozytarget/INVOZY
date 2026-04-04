@@ -1,4 +1,5 @@
 import { SettingsForm } from "@/components/manage/settings-form";
+import { SubcontractorsList } from "@/components/manage/subcontractors-list";
 
 export default function ManagePage() {
   return (
@@ -8,6 +9,7 @@ export default function ManagePage() {
         <p className="text-muted-foreground text-sm">Update your company and personal information here.</p>
       </div>
       <SettingsForm />
+      <SubcontractorsList />
     </div>
   );
 }

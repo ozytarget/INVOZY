@@ -10,9 +10,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { rows } = await dbQuery<{ clients_json: any; documents_json: any; company_settings_json: any }>(
+    const { rows } = await dbQuery<{ clients_json: any; documents_json: any; company_settings_json: any; subcontractors_json: any }>(
       `
-        SELECT clients_json, documents_json, company_settings_json
+        SELECT clients_json, documents_json, company_settings_json, subcontractors_json
         FROM app_state
         WHERE user_id = $1
         LIMIT 1
@@ -43,6 +43,7 @@ export async function GET() {
       clients: Array.isArray(row.clients_json) ? row.clients_json : [],
       documents: Array.isArray(row.documents_json) ? row.documents_json : [],
       companySettings: row.company_settings_json || {},
+      subcontractors: Array.isArray(row.subcontractors_json) ? row.subcontractors_json : [],
     });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Could not load state' }, { status: 500 });
@@ -62,19 +63,21 @@ export async function PUT(request: Request) {
     const companySettings = body?.companySettings && typeof body.companySettings === 'object'
       ? body.companySettings
       : {};
+    const subcontractors = Array.isArray(body?.subcontractors) ? body.subcontractors : [];
 
     await dbQuery(
       `
-        INSERT INTO app_state (user_id, clients_json, documents_json, company_settings_json, updated_at)
-        VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, now())
+        INSERT INTO app_state (user_id, clients_json, documents_json, company_settings_json, subcontractors_json, updated_at)
+        VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5::jsonb, now())
         ON CONFLICT (user_id)
         DO UPDATE SET
           clients_json = EXCLUDED.clients_json,
           documents_json = EXCLUDED.documents_json,
           company_settings_json = EXCLUDED.company_settings_json,
+          subcontractors_json = EXCLUDED.subcontractors_json,
           updated_at = now()
       `,
-      [user.id, JSON.stringify(clients), JSON.stringify(documents), JSON.stringify(companySettings)]
+      [user.id, JSON.stringify(clients), JSON.stringify(documents), JSON.stringify(companySettings), JSON.stringify(subcontractors)]
     );
 
     return NextResponse.json({ success: true });

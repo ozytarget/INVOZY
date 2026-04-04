@@ -3,18 +3,22 @@
 'use client';
 
 import { notFound, useParams } from "next/navigation";
-import type { Document } from "@/lib/types";
-import { ClipboardList, HardHat, Wrench, Loader2, User, Home, MessageSquare } from "lucide-react";
+import type { Document, Subcontractor } from "@/lib/types";
+import { ClipboardList, HardHat, Wrench, Loader2, User, Home, MessageSquare, Mail, Send, ChevronsUpDown, Check, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { getWorkOrder } from "@/app/actions";
 import { WorkOrderOutput } from "@/ai/flows/generate-work-order";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useDocuments } from "@/hooks/use-documents";
 import Image from "next/image";
-
-const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Separator } from "@/components/ui/separator";
 
 function WorkOrderDisplay({ workOrder, document: documentData }: { workOrder: WorkOrderOutput, document: Document }) {
     return (
@@ -71,6 +75,156 @@ function WorkOrderDisplay({ workOrder, document: documentData }: { workOrder: Wo
     );
 }
 
+function SendToSubcontractorSection({ documentData, workOrder }: { documentData: Document, workOrder: WorkOrderOutput | null }) {
+  const { subcontractors, addSubcontractor } = useDocuments();
+  const { toast } = useToast();
+  const [selectedSub, setSelectedSub] = useState<Subcontractor | null>(null);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newSub, setNewSub] = useState({ name: '', email: '', phone: '', specialty: '' });
+
+  const buildMessageBody = () => {
+    const parts = [
+      `Work Order: ${documentData.projectTitle}`,
+      `Client: ${documentData.clientName}`,
+      `Address: ${documentData.clientAddress}`,
+      '',
+    ];
+    if (workOrder) {
+      parts.push('Tasks:');
+      workOrder.tasks.forEach((t, i) => parts.push(`${i + 1}. ${t}`));
+      parts.push('');
+      parts.push('Materials: ' + workOrder.materials.join(', '));
+      parts.push('Tools: ' + workOrder.tools.join(', '));
+    }
+    return parts.join('\n');
+  };
+
+  const handleSendSms = (sub: Subcontractor) => {
+    if (!sub.phone) {
+      toast({ variant: "destructive", title: "No phone number", description: `${sub.name} has no phone number on file.` });
+      return;
+    }
+    const body = buildMessageBody();
+    window.open(`sms:${sub.phone}?body=${encodeURIComponent(body)}`, '_blank');
+  };
+
+  const handleSendEmail = (sub: Subcontractor) => {
+    if (!sub.email) {
+      toast({ variant: "destructive", title: "No email", description: `${sub.name} has no email on file.` });
+      return;
+    }
+    const subject = `Work Order: ${documentData.projectTitle}`;
+    const body = buildMessageBody();
+    window.open(`mailto:${sub.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+  };
+
+  const handleAddNew = () => {
+    if (!newSub.name.trim()) {
+      toast({ variant: "destructive", title: "Name is required" });
+      return;
+    }
+    addSubcontractor({
+      name: newSub.name.trim(),
+      email: newSub.email.trim(),
+      phone: newSub.phone.trim(),
+      specialty: newSub.specialty.trim(),
+    });
+    toast({ title: "Subcontractor saved" });
+    setNewSub({ name: '', email: '', phone: '', specialty: '' });
+    setIsAddingNew(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-headline">
+          <Send className="w-5 h-5" />
+          Send to Subcontractor
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" role="combobox" className={cn("flex-1 justify-between", !selectedSub && "text-muted-foreground")}>
+                {selectedSub ? `${selectedSub.name}${selectedSub.specialty ? ` (${selectedSub.specialty})` : ''}` : "Select subcontractor..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search subcontractor..." />
+                <CommandList>
+                  <CommandEmpty>No subcontractor found.</CommandEmpty>
+                  <CommandGroup>
+                    {subcontractors.map(sub => (
+                      <CommandItem
+                        key={sub.id}
+                        value={sub.name}
+                        onSelect={() => {
+                          setSelectedSub(sub);
+                          setPopoverOpen(false);
+                        }}
+                      >
+                        <Check className={cn("mr-2 h-4 w-4", selectedSub?.id === sub.id ? "opacity-100" : "opacity-0")} />
+                        <div>
+                          <span className="font-medium">{sub.name}</span>
+                          {sub.specialty && <span className="text-muted-foreground ml-1">· {sub.specialty}</span>}
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Button variant="outline" size="sm" onClick={() => setIsAddingNew(!isAddingNew)}>
+            <Plus className="h-4 w-4 mr-1" /> New
+          </Button>
+        </div>
+
+        {isAddingNew && (
+          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input placeholder="Name *" value={newSub.name} onChange={e => setNewSub(s => ({ ...s, name: e.target.value }))} />
+              <Input placeholder="Specialty" value={newSub.specialty} onChange={e => setNewSub(s => ({ ...s, specialty: e.target.value }))} />
+              <Input placeholder="Email" type="email" value={newSub.email} onChange={e => setNewSub(s => ({ ...s, email: e.target.value }))} />
+              <Input placeholder="Phone" type="tel" value={newSub.phone} onChange={e => setNewSub(s => ({ ...s, phone: e.target.value }))} />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" size="sm" onClick={() => setIsAddingNew(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleAddNew}><Check className="h-4 w-4 mr-1" /> Save</Button>
+            </div>
+          </div>
+        )}
+
+        {selectedSub && (
+          <>
+            <Separator />
+            <div className="border rounded-lg p-4 bg-muted/30 space-y-2">
+              <p className="font-medium">{selectedSub.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {[selectedSub.specialty, selectedSub.email, selectedSub.phone].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button className="flex-1" onClick={() => handleSendSms(selectedSub)} disabled={!selectedSub.phone}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Send via SMS
+              </Button>
+              <Button className="flex-1" variant="outline" onClick={() => handleSendEmail(selectedSub)} disabled={!selectedSub.email}>
+                <Mail className="mr-2 h-4 w-4" />
+                Send via Email
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function WorkOrderPage() {
   return <WorkOrderPageContent />;
 }
@@ -78,6 +232,7 @@ export default function WorkOrderPage() {
 function WorkOrderPageContent() {
   const params = useParams();
   const { toast } = useToast();
+  const { documents, isLoading: docsLoading } = useDocuments();
   const id = typeof params.id === 'string' ? params.id : '';
 
   const [documentData, setDocumentData] = useState<Document | null>(null);
@@ -86,35 +241,14 @@ function WorkOrderPageContent() {
   const [isGenerating, setIsGenerating] = useState(true);
 
   useEffect(() => {
-    if (!id) {
-      notFound();
-      return;
+    if (!id || docsLoading) return;
+
+    const doc = documents.find((d) => d.id === id && d.type === 'Invoice') || null;
+    if (doc) {
+      setDocumentData(doc);
     }
-
-    const fetchInvoice = async () => {
-      try {
-        if (typeof window === 'undefined') {
-          notFound();
-          return;
-        }
-
-        const raw = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
-        const documents = raw ? (JSON.parse(raw) as Document[]) : [];
-        const doc = documents.find((d) => d.id === id && d.type === 'Invoice') || null;
-
-        if (!doc) {
-          notFound();
-          return;
-        }
-
-        setDocumentData(doc);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchInvoice();
-  }, [id]);
+    setIsLoading(false);
+  }, [id, documents, docsLoading]);
 
   useEffect(() => {
     if (documentData) {
@@ -139,25 +273,8 @@ function WorkOrderPageContent() {
       generate();
     }
   }, [documentData, toast]);
-  
-  const handleSms = () => {
-    if (!documentData?.clientPhone) {
-        toast({
-            variant: "destructive",
-            title: "No Phone Number",
-            description: "This client does not have a phone number on file.",
-        });
-        return;
-    }
 
-    const url = window.location.href;
-    const message = `View your work order for: ${documentData.projectTitle}\n${url}`;
-    const smsUrl = `sms:${documentData.clientPhone}?body=${encodeURIComponent(message)}`;
-    
-    window.open(smsUrl, '_blank');
-  };
-
-  if (isLoading) {
+  if (isLoading || docsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -173,12 +290,8 @@ function WorkOrderPageContent() {
     <div className="bg-background min-h-screen pb-32">
         <div className="max-w-4xl mx-auto p-4 sm:p-8">
             <div className="sticky top-4 z-20 mb-4 flex justify-end gap-2">
-                 <Button onClick={handleSms} variant="outline" className="bg-background/80 backdrop-blur-sm">
-                    <MessageSquare className="mr-2" />
-                    Send SMS
-                </Button>
                 <Button asChild variant="outline" className="bg-background/80 backdrop-blur-sm">
-                    <Link href={`/view/invoice/${id}`}>
+                    <Link href={`/view/invoice/${id}?internal=true`}>
                         <Home className="mr-2" />
                         Back to Invoice
                     </Link>
@@ -233,6 +346,12 @@ function WorkOrderPageContent() {
                     {workOrder && <WorkOrderDisplay workOrder={workOrder} document={documentData} />}
                 </CardContent>
              </Card>
+
+             {!isGenerating && workOrder && (
+               <div className="mt-8">
+                 <SendToSubcontractorSection documentData={documentData} workOrder={workOrder} />
+               </div>
+             )}
         </div>
     </div>
   );

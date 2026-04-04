@@ -1,6 +1,6 @@
 'use client';
 
-import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
+import { Document, Client, Subcontractor, DocumentStatus, DocumentType, Payment } from '@/lib/types';
 import React, { useCallback, useMemo, useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/supabase/client';
@@ -11,6 +11,7 @@ const DEMO_CLIENTS_STORAGE_KEY = 'demoClients';
 const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
 const DEMO_CLIENTS_BACKUP_STORAGE_KEY = 'demoClientsBackup';
 const DEMO_DOCUMENTS_BACKUP_STORAGE_KEY = 'demoDocumentsBackup';
+const DEMO_SUBCONTRACTORS_STORAGE_KEY = 'demoSubcontractors';
 
 const getScopedStorageKey = (baseKey: string, userId?: string | null) => {
   return userId ? `${baseKey}:${userId}` : `${baseKey}:anonymous`;
@@ -53,12 +54,15 @@ const syncRemoteState = async (userId?: string | null) => {
 
   const companySettings = readCompanySettings(userId);
 
+  const subcontractorsKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, userId);
+  const subcontractors = safeParseArray<Subcontractor>(localStorage.getItem(subcontractorsKey)) || [];
+
   try {
     await fetch('/api/state', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ clients, documents, companySettings }),
+      body: JSON.stringify({ clients, documents, companySettings, subcontractors }),
     });
   } catch (error) {
     console.error('Error syncing remote state:', error);
@@ -203,6 +207,10 @@ interface DocumentContextType {
   clients: Client[];
   addClient: (client: Omit<Client, 'totalBilled' | 'documentCount'>) => Promise<void>;
   updateClient: (email: string, updates: Partial<Omit<Client, 'totalBilled' | 'documentCount'>>) => Promise<void>;
+  subcontractors: Subcontractor[];
+  addSubcontractor: (sub: Omit<Subcontractor, 'id'>) => void;
+  updateSubcontractor: (id: string, updates: Partial<Omit<Subcontractor, 'id'>>) => void;
+  deleteSubcontractor: (id: string) => void;
   signAndProcessDocument: (docId: string, signature: string) => Promise<string | undefined>;
   recordPayment: (docId: string, payment: Omit<Payment, 'id' | 'date'>) => Promise<void>;
   revertInvoiceToDraft: (invoiceId: string) => Promise<void>;
@@ -218,6 +226,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   const isDemoMode = true;
   const [documents, setDocuments] = useState<Document[]>([]);
   const [storedClients, setStoredClients] = useState<Client[]>([]);
+  const [storedSubcontractors, setStoredSubcontractors] = useState<Subcontractor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const previousDocsRef = useRef<Document[]>([]);
 
@@ -226,6 +235,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     const silent = options?.silent ?? false;
     if (!user) {
       setStoredClients([]);
+      setStoredSubcontractors([]);
       setDocuments([]);
       setIsLoading(false);
       return;
@@ -244,14 +254,18 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
           const remoteSettings = payload?.companySettings && typeof payload.companySettings === 'object'
             ? payload.companySettings
             : {};
+          const remoteSubcontractors = Array.isArray(payload.subcontractors) ? (payload.subcontractors as Subcontractor[]) : [];
 
           setStoredClients(remoteClients);
+          setStoredSubcontractors(remoteSubcontractors);
           setDocuments(remoteDocuments.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime()));
 
           writeCompanySettings(user.id, remoteSettings);
 
           persistDemoClients(remoteClients, user.id, false);
           persistDemoDocuments(remoteDocuments, user.id, false);
+          const subKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user.id);
+          localStorage.setItem(subKey, JSON.stringify(remoteSubcontractors));
           if (!silent) {
             setIsLoading(false);
           }
@@ -264,6 +278,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       const demoData = loadDemoData(user.id);
       setStoredClients(demoData.clients);
       setDocuments(demoData.documents);
+      const subKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user.id);
+      setStoredSubcontractors(safeParseArray<Subcontractor>(localStorage.getItem(subKey)) || []);
       if (!silent) {
         setIsLoading(false);
       }
@@ -1266,8 +1282,37 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     persistDemoClients(updatedClients, user?.id, false);
   }, [storedClients, documents, user?.id]);
 
+  const persistSubcontractors = useCallback((subs: Subcontractor[]) => {
+    if (typeof window === 'undefined') return;
+    const key = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user?.id);
+    localStorage.setItem(key, JSON.stringify(subs));
+    void syncRemoteState(user?.id);
+  }, [user?.id]);
+
+  const addSubcontractor = useCallback((sub: Omit<Subcontractor, 'id'>) => {
+    const newSub: Subcontractor = {
+      ...sub,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `sub-${Date.now()}`,
+    };
+    const updated = [...storedSubcontractors, newSub];
+    setStoredSubcontractors(updated);
+    persistSubcontractors(updated);
+  }, [storedSubcontractors, persistSubcontractors]);
+
+  const updateSubcontractor = useCallback((id: string, updates: Partial<Omit<Subcontractor, 'id'>>) => {
+    const updated = storedSubcontractors.map(s => s.id === id ? { ...s, ...updates } : s);
+    setStoredSubcontractors(updated);
+    persistSubcontractors(updated);
+  }, [storedSubcontractors, persistSubcontractors]);
+
+  const deleteSubcontractor = useCallback((id: string) => {
+    const updated = storedSubcontractors.filter(s => s.id !== id);
+    setStoredSubcontractors(updated);
+    persistSubcontractors(updated);
+  }, [storedSubcontractors, persistSubcontractors]);
+
   return (
-    <DocumentContext.Provider value={{ documents, addDocument, updateDocument, deleteDocument, duplicateDocument, clients, addClient, updateClient, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, sendDocument, isLoading }}>
+    <DocumentContext.Provider value={{ documents, addDocument, updateDocument, deleteDocument, duplicateDocument, clients, addClient, updateClient, subcontractors: storedSubcontractors, addSubcontractor, updateSubcontractor, deleteSubcontractor, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, sendDocument, isLoading }}>
       {children}
     </DocumentContext.Provider>
   );
