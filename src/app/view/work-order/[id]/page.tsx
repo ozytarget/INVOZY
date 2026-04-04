@@ -4,13 +4,12 @@
 
 import { notFound, useParams } from "next/navigation";
 import type { Document, Subcontractor } from "@/lib/types";
-import { ClipboardList, HardHat, Wrench, Loader2, User, Home, MessageSquare, Mail, Send, ChevronsUpDown, Check, Plus, RefreshCw, AlertTriangle } from "lucide-react";
+import { ClipboardList, HardHat, Wrench, Loader2, User, Home, MessageSquare, Mail, Send, ChevronsUpDown, Check, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { getWorkOrder } from "@/app/actions";
-import { WorkOrderOutput } from "@/ai/flows/generate-work-order";
+import { sendWorkOrderEmail } from "@/app/actions";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useDocuments } from "@/hooks/use-documents";
@@ -20,7 +19,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
 
-function WorkOrderDisplay({ workOrder, document: documentData }: { workOrder: WorkOrderOutput, document: Document }) {
+type WorkOrder = { tasks: string[]; materials: string[]; tools: string[] };
+
+function WorkOrderDisplay({ workOrder, document: documentData }: { workOrder: WorkOrder, document: Document }) {
     return (
         <div className="space-y-8">
             <Card>
@@ -75,13 +76,14 @@ function WorkOrderDisplay({ workOrder, document: documentData }: { workOrder: Wo
     );
 }
 
-function SendToSubcontractorSection({ documentData, workOrder }: { documentData: Document, workOrder: WorkOrderOutput | null }) {
+function SendToSubcontractorSection({ documentData, workOrder }: { documentData: Document, workOrder: WorkOrder | null }) {
   const { subcontractors, addSubcontractor } = useDocuments();
   const { toast } = useToast();
   const [selectedSub, setSelectedSub] = useState<Subcontractor | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newSub, setNewSub] = useState({ name: '', email: '', phone: '', specialty: '' });
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const buildMessageBody = () => {
     const parts = [
@@ -109,14 +111,34 @@ function SendToSubcontractorSection({ documentData, workOrder }: { documentData:
     window.open(`sms:${sub.phone}?body=${encodeURIComponent(body)}`, '_blank');
   };
 
-  const handleSendEmail = (sub: Subcontractor) => {
+  const handleSendEmail = async (sub: Subcontractor) => {
     if (!sub.email) {
       toast({ variant: "destructive", title: "No email", description: `${sub.name} has no email on file.` });
       return;
     }
-    const subject = `Work Order: ${documentData.projectTitle}`;
-    const body = buildMessageBody();
-    window.open(`mailto:${sub.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+    setIsSendingEmail(true);
+    try {
+      const result = await sendWorkOrderEmail({
+        to: sub.email,
+        subcontractorName: sub.name,
+        projectTitle: documentData.projectTitle,
+        clientName: documentData.clientName,
+        clientAddress: documentData.clientAddress || '',
+        tasks: workOrder?.tasks || [],
+        materials: workOrder?.materials || [],
+        tools: workOrder?.tools || [],
+        companyName: documentData.companyName || 'Your Company',
+        companyEmail: documentData.companyEmail,
+      });
+      if (result.success) {
+        toast({ title: "Email sent", description: `Work order sent to ${sub.name} (${sub.email})` });
+      } else {
+        toast({ variant: "destructive", title: "Email failed", description: result.error || 'Could not send email.' });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Email failed", description: 'Unexpected error sending email.' });
+    }
+    setIsSendingEmail(false);
   };
 
   const handleAddNew = () => {
@@ -213,9 +235,9 @@ function SendToSubcontractorSection({ documentData, workOrder }: { documentData:
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Send via SMS
               </Button>
-              <Button className="flex-1" variant="outline" onClick={() => handleSendEmail(selectedSub)} disabled={!selectedSub.email}>
-                <Mail className="mr-2 h-4 w-4" />
-                Send via Email
+              <Button className="flex-1" variant="outline" onClick={() => handleSendEmail(selectedSub)} disabled={!selectedSub.email || isSendingEmail}>
+                {isSendingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                {isSendingEmail ? 'Sending...' : 'Send via Email'}
               </Button>
             </div>
           </>
@@ -236,10 +258,8 @@ function WorkOrderPageContent() {
   const id = typeof params.id === 'string' ? params.id : '';
 
   const [documentData, setDocumentData] = useState<Document | null>(null);
-  const [workOrder, setWorkOrder] = useState<WorkOrderOutput | null>(null);
+  const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(true);
-  const [generationFailed, setGenerationFailed] = useState(false);
 
   useEffect(() => {
     if (!id || docsLoading) return;
@@ -247,52 +267,16 @@ function WorkOrderPageContent() {
     const doc = documents.find((d) => d.id === id && d.type === 'Invoice') || null;
     if (doc) {
       setDocumentData(doc);
+      const tasks = doc.lineItems.map((item, i) => `${i + 1}. ${item.description} (Qty: ${item.quantity})`);
+      const materials = doc.lineItems.map(item => item.description);
+      setWorkOrder({
+        tasks: tasks.length > 0 ? tasks : ['Review project scope on site', 'Complete work as discussed'],
+        materials: materials.length > 0 ? materials : ['As specified in invoice'],
+        tools: ['Standard tools for the job scope'],
+      });
     }
     setIsLoading(false);
   }, [id, documents, docsLoading]);
-
-  const generateOfflineFallback = (doc: Document): WorkOrderOutput => {
-    const tasks = doc.lineItems.map((item, i) => `${i + 1}. ${item.description} (Qty: ${item.quantity})`);
-    const materials = doc.lineItems.map(item => item.description);
-    return {
-      tasks: tasks.length > 0 ? tasks : ['Review project scope on site', 'Complete work as discussed'],
-      materials: materials.length > 0 ? materials : ['As specified in invoice'],
-      tools: ['Standard tools for the job scope'],
-    };
-  };
-
-  const handleGenerate = async (doc: Document) => {
-    setIsGenerating(true);
-    setGenerationFailed(false);
-    try {
-      const result = await getWorkOrder({
-        projectTitle: doc.projectTitle,
-        projectDescription: doc.notes,
-        lineItems: doc.lineItems.map(item => ({ description: item.description, quantity: item.quantity })),
-      });
-      if (result.success && result.data) {
-        setWorkOrder(result.data);
-      } else {
-        setGenerationFailed(true);
-      }
-    } catch {
-      setGenerationFailed(true);
-    }
-    setIsGenerating(false);
-  };
-
-  const handleUseOffline = () => {
-    if (!documentData) return;
-    setWorkOrder(generateOfflineFallback(documentData));
-    setGenerationFailed(false);
-  };
-
-  useEffect(() => {
-    if (documentData && !workOrder && !generationFailed) {
-      handleGenerate(documentData);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentData]);
 
   if (isLoading || docsLoading) {
     return (
@@ -356,33 +340,11 @@ function WorkOrderPageContent() {
                 </CardHeader>
 
                 <CardContent className="p-0">
-                    {isGenerating && (
-                        <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
-                            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                            <h3 className="font-semibold text-lg">Generating Work Order...</h3>
-                            <p className="text-muted-foreground">The AI is analyzing the project details to create the task, material, and tool lists.</p>
-                        </div>
-                    )}
-                    {generationFailed && !isGenerating && (
-                        <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
-                            <AlertTriangle className="h-10 w-10 text-destructive" />
-                            <h3 className="font-semibold text-lg">Generation Failed</h3>
-                            <p className="text-muted-foreground">The AI could not generate the work order. You can retry or use a basic version.</p>
-                            <div className="flex gap-3">
-                              <Button onClick={() => handleGenerate(documentData!)} variant="outline">
-                                <RefreshCw className="mr-2 h-4 w-4" /> Retry
-                              </Button>
-                              <Button onClick={handleUseOffline}>
-                                Use Basic Version
-                              </Button>
-                            </div>
-                        </div>
-                    )}
                     {workOrder && <WorkOrderDisplay workOrder={workOrder} document={documentData} />}
                 </CardContent>
              </Card>
 
-             {!isGenerating && workOrder && (
+             {workOrder && (
                <div className="mt-8">
                  <SendToSubcontractorSection documentData={documentData} workOrder={workOrder} />
                </div>

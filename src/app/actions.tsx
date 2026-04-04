@@ -213,3 +213,108 @@ export async function sendDocumentEmail({
     return { success: false, error: 'Failed to send email.' };
   }
 }
+
+export async function sendWorkOrderEmail({
+  to,
+  subcontractorName,
+  projectTitle,
+  clientName,
+  clientAddress,
+  tasks,
+  materials,
+  tools,
+  companyName,
+  companyEmail,
+}: {
+  to: string;
+  subcontractorName: string;
+  projectTitle: string;
+  clientName: string;
+  clientAddress: string;
+  tasks: string[];
+  materials: string[];
+  tools: string[];
+  companyName: string;
+  companyEmail?: string;
+}) {
+  try {
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.RESEND_FROM_EMAIL;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!resendApiKey) return { success: false, error: 'Missing RESEND_API_KEY.' };
+    if (!fromEmail) return { success: false, error: 'Missing RESEND_FROM_EMAIL.' };
+
+    const rawFrom = fromEmail.trim();
+    const normalizedFromEmail = rawFrom.includes('@') ? rawFrom : `noreply@${rawFrom}`;
+    const safeCompanyName = (companyName || 'INVOZY').replace(/[^a-zA-Z0-9 .,&-]/g, '').trim() || 'INVOZY';
+    const fromValue = `${safeCompanyName} <${normalizedFromEmail}>`;
+    const replyTo = companyEmail && emailRegex.test(companyEmail) ? companyEmail : normalizedFromEmail;
+
+    if (!to || !emailRegex.test(to)) return { success: false, error: 'Invalid subcontractor email.' };
+
+    const resend = new Resend(resendApiKey);
+
+    const tasksList = tasks.map((t, i) => `${i + 1}. ${t}`).join('\n');
+    const materialsList = materials.join(', ');
+    const toolsList = tools.join(', ');
+
+    const emailHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+        <h1 style="color:#333;border-bottom:2px solid #22c55e;padding-bottom:10px;">Work Order</h1>
+        <p>Hi <strong>${subcontractorName}</strong>,</p>
+        <p>You have a new work order from <strong>${safeCompanyName}</strong>.</p>
+        <table style="width:100%;margin:16px 0;border-collapse:collapse;">
+          <tr><td style="padding:8px;font-weight:bold;color:#666;">Project</td><td style="padding:8px;">${projectTitle}</td></tr>
+          <tr><td style="padding:8px;font-weight:bold;color:#666;">Client</td><td style="padding:8px;">${clientName}</td></tr>
+          <tr><td style="padding:8px;font-weight:bold;color:#666;">Address</td><td style="padding:8px;">${clientAddress}</td></tr>
+        </table>
+        <h2 style="color:#333;">Tasks</h2>
+        <ol>${tasks.map(t => `<li style="margin:4px 0;">${t}</li>`).join('')}</ol>
+        <h2 style="color:#333;">Materials</h2>
+        <p>${materialsList}</p>
+        <h2 style="color:#333;">Tools</h2>
+        <p>${toolsList}</p>
+        <hr style="margin:24px 0;border:none;border-top:1px solid #eee;" />
+        <p style="color:#999;font-size:12px;">Sent by ${safeCompanyName} via INVOZY</p>
+      </div>
+    `;
+
+    const emailText = [
+      `Work Order: ${projectTitle}`,
+      `Hi ${subcontractorName},`,
+      '',
+      `Project: ${projectTitle}`,
+      `Client: ${clientName}`,
+      `Address: ${clientAddress}`,
+      '',
+      'Tasks:',
+      tasksList,
+      '',
+      `Materials: ${materialsList}`,
+      `Tools: ${toolsList}`,
+      '',
+      `— ${safeCompanyName}`,
+    ].join('\n');
+
+    const { data, error } = await resend.emails.send({
+      from: fromValue,
+      reply_to: replyTo,
+      to: [to],
+      subject: `${safeCompanyName} - Work Order: ${projectTitle}`,
+      html: emailHtml,
+      text: emailText,
+    });
+
+    if (error) {
+      console.error('[WorkOrderEmail] Resend error:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('[WorkOrderEmail] ✓ Sent to', to);
+    return { success: true, data };
+  } catch (error) {
+    console.error('[WorkOrderEmail] Exception:', error);
+    return { success: false, error: 'Failed to send work order email.' };
+  }
+}
