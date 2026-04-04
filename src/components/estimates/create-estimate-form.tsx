@@ -132,6 +132,82 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
 
   const { formState: { isDirty } } = form;
 
+  // --- Draft auto-save & recovery ---
+  const DRAFT_KEY = isEditMode && documentToEdit
+    ? `invozy_draft_estimate_${documentToEdit.id}`
+    : 'invozy_draft_estimate_new';
+  const draftRestoredRef = useRef(false);
+
+  const saveDraftNow = useCallback(() => {
+    if (!isDirty || typeof window === 'undefined') return;
+    const values = form.getValues();
+    const draft = {
+      data: {
+        ...values,
+        issuedDate: values.issuedDate?.toISOString(),
+        dueDate: values.dueDate?.toISOString(),
+      },
+      timestamp: Date.now(),
+      editId: documentToEdit?.id || null,
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }, [form, isDirty, DRAFT_KEY, documentToEdit?.id]);
+
+  const clearDraft = useCallback(() => {
+    localStorage.removeItem(DRAFT_KEY);
+  }, [DRAFT_KEY]);
+
+  // Auto-save every 10s + on visibilitychange (mobile background)
+  useEffect(() => {
+    const interval = window.setInterval(saveDraftNow, 10000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') saveDraftNow();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', saveDraftNow);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', saveDraftNow);
+    };
+  }, [saveDraftNow]);
+
+  // Restore draft on load
+  useEffect(() => {
+    if (draftRestoredRef.current) return;
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw);
+      const age = Date.now() - (draft.timestamp || 0);
+      if (age > 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+      draftRestoredRef.current = true;
+      const d = draft.data;
+      form.reset({
+        clientId: d.clientId || '',
+        projectTitle: d.projectTitle || '',
+        projectDescription: d.projectDescription || '',
+        issuedDate: d.issuedDate ? new Date(d.issuedDate) : new Date(),
+        dueDate: d.dueDate ? new Date(d.dueDate) : new Date(),
+        lineItems: d.lineItems || [{ description: '', quantity: 1, price: 0 }],
+        notes: d.notes || '',
+        terms: d.terms || '',
+        projectPhotos: d.projectPhotos || [],
+      });
+      if (d.clientId) {
+        const c = findClientByEmail(d.clientId);
+        if (c) setSelectedClient(c);
+      }
+      toast({ title: "Draft restored", description: "Your unsaved work has been recovered." });
+    } catch {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (isDirty) {
@@ -260,25 +336,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     load();
   }, [user?.id]);
 
-  // Auto-save draft to sessionStorage
-  useEffect(() => {
-    if (!isEditMode || !documentToEdit) return;
-
-    const saveDraft = () => {
-      const formValues = form.getValues();
-      const draft = {
-        docId: documentToEdit.id,
-        data: formValues,
-        timestamp: Date.now(),
-      };
-      if (typeof window !== 'undefined' && isDirty) {
-        sessionStorage.setItem(`estimate_draft_${documentToEdit.id}`, JSON.stringify(draft));
-      }
-    };
-
-    const interval = window.setInterval(saveDraft, 5000); // Save every 5s if dirty
-    return () => window.clearInterval(interval);
-  }, [documentToEdit, isEditMode, form, isDirty]);
+  // --- Old sessionStorage draft replaced by localStorage auto-save above ---
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -358,6 +416,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       console.log('📝 Update data lineItems:', docData.lineItems);
       await updateDocument(documentToEdit.id, docData);
       console.log('📝 Update completed');
+      clearDraft();
       toast({
         title: "Estimate Updated",
         description: `Estimate for ${client.name} has been updated.`,
@@ -376,6 +435,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
 
       const newDocId = await addDocument(newEstimate);
       console.log('📝 Create completed, new ID:', newDocId);
+      clearDraft();
 
       toast({
         title: "Estimate Created",
