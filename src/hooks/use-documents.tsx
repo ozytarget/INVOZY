@@ -202,6 +202,7 @@ interface DocumentContextType {
   duplicateDocument: (docId: string) => Promise<void>;
   clients: Client[];
   addClient: (client: Omit<Client, 'totalBilled' | 'documentCount'>) => Promise<void>;
+  updateClient: (email: string, updates: Partial<Omit<Client, 'totalBilled' | 'documentCount'>>) => Promise<void>;
   signAndProcessDocument: (docId: string, signature: string) => Promise<string | undefined>;
   recordPayment: (docId: string, payment: Omit<Payment, 'id' | 'date'>) => Promise<void>;
   revertInvoiceToDraft: (invoiceId: string) => Promise<void>;
@@ -1197,8 +1198,28 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     return getCombinedClients(documents, storedClients);
   }, [documents, storedClients]);
 
+  const updateClient = useCallback(async (email: string, updates: Partial<Omit<Client, 'totalBilled' | 'documentCount'>>) => {
+    const updatedClients = storedClients.map(c =>
+      c.email === email ? { ...c, ...updates } : c
+    );
+    // If the client wasn't in storedClients yet (derived from docs), add it
+    if (!updatedClients.find(c => c.email === email)) {
+      const fromDoc = documents.find(d => d.clientEmail === email);
+      if (fromDoc) {
+        updatedClients.push({
+          name: fromDoc.clientName, email: fromDoc.clientEmail,
+          phone: fromDoc.clientPhone, address: fromDoc.clientAddress,
+          totalBilled: 0, documentCount: 0,
+          ...updates,
+        });
+      }
+    }
+    setStoredClients(updatedClients);
+    persistDemoClients(updatedClients, user?.id, false);
+  }, [storedClients, documents, user?.id]);
+
   return (
-    <DocumentContext.Provider value={{ documents, addDocument, updateDocument, deleteDocument, duplicateDocument, clients, addClient, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, sendDocument, isLoading }}>
+    <DocumentContext.Provider value={{ documents, addDocument, updateDocument, deleteDocument, duplicateDocument, clients, addClient, updateClient, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, sendDocument, isLoading }}>
       {children}
     </DocumentContext.Provider>
   );
