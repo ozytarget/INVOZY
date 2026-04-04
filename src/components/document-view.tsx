@@ -729,7 +729,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
                   </RecordPaymentDialog>
                 )}
                 <SendEmailDialog
-                  document={documentData}
+                  document={{...documentData, schedulingUrl: co.schedulingUrl || documentData.schedulingUrl}}
                   companyName={co.companyName || "Your Company"}
                   onEmailSent={handleEmailSent}
                 >
