@@ -232,7 +232,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     lastLoadedRef.current = { id: docId, signature: docSignature };
     console.log('✓✓✓ Form population complete');
 
-  }, [documentToEdit, isEditMode, form, isDirty]);
+  }, [documentToEdit, isEditMode, form]);
 
   useEffect(() => {
     if (!isEditMode || !documentToEdit) return;
