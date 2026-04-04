@@ -179,9 +179,15 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       return;
     }
 
-    const issuedDate = documentToEdit.issuedDate ? parseISO(documentToEdit.issuedDate) : new Date();
+    const parsedIssued = documentToEdit.issuedDate ? parseISO(documentToEdit.issuedDate) : new Date();
+    const issuedDate = isNaN(parsedIssued.getTime()) ? new Date() : parsedIssued;
     const lineItems = Array.isArray(documentToEdit.lineItems) && documentToEdit.lineItems.length > 0
-      ? documentToEdit.lineItems
+      ? documentToEdit.lineItems.map(item => ({
+          ...item,
+          description: item.description || '',
+          quantity: Number(item.quantity) || 0,
+          price: Number(item.price) || 0,
+        }))
       : [{ description: "", quantity: 1, price: 0 }];
     const projectPhotos = Array.isArray(documentToEdit.projectPhotos)
       ? documentToEdit.projectPhotos.map(p => ({ url: p.url || '', description: p.description || '' }))
@@ -379,11 +385,21 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     }
   }
 
-  const onInvalid = () => {
+  const onInvalid = (errors: any) => {
+    console.error('❌ ESTIMATE FORM VALIDATION ERRORS:', errors);
+    const fieldNames: string[] = [];
+    if (errors.clientId) fieldNames.push('Client');
+    if (errors.projectTitle) fieldNames.push('Project Title');
+    if (errors.issuedDate) fieldNames.push('Issued Date');
+    if (errors.lineItems) fieldNames.push('Line Items');
+    if (errors.notes) fieldNames.push('Notes');
+    if (errors.terms) fieldNames.push('Terms');
     toast({
       variant: "destructive",
       title: "Cannot update estimate",
-      description: "Please complete required fields before saving.",
+      description: fieldNames.length > 0
+        ? `Please fix: ${fieldNames.join(', ')}`
+        : "Please complete required fields before saving.",
     });
   };
 

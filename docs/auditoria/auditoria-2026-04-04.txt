@@ -1,0 +1,33 @@
+AUDITORIA QUIRURGICA
+Fecha: 2026-04-04
+Proyecto: INVOZY
+
+Objetivo
+- Verificar si habia riesgos al limpiar archivos "flotantes" sin romper la app.
+
+Resultado ejecutivo
+- Se mantiene la app "como esta" para evitar cambios funcionales.
+- No hay confusion operativa inmediata si se deja asi.
+- Solo se elimino un archivo realmente no usado.
+
+Hallazgos confirmados
+1) Archivo no usado eliminado
+- src/components/providers.tsx
+- Estado: eliminado sin impacto.
+- Verificacion: sin errores de compilacion posteriores.
+
+2) Archivos que NO deben borrarse por ahora
+- src/supabase/provider.tsx
+- src/supabase/client.ts
+- Motivo: siguen importados por multiples partes activas de la app (layout, auth, hooks, forms, dashboard).
+
+3) Contexto tecnico
+- Aunque exista modo demo activo en use-documents, la estructura de imports y proveedor de sesion sigue dependiendo de esos modulos.
+- Borrarlos hoy causaria errores de build/runtime.
+
+Conclusion
+- Decision recomendada: dejar el proyecto asi por ahora (sin limpieza agresiva).
+- Riesgo de confusion: bajo, siempre que se mantenga esta nota como referencia.
+
+Siguiente paso recomendado (opcional)
+- Si en el futuro se quiere remover Supabase por completo, hacerlo en refactor controlado por fases (renombrar proveedor, mover auth a modulo neutral y actualizar imports), con pruebas en cada fase.

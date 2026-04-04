@@ -161,8 +161,8 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleRowClick(doc)}>{doc.isSigned ? 'View' : 'View / Edit'}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(doc)}>{doc.isSigned ? 'New from this' : 'Duplicate'}</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {doc.type === 'Invoice' && doc.status === 'Sent' && (
                             <DropdownMenuItem onClick={() => handleRevertToDraft(doc.id)}>
@@ -185,7 +185,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
             </Table>
           </div>
 
-          {/* Mobile View */}
+          {/* Mobile View */
           <div className="md:hidden space-y-4">
             {filteredDocuments.map((doc) => (
               <div key={doc.id} className="border rounded-lg p-4 space-y-2 cursor-pointer relative" onClick={() => handleRowClick(doc)}>
@@ -215,8 +215,8 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => handleRowClick(doc)}>View / Edit</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDuplicate(doc)}>Duplicate</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleRowClick(doc)}>{doc.isSigned ? 'View' : 'View / Edit'}</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDuplicate(doc)}>{doc.isSigned ? 'New from this' : 'Duplicate'}</DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {doc.type === 'Invoice' && doc.status === 'Sent' && (
                         <DropdownMenuItem onClick={() => handleRevertToDraft(doc.id)}>

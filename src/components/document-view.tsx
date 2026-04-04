@@ -13,7 +13,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import { Button } from "./ui/button";
 import { useDocuments } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail, MessageSquare, ClipboardList, Download } from "lucide-react";
+import { ArrowLeft, Share2, Edit, Trash2, DollarSign, MoreVertical, X, Mail, MessageSquare, ClipboardList, Download, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DeleteDocumentDialog } from "./delete-document-dialog";
@@ -93,7 +93,7 @@ const FabMenuItem = ({ onClick, icon, label, variant = 'secondary', className = 
 
 export function DocumentView({ document: documentData, isPublic = false }: DocumentViewProps) {
   const sigCanvas = useRef<SignatureCanvas>(null);
-  const { signAndProcessDocument, deleteDocument, recordPayment, sendDocument } = useDocuments();
+  const { signAndProcessDocument, deleteDocument, duplicateDocument, recordPayment, sendDocument } = useDocuments();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -380,6 +380,16 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
   const handleEdit = () => {
     const editUrl = `/dashboard/${documentData.type.toLowerCase()}s/edit/${documentData.id}`;
     router.push(editUrl);
+    setIsFabMenuOpen(false);
+  }
+
+  const handleAddFromSigned = async () => {
+    await duplicateDocument(documentData.id);
+    toast({
+      title: `New ${documentData.type} Created`,
+      description: `A new draft ${documentData.type.toLowerCase()} has been created from this signed document.`,
+    });
+    router.push(`/dashboard/${documentData.type.toLowerCase()}s`);
     setIsFabMenuOpen(false);
   }
 
@@ -748,11 +758,19 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
                   variant="outline"
                   className="bg-background"
                 />
-                <FabMenuItem
-                  onClick={handleEdit}
-                  icon={<Edit className="h-6 w-6" />}
-                  label="Edit"
-                />
+                {documentData.isSigned ? (
+                  <FabMenuItem
+                    onClick={handleAddFromSigned}
+                    icon={<Plus className="h-6 w-6" />}
+                    label="New from this"
+                  />
+                ) : (
+                  <FabMenuItem
+                    onClick={handleEdit}
+                    icon={<Edit className="h-6 w-6" />}
+                    label="Edit"
+                  />
+                )}
                 <FabMenuItem
                   onClick={handleShare}
                   icon={<Share2 className="h-6 w-6" />}
