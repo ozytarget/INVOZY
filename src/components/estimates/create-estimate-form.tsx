@@ -175,7 +175,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     const docId = documentToEdit.id;
 
     // Skip reset if we already loaded this exact document
-    if (lastLoadedRef.current.id === docId) {
+    if (lastLoadedRef.current === docId) {
       return;
     }
 
