@@ -124,6 +124,7 @@ function SendToSubcontractorSection({ documentData, workOrder }: { documentData:
         projectTitle: documentData.projectTitle,
         clientName: documentData.clientName,
         clientAddress: documentData.clientAddress || '',
+        invoiceNumber: documentData.invoiceNumber,
         tasks: workOrder?.tasks || [],
         materials: workOrder?.materials || [],
         tools: workOrder?.tools || [],

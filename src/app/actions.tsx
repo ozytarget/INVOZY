@@ -221,6 +221,7 @@ export async function sendWorkOrderEmail({
   projectTitle,
   clientName,
   clientAddress,
+  invoiceNumber,
   tasks,
   materials,
   tools,
@@ -232,6 +233,7 @@ export async function sendWorkOrderEmail({
   projectTitle: string;
   clientName: string;
   clientAddress: string;
+  invoiceNumber?: string;
   tasks: string[];
   materials: string[];
   tools: string[];
@@ -298,7 +300,7 @@ export async function sendWorkOrderEmail({
       from: fromValue,
       reply_to: replyTo,
       to: [to],
-      subject: `${safeCompanyName} — Work Order for ${projectTitle}`,
+      subject: `${safeCompanyName} - Work Order${invoiceNumber ? ` (${invoiceNumber})` : ''}: ${projectTitle}`,
       html: emailHtml,
       text: emailText,
     });
