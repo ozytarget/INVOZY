@@ -11,6 +11,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import Image from "next/image"
 
 import { cn } from "@/lib/utils"
+import { getWorkOrder } from "@/app/actions"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -306,6 +307,50 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     setSelectedClient(client || null);
   }, [findClientByEmail, form]);
 
+  function generateWorkOrderInBackground(
+    docId: string,
+    docData: Partial<Document>,
+    updateFn: (id: string, data: Partial<Document>) => Promise<void>
+  ) {
+    const lineItems = (docData.lineItems || []).map(item => ({
+      description: item.description,
+      quantity: item.quantity,
+    }));
+    getWorkOrder({
+      projectTitle: docData.projectTitle || '',
+      projectDescription: docData.notes || '',
+      lineItems,
+    }).then(result => {
+      if (result.success && result.data) {
+        updateFn(docId, {
+          workOrder: {
+            tasks: result.data.tasks,
+            materials: result.data.materials,
+            tools: result.data.tools,
+            generatedAt: new Date().toISOString(),
+          },
+        });
+        console.log('✅ Work order pre-generated for invoice', docId);
+      } else {
+        // AI failed — save basic fallback so it's still available
+        const tasks = (docData.lineItems || []).map((item, i) => `${i + 1}. ${item.description} (Qty: ${item.quantity})`);
+        const materials = (docData.lineItems || []).map(item => item.description);
+        updateFn(docId, {
+          workOrder: {
+            tasks: tasks.length > 0 ? tasks : ['Review project scope on site'],
+            materials: materials.length > 0 ? materials : ['As specified in invoice'],
+            tools: ['Standard tools for the job scope'],
+            generatedAt: new Date().toISOString(),
+          },
+        });
+        console.log('⚠️ AI failed, saved basic work order for invoice', docId);
+      }
+    }).catch(() => {
+      // Silent fail — work order page has its own fallback
+      console.log('⚠️ Work order background generation failed for', docId);
+    });
+  }
+
   async function onSubmit(data: InvoiceFormValues) {
     console.log('📝 INVOICE FORM SUBMITTED - Raw data:', data);
     console.log('📝 Invoice lineItems raw:', data.lineItems);
@@ -371,6 +416,8 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
         title: "Invoice Updated",
         description: `Invoice for ${client.name} has been updated.`,
       });
+      // Regenerate work order in background after edit
+      generateWorkOrderInBackground(documentToEdit.id, docData, updateDocument);
       router.push(`/view/invoice/${documentToEdit.id}`);
     } else {
       console.log('📝 CREATING new invoice');
@@ -391,7 +438,9 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
         description: `Invoice for ${client.name} has been saved as a draft.`,
       })
 
+      // Generate work order in background after create
       if (newDocId) {
+        generateWorkOrderInBackground(newDocId, docData, updateDocument);
         router.push(`/view/invoice/${newDocId}`);
       } else {
         router.push("/dashboard/invoices");

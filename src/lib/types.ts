@@ -63,6 +63,12 @@ export type Document = {
   estimateNumber?: string;
   invoiceNumber?: string;
   projectPhotos?: ProjectPhoto[];
+  workOrder?: {
+    tasks: string[];
+    materials: string[];
+    tools: string[];
+    generatedAt: string;
+  };
   search_field: string;
 };
 

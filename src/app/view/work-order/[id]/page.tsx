@@ -267,13 +267,22 @@ function WorkOrderPageContent() {
     const doc = documents.find((d) => d.id === id && d.type === 'Invoice') || null;
     if (doc) {
       setDocumentData(doc);
-      const tasks = doc.lineItems.map((item, i) => `${i + 1}. ${item.description} (Qty: ${item.quantity})`);
-      const materials = doc.lineItems.map(item => item.description);
-      setWorkOrder({
-        tasks: tasks.length > 0 ? tasks : ['Review project scope on site', 'Complete work as discussed'],
-        materials: materials.length > 0 ? materials : ['As specified in invoice'],
-        tools: ['Standard tools for the job scope'],
-      });
+      // Use pre-generated AI work order if available, otherwise basic fallback
+      if (doc.workOrder && doc.workOrder.tasks.length > 0) {
+        setWorkOrder({
+          tasks: doc.workOrder.tasks,
+          materials: doc.workOrder.materials,
+          tools: doc.workOrder.tools,
+        });
+      } else {
+        const tasks = doc.lineItems.map((item, i) => `${i + 1}. ${item.description} (Qty: ${item.quantity})`);
+        const materials = doc.lineItems.map(item => item.description);
+        setWorkOrder({
+          tasks: tasks.length > 0 ? tasks : ['Review project scope on site', 'Complete work as discussed'],
+          materials: materials.length > 0 ? materials : ['As specified in invoice'],
+          tools: ['Standard tools for the job scope'],
+        });
+      }
     }
     setIsLoading(false);
   }, [id, documents, docsLoading]);
