@@ -221,7 +221,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   // Load documents and clients from custom backend (with local fallback)
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
     if (!user) {
       setStoredClients([]);
       setDocuments([]);
@@ -230,7 +231,9 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     if (isDemoMode) {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       try {
         const response = await fetch('/api/state', { method: 'GET', credentials: 'include' });
         if (response.ok) {
@@ -248,7 +251,9 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
           persistDemoClients(remoteClients, user.id, false);
           persistDemoDocuments(remoteDocuments, user.id, false);
-          setIsLoading(false);
+          if (!silent) {
+            setIsLoading(false);
+          }
           return;
         }
       } catch (error) {
@@ -258,12 +263,16 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       const demoData = loadDemoData(user.id);
       setStoredClients(demoData.clients);
       setDocuments(demoData.documents);
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
       return;
     }
 
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
 
       // Fetch estimates and invoices
       const { data: estimatesData, error: estimatesError } = await supabase
@@ -453,7 +462,9 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       
       setStoredClients(transformedClients);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, [user]);
 
@@ -465,7 +476,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     if (!user) return;
 
     const refresh = () => {
-      void loadData();
+      void loadData({ silent: true });
     };
 
     // Keep dashboard in sync when clients sign/open docs from public links.

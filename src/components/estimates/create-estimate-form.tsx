@@ -99,6 +99,12 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
 
   const isEditMode = !!documentToEdit;
 
+  const findClientByEmail = useCallback((email?: string) => {
+    if (!email) return undefined;
+    const normalizedEmail = email.trim().toLowerCase();
+    return clients.find(client => client.email.toLowerCase() === normalizedEmail);
+  }, [clients]);
+
   // Don't use defaultValues during form creation - always use form.reset() in useEffect
   // This ensures async data loads properly
   const form = useForm<EstimateFormValues>({
@@ -165,68 +171,50 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       lineItems: documentToEdit.lineItems?.length,
     });
 
-    // Set the selected client
-    const client = clients.find(c => c.email === documentToEdit.clientEmail);
-    if (client) {
-      console.log('Setting selected client:', client.name);
-      setSelectedClient(client);
-    }
+    const issuedDate = documentToEdit.issuedDate ? parseISO(documentToEdit.issuedDate) : new Date();
+    const lineItems = Array.isArray(documentToEdit.lineItems) && documentToEdit.lineItems.length > 0
+      ? documentToEdit.lineItems
+      : [{ description: "", quantity: 1, price: 0 }];
+    const projectPhotos = Array.isArray(documentToEdit.projectPhotos)
+      ? documentToEdit.projectPhotos.map(p => ({ url: p.url || '', description: p.description || '' }))
+      : [];
 
-    // Use setValue for each field to populate the form
-    console.log('Populating form fields with setValue...');
-
-    if (documentToEdit.clientEmail) {
-      form.setValue('clientId', documentToEdit.clientEmail, { shouldValidate: false, shouldDirty: false });
-      console.log('✓ Set clientId:', documentToEdit.clientEmail);
-    }
-
-    if (documentToEdit.projectTitle) {
-      form.setValue('projectTitle', documentToEdit.projectTitle, { shouldValidate: false, shouldDirty: false });
-      console.log('✓ Set projectTitle:', documentToEdit.projectTitle);
-    }
-
-    if (documentToEdit.notes) {
-      form.setValue('projectDescription', documentToEdit.notes, { shouldValidate: false, shouldDirty: false });
-      form.setValue('notes', documentToEdit.notes, { shouldValidate: false, shouldDirty: false });
-      console.log('✓ Set notes:', documentToEdit.notes);
-    }
-
-    if (documentToEdit.issuedDate) {
-      const issuedDate = parseISO(documentToEdit.issuedDate);
-      form.setValue('issuedDate', issuedDate, { shouldValidate: false, shouldDirty: false });
-      console.log('✓ Set issuedDate:', issuedDate);
-    }
-
-    if (documentToEdit.terms) {
-      form.setValue('terms', documentToEdit.terms, { shouldValidate: false, shouldDirty: false });
-      console.log('✓ Set terms:', documentToEdit.terms);
-    }
-
-    if (documentToEdit.lineItems && Array.isArray(documentToEdit.lineItems)) {
-      console.log('📦 lineItems found:', documentToEdit.lineItems);
-      console.log('📦 lineItems type:', typeof documentToEdit.lineItems);
-      console.log('📦 lineItems is Array?:', Array.isArray(documentToEdit.lineItems));
-      form.setValue('lineItems', documentToEdit.lineItems, { shouldValidate: false, shouldDirty: false });
-      console.log('✓ Set lineItems:', documentToEdit.lineItems.length, 'items');
-
-      // Verify what was set
-      const formValues = form.getValues('lineItems');
-      console.log('✓ Form now has lineItems:', formValues);
-    } else {
-      console.log('⚠️ NO LINEITEMS FOUND OR NOT AN ARRAY');
-      console.log('lineItems value:', documentToEdit.lineItems);
-      console.log('lineItems type:', typeof documentToEdit.lineItems);
-    }
-
-    if (documentToEdit.projectPhotos && Array.isArray(documentToEdit.projectPhotos)) {
-      const photos = documentToEdit.projectPhotos.map(p => ({ url: p.url || '', description: p.description || '' }));
-      form.setValue('projectPhotos', photos, { shouldValidate: false, shouldDirty: false });
-      console.log('✓ Set projectPhotos:', photos.length, 'photos');
-    }
+    console.log('Populating form fields with reset...');
+    form.reset({
+      clientId: documentToEdit.clientEmail || "",
+      projectTitle: documentToEdit.projectTitle || "",
+      projectDescription: documentToEdit.notes || "",
+      issuedDate,
+      lineItems,
+      notes: documentToEdit.notes || "",
+      terms: documentToEdit.terms || "",
+      projectPhotos,
+    });
 
     console.log('✓✓✓ Form population complete');
 
-  }, [documentToEdit, isEditMode]);
+  }, [documentToEdit, isEditMode, form]);
+
+  useEffect(() => {
+    if (!isEditMode || !documentToEdit) return;
+
+    const matchedClient = findClientByEmail(documentToEdit.clientEmail);
+    if (matchedClient) {
+      setSelectedClient(matchedClient);
+      return;
+    }
+
+    if (documentToEdit.clientEmail || documentToEdit.clientName) {
+      setSelectedClient({
+        name: documentToEdit.clientName || "",
+        email: documentToEdit.clientEmail || "",
+        phone: documentToEdit.clientPhone || "",
+        address: documentToEdit.clientAddress || "",
+        totalBilled: 0,
+        documentCount: 0,
+      });
+    }
+  }, [documentToEdit, isEditMode, findClientByEmail]);
 
   // Load company settings — DB first, localStorage as fallback
   useEffect(() => {
@@ -267,15 +255,17 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
 
   const handleClientChange = useCallback((clientId: string) => {
     form.setValue('clientId', clientId, { shouldValidate: true });
-    const client = clients.find(c => c.email === clientId);
+    const client = findClientByEmail(clientId);
     setSelectedClient(client || null);
-  }, [clients, form]);
+  }, [findClientByEmail, form]);
 
   async function onSubmit(data: EstimateFormValues) {
     console.log('📝 FORM SUBMITTED - Raw data:', data);
     console.log('📝 Form lineItems raw:', data.lineItems);
 
-    const client = clients.find(c => c.email === data.clientId);
+    const normalizedClientId = data.clientId.trim().toLowerCase();
+    const client = findClientByEmail(normalizedClientId)
+      ?? (selectedClient && selectedClient.email.toLowerCase() === normalizedClientId ? selectedClient : null);
     if (!client) {
       toast({
         variant: "destructive",
