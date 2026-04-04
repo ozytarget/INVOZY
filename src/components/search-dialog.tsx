@@ -82,7 +82,7 @@ export function SearchDialog({ children }: Props) {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200 shadow-sm dark:bg-background/95 dark:border-border">
         <div className="max-w-2xl mx-auto p-4 space-y-4">
           <div className="flex gap-2 items-center">
             <Input
@@ -90,7 +90,7 @@ export function SearchDialog({ children }: Props) {
               placeholder="Search clients, documents, projects..."
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              className="flex-1"
+              className="flex-1 bg-white text-slate-900 border-slate-300 placeholder:text-slate-500 focus-visible:ring-slate-500 dark:bg-background dark:text-foreground dark:border-input"
             />
             <Button
               variant="ghost"
@@ -102,28 +102,28 @@ export function SearchDialog({ children }: Props) {
           </div>
 
           {searchValue && (
-            <div className="space-y-1 max-h-96 overflow-y-auto">
+            <div className="space-y-2 max-h-96 overflow-y-auto">
               {!hasResults && (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-slate-600 dark:text-muted-foreground">
                   No results for "{searchValue}"
                 </div>
               )}
 
               {filteredClients.length > 0 && (
                 <>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 pb-1">Clients</p>
+                  <p className="text-xs font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wide px-1 pb-1">Clients</p>
                   {filteredClients.map((client) => (
                     <div
                       key={client.email}
                       onClick={() => handleSelectClient(client)}
-                      className="p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors flex items-center gap-3"
+                      className="p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-100 transition-colors flex items-center gap-3 dark:border-border dark:bg-card dark:hover:bg-accent"
                     >
-                      <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <User className="h-4 w-4 text-slate-500 dark:text-muted-foreground flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm">{client.name}</p>
-                        <p className="text-xs text-muted-foreground">{client.email} · {client.documentCount} doc(s)</p>
+                        <p className="font-semibold text-sm text-slate-900 dark:text-foreground">{client.name}</p>
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground">{client.email} · {client.documentCount} doc(s)</p>
                       </div>
-                      <span className="text-xs font-medium text-muted-foreground shrink-0">
+                      <span className="text-xs font-medium text-slate-700 dark:text-muted-foreground shrink-0">
                         ${client.totalBilled.toLocaleString()}
                       </span>
                     </div>
@@ -133,21 +133,21 @@ export function SearchDialog({ children }: Props) {
 
               {filteredDocs.length > 0 && (
                 <>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 pb-1 pt-2">Documents</p>
+                  <p className="text-xs font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wide px-1 pb-1 pt-2">Documents</p>
                   {filteredDocs.map((doc) => (
                     <div
                       key={doc.id}
                       onClick={() => handleSelectDoc(doc)}
-                      className="p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors flex items-center gap-3"
+                      className="p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-100 transition-colors flex items-center gap-3 dark:border-border dark:bg-card dark:hover:bg-accent"
                     >
-                      <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <FileText className="h-4 w-4 text-slate-500 dark:text-muted-foreground flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm">
+                        <p className="font-semibold text-sm text-slate-900 dark:text-foreground">
                           {doc.type === 'Invoice' ? doc.invoiceNumber : doc.estimateNumber} - {doc.projectTitle}
                         </p>
-                        <p className="text-xs text-muted-foreground">{doc.clientName}</p>
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground">{doc.clientName}</p>
                       </div>
-                      <span className="text-xs text-muted-foreground shrink-0">{doc.type}</span>
+                      <span className="text-xs text-slate-700 dark:text-muted-foreground shrink-0">{doc.type}</span>
                     </div>
                   ))}
                 </>
