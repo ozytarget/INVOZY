@@ -185,7 +185,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
             </Table>
           </div>
 
-          {/* Mobile View */
+          {/* Mobile View */}
           <div className="md:hidden space-y-4">
             {filteredDocuments.map((doc) => (
               <div key={doc.id} className="border rounded-lg p-4 space-y-2 cursor-pointer relative" onClick={() => handleRowClick(doc)}>
