@@ -379,6 +379,14 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     }
   }
 
+  const onInvalid = () => {
+    toast({
+      variant: "destructive",
+      title: "Cannot update estimate",
+      description: "Please complete required fields before saving.",
+    });
+  };
+
   const handleApplyLineItems = useCallback((items: { description: string; quantity: number; price: number }[]) => {
     if (fields.length === 1 && fields[0].description === "" && fields[0].price === 0) {
       remove(0);
@@ -428,7 +436,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} onKeyDown={handleFormKeyDown} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} onKeyDown={handleFormKeyDown} className="space-y-8">
         <div className="grid lg:grid-cols-2 gap-8">
           <Card>
             <CardHeader>
@@ -444,7 +452,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Select Client</FormLabel>
-                    <Select onValueChange={handleClientChange} value={field.value} disabled={isEditMode}>
+                    <Select onValueChange={handleClientChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select an existing client" />

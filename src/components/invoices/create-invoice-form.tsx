@@ -389,6 +389,14 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     }
   }
 
+  const onInvalid = () => {
+    toast({
+      variant: "destructive",
+      title: "Cannot update invoice",
+      description: "Please complete required fields before saving.",
+    });
+  };
+
   const handleClientCreated = (newClient: Client) => {
     handleClientChange(newClient.email);
   };
@@ -437,7 +445,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} onKeyDown={handleFormKeyDown} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} onKeyDown={handleFormKeyDown} className="space-y-8">
         <div className="grid lg:grid-cols-2 gap-8">
           <Card>
             <CardHeader>
@@ -453,7 +461,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Select Client</FormLabel>
-                    <Select onValueChange={handleClientChange} value={field.value} disabled={isEditMode}>
+                    <Select onValueChange={handleClientChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select an existing client" />
