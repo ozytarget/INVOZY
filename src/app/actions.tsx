@@ -121,6 +121,7 @@ export async function sendDocumentEmail({
   documentNumber,
   companyName,
   companyEmail,
+  schedulingUrl,
 }: {
   to: string;
   documentUrl: string;
@@ -128,6 +129,7 @@ export async function sendDocumentEmail({
   documentNumber: string;
   companyName: string;
   companyEmail?: string;
+  schedulingUrl?: string;
 }) {
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
@@ -174,6 +176,7 @@ export async function sendDocumentEmail({
         documentType={documentType}
         documentNumber={documentNumber}
         companyName={companyName}
+        schedulingUrl={schedulingUrl}
       />
     );
 
@@ -183,6 +186,7 @@ export async function sendDocumentEmail({
       `You have received a new ${documentType.toLowerCase()} from ${companyName}.`,
       `View ${documentType.toLowerCase()}: ${documentUrl}`,
       '',
+      ...(schedulingUrl ? [`Schedule: ${schedulingUrl}`] : []),
       `If you have any questions, reply to ${replyTo}.`,
     ].join('\n');
 

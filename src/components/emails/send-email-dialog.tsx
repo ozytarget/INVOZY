@@ -50,6 +50,7 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
         documentNumber: documentData.type === 'Invoice' ? documentData.invoiceNumber! : documentData.estimateNumber!,
         companyName,
       companyEmail: documentData.companyEmail,
+      schedulingUrl: documentData.schedulingUrl,
     });
 
     setIsLoading(false);

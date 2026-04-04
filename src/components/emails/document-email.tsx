@@ -15,6 +15,7 @@ interface DocumentEmailProps {
   documentNumber?: string;
   companyName?: string;
   documentUrl?: string;
+  schedulingUrl?: string;
 }
 
 export const DocumentEmail = ({
@@ -22,6 +23,7 @@ export const DocumentEmail = ({
   documentNumber = 'INV-001',
   companyName = 'Your Company',
   documentUrl = 'http://localhost:9002',
+  schedulingUrl,
 }: DocumentEmailProps) => (
   <Html>
     <Head />
@@ -46,6 +48,19 @@ export const DocumentEmail = ({
         >
           View {documentType}
         </Button>
+        {schedulingUrl && (
+          <>
+            <Text style={text}>
+              Need to schedule the job? Use the contractor calendar below.
+            </Text>
+            <Button
+              style={secondaryButton}
+              href={schedulingUrl}
+            >
+              Schedule
+            </Button>
+          </>
+        )}
         <Text style={text}>
           If you have any questions, please reply to this email.
         </Text>
@@ -97,4 +112,17 @@ const button = {
   display: 'inline-block',
   padding: '12px 20px',
   fontWeight: 'bold',
+};
+
+const secondaryButton = {
+  backgroundColor: '#16a34a',
+  borderRadius: '6px',
+  color: '#fff',
+  fontSize: '16px',
+  textDecoration: 'none',
+  textAlign: 'center' as const,
+  display: 'inline-block',
+  padding: '12px 20px',
+  fontWeight: 'bold',
+  marginTop: '8px',
 };
