@@ -762,7 +762,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
                   <FabMenuItem
                     onClick={handleAddFromSigned}
                     icon={<Plus className="h-6 w-6" />}
-                    label="New from this"
+                    label="Add"
                   />
                 ) : (
                   <FabMenuItem

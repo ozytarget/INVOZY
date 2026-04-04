@@ -162,7 +162,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleRowClick(doc)}>{doc.isSigned ? 'View' : 'View / Edit'}</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDuplicate(doc)}>{doc.isSigned ? 'New from this' : 'Duplicate'}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(doc)}>{doc.isSigned ? 'Add' : 'Duplicate'}</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {doc.type === 'Invoice' && doc.status === 'Sent' && (
                             <DropdownMenuItem onClick={() => handleRevertToDraft(doc.id)}>
@@ -216,7 +216,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                     <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuItem onClick={() => handleRowClick(doc)}>{doc.isSigned ? 'View' : 'View / Edit'}</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDuplicate(doc)}>{doc.isSigned ? 'New from this' : 'Duplicate'}</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDuplicate(doc)}>{doc.isSigned ? 'Add' : 'Duplicate'}</DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {doc.type === 'Invoice' && doc.status === 'Sent' && (
                         <DropdownMenuItem onClick={() => handleRevertToDraft(doc.id)}>

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format, parseISO } from "date-fns"
-import { CalendarIcon, Trash2, X, UploadCloud } from "lucide-react"
+import { CalendarIcon, Trash2, X, UploadCloud, ChevronsUpDown, Check } from "lucide-react"
 import { useEffect, useState, useCallback, useRef } from "react"
 import Image from "next/image"
 
@@ -43,6 +43,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useDocuments } from "@/hooks/use-documents"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command"
 import { Client, Document, ProjectPhoto } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
 import { Separator } from "../ui/separator"
@@ -96,6 +97,8 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
   const { addDocument, updateDocument, clients } = useDocuments();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings>({});
+
+  const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
 
   const isEditMode = !!documentToEdit;
   const lastLoadedRef = useRef<string | null>(null);
@@ -466,22 +469,50 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
                 control={form.control}
                 name="clientId"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Select Client</FormLabel>
-                    <Select onValueChange={handleClientChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an existing client" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {clients.map(client => (
-                          <SelectItem key={client.email} value={client.email}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value
+                              ? clients.find(c => c.email === field.value)?.name || field.value
+                              : "Select an existing client"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search client..." />
+                          <CommandList>
+                            <CommandEmpty>No client found.</CommandEmpty>
+                            <CommandGroup>
+                              {clients.map(client => (
+                                <CommandItem
+                                  key={client.email}
+                                  value={client.name}
+                                  onSelect={() => {
+                                    handleClientChange(client.email);
+                                    setClientPopoverOpen(false);
+                                  }}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", field.value === client.email ? "opacity-100" : "opacity-0")} />
+                                  {client.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
