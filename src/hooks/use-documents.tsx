@@ -254,12 +254,21 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
           setStoredClients(remoteClients);
           setStoredSubcontractors(remoteSubcontractors);
-          setDocuments(remoteDocuments.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime()));
+
+          // Merge remote + local to preserve any locally created documents not yet synced
+          const localDocsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, user.id);
+          const localDocs = safeParseArray<Document>(localStorage.getItem(localDocsKey)) || [];
+          const mergedDocuments = mergeDocuments(localDocs, remoteDocuments);
+          setDocuments(mergedDocuments.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime()));
 
           writeCompanySettings(user.id, remoteSettings);
 
           persistDemoClients(remoteClients, user.id, false, true);
-          persistDemoDocuments(remoteDocuments, user.id, false, true);
+          // Write merged documents to localStorage (no sync needed, we'll sync below)
+          const mergedDocsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, user.id);
+          localStorage.setItem(mergedDocsKey, JSON.stringify(mergedDocuments));
+          // Sync merged result back to server so any local-only docs reach the DB
+          void syncRemoteState(user.id);
           const subKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user.id);
           localStorage.setItem(subKey, JSON.stringify(remoteSubcontractors));
           if (!silent) {
@@ -577,7 +586,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       setDocuments(updatedDocs);
 
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs, user?.id);
+        persistDemoDocuments(updatedDocs, user?.id, true, true);
+        await syncRemoteState(user?.id);
       }
 
       return newId;
@@ -689,7 +699,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs, user?.id);
+        persistDemoDocuments(updatedDocs, user?.id, true, true);
+        await syncRemoteState(user?.id);
       }
       return;
     }
@@ -773,7 +784,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       const updatedDocs = documents.filter(doc => doc.id !== docId);
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs, user?.id, false);
+        persistDemoDocuments(updatedDocs, user?.id, false, true);
+        await syncRemoteState(user?.id);
       }
       return;
     }
@@ -885,7 +897,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
         setDocuments(updatedDocs);
         if (typeof window !== 'undefined') {
-          persistDemoDocuments(updatedDocs, user?.id);
+          persistDemoDocuments(updatedDocs, user?.id, true, true);
+          await syncRemoteState(user?.id);
         }
         return undefined;
       }
@@ -927,7 +940,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs, user?.id);
+        persistDemoDocuments(updatedDocs, user?.id, true, true);
+        await syncRemoteState(user?.id);
       }
 
       return newInvoiceId;
@@ -1057,7 +1071,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs, user?.id);
+        persistDemoDocuments(updatedDocs, user?.id, true, true);
+        await syncRemoteState(user?.id);
       }
       return;
     }
@@ -1104,7 +1119,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs, user?.id);
+        persistDemoDocuments(updatedDocs, user?.id, true, true);
+        await syncRemoteState(user?.id);
       }
       return;
     }
@@ -1157,7 +1173,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs, user?.id);
+        persistDemoDocuments(updatedDocs, user?.id, true, true);
+        await syncRemoteState(user?.id);
       }
       return;
     }
@@ -1227,7 +1244,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
-        persistDemoDocuments(updatedDocs, user?.id);
+        persistDemoDocuments(updatedDocs, user?.id, true, true);
+        await syncRemoteState(user?.id);
       }
       return;
     }
