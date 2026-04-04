@@ -145,7 +145,6 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       data: {
         ...values,
         issuedDate: values.issuedDate?.toISOString(),
-        dueDate: values.dueDate?.toISOString(),
       },
       timestamp: Date.now(),
       editId: documentToEdit?.id || null,
