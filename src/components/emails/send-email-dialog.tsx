@@ -19,6 +19,37 @@ import { sendDocumentEmail } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
+// Ensure document data is synced to backend before sending email with public link
+async function ensureDocumentSynced() {
+  try {
+    // Read current localStorage state and push to server
+    const allKeys = Object.keys(localStorage);
+    const docKey = allKeys.find(k => k.startsWith('demoDocuments:') && !k.includes('Backup'));
+    const clientKey = allKeys.find(k => k.startsWith('demoClients:') && !k.includes('Backup'));
+    
+    if (!docKey) return;
+    
+    const documents = JSON.parse(localStorage.getItem(docKey) || '[]');
+    const clients = JSON.parse(localStorage.getItem(clientKey || '') || '[]');
+    
+    // Find company settings
+    const settingsKey = allKeys.find(k => k.startsWith('companySettings:'));
+    const companySettings = settingsKey ? JSON.parse(localStorage.getItem(settingsKey) || '{}') : {};
+    
+    const subKey = allKeys.find(k => k.startsWith('demoSubcontractors:'));
+    const subcontractors = subKey ? JSON.parse(localStorage.getItem(subKey) || '[]') : [];
+    
+    await fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ clients, documents, companySettings, subcontractors }),
+    });
+  } catch (e) {
+    console.warn('[SendEmail] Pre-send sync failed:', e);
+  }
+}
+
 type SendEmailDialogProps = {
   document: Document;
   companyName: string;
@@ -32,6 +63,9 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
 
   const handleSendEmail = async () => {
     setIsLoading(true);
+    
+    // Force sync to ensure document exists in DB before sending link
+    await ensureDocumentSynced();
     
     // Build public share URL instead of current page URL
     const appUrl = typeof window !== 'undefined'

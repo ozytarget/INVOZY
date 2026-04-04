@@ -65,6 +65,28 @@ const persistStoredDocuments = (documents: Document[], userId?: string | null) =
   localStorage.setItem(key, JSON.stringify(documents));
 };
 
+// Force sync localStorage state to backend (ensures public links work)
+const forceBackendSync = async () => {
+  try {
+    const allKeys = Object.keys(localStorage);
+    const docKey = allKeys.find(k => k.startsWith('demoDocuments:') && !k.includes('Backup'));
+    const clientKey = allKeys.find(k => k.startsWith('demoClients:') && !k.includes('Backup'));
+    if (!docKey) return;
+    const documents = JSON.parse(localStorage.getItem(docKey) || '[]');
+    const clients = JSON.parse(localStorage.getItem(clientKey || '') || '[]');
+    const settingsKey = allKeys.find(k => k.startsWith('companySettings:'));
+    const companySettings = settingsKey ? JSON.parse(localStorage.getItem(settingsKey) || '{}') : {};
+    const subKey = allKeys.find(k => k.startsWith('demoSubcontractors:'));
+    const subcontractors = subKey ? JSON.parse(localStorage.getItem(subKey) || '[]') : [];
+    await fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ clients, documents, companySettings, subcontractors }),
+    });
+  } catch {}
+};
+
 const generateShareToken = (): string => {
   return crypto.randomUUID();
 };
@@ -316,8 +338,9 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
   const handleShare = async () => {
     let shareToken = documentData.share_token;
 
-    if (!shareToken && documentData.userId === 'demo-user' && typeof window !== 'undefined') {
-      const rawDocs = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
+    if (!shareToken && typeof window !== 'undefined') {
+      const key = getDocumentsStorageKey(documentData.userId);
+      const rawDocs = localStorage.getItem(key);
       const demoDocs = rawDocs ? (JSON.parse(rawDocs) as Document[]) : [];
       const newToken = generateShareToken();
 
@@ -326,9 +349,12 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
         return { ...doc, share_token: newToken };
       });
 
-      localStorage.setItem(DEMO_DOCUMENTS_STORAGE_KEY, JSON.stringify(updatedDocs));
+      localStorage.setItem(key, JSON.stringify(updatedDocs));
       shareToken = newToken;
     }
+
+    // Ensure the document is synced to backend so public link works
+    await forceBackendSync();
 
     if (!shareToken) {
       toast({
@@ -394,7 +420,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     setIsFabMenuOpen(false);
   };
 
-  const handleSms = () => {
+  const handleSms = async () => {
     if (!documentData.clientPhone) {
       toast({
         variant: "destructive",
@@ -406,9 +432,10 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
 
     let shareToken = documentData.share_token;
 
-    // Generate token if needed (same as handleShare)
-    if (!shareToken && documentData.userId === 'demo-user' && typeof window !== 'undefined') {
-      const rawDocs = localStorage.getItem(DEMO_DOCUMENTS_STORAGE_KEY);
+    // Generate token if needed
+    if (!shareToken && typeof window !== 'undefined') {
+      const key = getDocumentsStorageKey(documentData.userId);
+      const rawDocs = localStorage.getItem(key);
       const demoDocs = rawDocs ? (JSON.parse(rawDocs) as Document[]) : [];
       const newToken = generateShareToken();
 
@@ -417,9 +444,12 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
         return { ...doc, share_token: newToken };
       });
 
-      localStorage.setItem(DEMO_DOCUMENTS_STORAGE_KEY, JSON.stringify(updatedDocs));
+      localStorage.setItem(key, JSON.stringify(updatedDocs));
       shareToken = newToken;
     }
+
+    // Ensure document is synced to backend
+    await forceBackendSync();
 
     if (!shareToken) {
       toast({

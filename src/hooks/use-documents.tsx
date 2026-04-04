@@ -69,7 +69,7 @@ const syncRemoteState = async (userId?: string | null) => {
   }
 };
 
-const persistDemoClients = (updatedClients: Client[], userId?: string | null, merge = true) => {
+const persistDemoClients = (updatedClients: Client[], userId?: string | null, merge = true, skipSync = false) => {
   if (typeof window === 'undefined') return;
   const clientsKey = getScopedStorageKey(DEMO_CLIENTS_STORAGE_KEY, userId);
   const clientsBackupKey = getScopedStorageKey(DEMO_CLIENTS_BACKUP_STORAGE_KEY, userId);
@@ -77,10 +77,10 @@ const persistDemoClients = (updatedClients: Client[], userId?: string | null, me
   localStorage.setItem(clientsBackupKey, JSON.stringify(existing));
   const finalClients = merge ? mergeClients(existing, updatedClients) : updatedClients;
   localStorage.setItem(clientsKey, JSON.stringify(finalClients));
-  void syncRemoteState(userId);
+  if (!skipSync) void syncRemoteState(userId);
 };
 
-const persistDemoDocuments = (updatedDocuments: Document[], userId?: string | null, merge = true) => {
+const persistDemoDocuments = (updatedDocuments: Document[], userId?: string | null, merge = true, skipSync = false) => {
   if (typeof window === 'undefined') return;
   const documentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, userId);
   const documentsBackupKey = getScopedStorageKey(DEMO_DOCUMENTS_BACKUP_STORAGE_KEY, userId);
@@ -88,7 +88,7 @@ const persistDemoDocuments = (updatedDocuments: Document[], userId?: string | nu
   localStorage.setItem(documentsBackupKey, JSON.stringify(existing));
   const finalDocuments = merge ? mergeDocuments(existing, updatedDocuments) : updatedDocuments;
   localStorage.setItem(documentsKey, JSON.stringify(finalDocuments));
-  void syncRemoteState(userId);
+  if (!skipSync) void syncRemoteState(userId);
 };
 
 const getDemoSeedData = () => {
@@ -258,8 +258,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
           writeCompanySettings(user.id, remoteSettings);
 
-          persistDemoClients(remoteClients, user.id, false);
-          persistDemoDocuments(remoteDocuments, user.id, false);
+          persistDemoClients(remoteClients, user.id, false, true);
+          persistDemoDocuments(remoteDocuments, user.id, false, true);
           const subKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user.id);
           localStorage.setItem(subKey, JSON.stringify(remoteSubcontractors));
           if (!silent) {
