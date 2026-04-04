@@ -3,11 +3,12 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Document } from "@/lib/types"
+import { Document, Client } from "@/lib/types"
 import { useDocuments } from "@/hooks/use-documents"
 import { Input } from "@/components/ui/input"
-import { X, FileText } from "lucide-react"
+import { X, FileText, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ClientDetailSheet } from "@/components/clients/client-detail-sheet"
 
 interface Props {
   children: React.ReactNode
@@ -16,8 +17,10 @@ interface Props {
 export function SearchDialog({ children }: Props) {
   const [searchActive, setSearchActive] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("");
+  const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
+  const [clientSheetOpen, setClientSheetOpen] = React.useState(false);
   const router = useRouter();
-  const { documents } = useDocuments();
+  const { documents, clients } = useDocuments();
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -26,88 +29,139 @@ export function SearchDialog({ children }: Props) {
     }
   }, [searchActive]);
 
-  // Filter documents based on search value
   const filteredDocs = React.useMemo(() => {
     if (!searchValue) return [];
-    
     const search = searchValue.toLowerCase();
     return documents.filter(doc => {
       const clientName = (doc.clientName || '').toLowerCase();
       const projectTitle = (doc.projectTitle || '').toLowerCase();
       const docNumber = (doc.invoiceNumber || doc.estimateNumber || '').toLowerCase();
-      
-      return (
-        clientName.includes(search) ||
-        projectTitle.includes(search) ||
-        docNumber.includes(search)
-      );
-    }).slice(0, 10); // Limit to 10 results
+      return clientName.includes(search) || projectTitle.includes(search) || docNumber.includes(search);
+    }).slice(0, 8);
   }, [documents, searchValue]);
 
-  const handleSelect = (doc: Document) => {
+  const filteredClients = React.useMemo(() => {
+    if (!searchValue) return [];
+    const search = searchValue.toLowerCase();
+    return clients.filter(c =>
+      (c.name || '').toLowerCase().includes(search) ||
+      (c.email || '').toLowerCase().includes(search) ||
+      (c.phone || '').toLowerCase().includes(search)
+    ).slice(0, 4);
+  }, [clients, searchValue]);
+
+  const hasResults = filteredDocs.length > 0 || filteredClients.length > 0;
+
+  const handleSelectDoc = (doc: Document) => {
     router.push(`/view/${doc.type.toLowerCase()}/${doc.id}`)
+    setSearchActive(false);
+    setSearchValue("");
+  }
+
+  const handleSelectClient = (client: Client) => {
+    setSelectedClient(client);
+    setClientSheetOpen(true);
     setSearchActive(false);
     setSearchValue("");
   }
 
   if (!searchActive) {
     return (
-      <div onClick={() => setSearchActive(true)}>
-        {children}
-      </div>
+      <>
+        <div onClick={() => setSearchActive(true)}>
+          {children}
+        </div>
+        <ClientDetailSheet
+          client={selectedClient}
+          isOpen={clientSheetOpen}
+          onClose={() => setClientSheetOpen(false)}
+        />
+      </>
     );
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b">
-      <div className="max-w-2xl mx-auto p-4 space-y-4">
-        <div className="flex gap-2 items-center">
-          <Input
-            ref={inputRef}
-            placeholder="Search by client, title, or document number..."
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            className="flex-1"
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              setSearchActive(false);
-              setSearchValue("");
-            }}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {searchValue && (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {filteredDocs.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                No documents found for "{searchValue}"
-              </div>
-            )}
-            {filteredDocs.map((doc) => (
-              <div
-                key={doc.id}
-                onClick={() => handleSelect(doc)}
-                className="p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors flex items-center gap-3"
-              >
-                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm">
-                    {doc.type === 'Invoice' ? `INV-${doc.invoiceNumber}` : `EST-${doc.estimateNumber}`} - {doc.projectTitle}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Client: {doc.clientName}
-                  </p>
-                </div>
-              </div>
-            ))}
+    <>
+      <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b">
+        <div className="max-w-2xl mx-auto p-4 space-y-4">
+          <div className="flex gap-2 items-center">
+            <Input
+              ref={inputRef}
+              placeholder="Search clients, documents, projects..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => { setSearchActive(false); setSearchValue(""); }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-        )}
+
+          {searchValue && (
+            <div className="space-y-1 max-h-96 overflow-y-auto">
+              {!hasResults && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No results for "{searchValue}"
+                </div>
+              )}
+
+              {filteredClients.length > 0 && (
+                <>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 pb-1">Clients</p>
+                  {filteredClients.map((client) => (
+                    <div
+                      key={client.email}
+                      onClick={() => handleSelectClient(client)}
+                      className="p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors flex items-center gap-3"
+                    >
+                      <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm">{client.name}</p>
+                        <p className="text-xs text-muted-foreground">{client.email} · {client.documentCount} doc(s)</p>
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground shrink-0">
+                        ${client.totalBilled.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {filteredDocs.length > 0 && (
+                <>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 pb-1 pt-2">Documents</p>
+                  {filteredDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      onClick={() => handleSelectDoc(doc)}
+                      className="p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors flex items-center gap-3"
+                    >
+                      <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm">
+                          {doc.type === 'Invoice' ? doc.invoiceNumber : doc.estimateNumber} - {doc.projectTitle}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{doc.clientName}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">{doc.type}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+      <ClientDetailSheet
+        client={selectedClient}
+        isOpen={clientSheetOpen}
+        onClose={() => setClientSheetOpen(false)}
+      />
+    </>
   )
 }
+
