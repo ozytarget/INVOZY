@@ -318,8 +318,10 @@ function WorkOrderPageContent() {
                                 <Image src={documentData.companyLogo} alt={documentData.companyName || 'Company Logo'} width={120} height={50} className="object-contain mb-2" />
                             )}
                             <div className="text-muted-foreground">
-                                <p className="font-bold text-foreground">{documentData.companyName || "Your Company"}</p>
-                                <p className="whitespace-pre-line">{documentData.companyAddress || "123 Contractor Lane\nBuildsville, ST 12345"}</p>
+                                <p className="font-bold text-foreground">{documentData.companyName}</p>
+                                {documentData.companyAddress && <p className="whitespace-pre-line">{documentData.companyAddress}</p>}
+                                {documentData.companyPhone && <p>{documentData.companyPhone}</p>}
+                                {documentData.companyEmail && <p>{documentData.companyEmail}</p>}
                             </div>
                         </div>
                         <div className="text-right">

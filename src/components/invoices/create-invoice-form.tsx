@@ -251,9 +251,10 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       try {
         const res = await fetch('/api/company-settings');
         if (res.ok) {
-          const data = await res.json();
-          if (data && Object.keys(data).length > 0) {
-            setCompanySettings(data);
+          const json = await res.json();
+          const s = json?.settings || json;
+          if (s && typeof s === 'object' && Object.keys(s).length > 0 && s.companyName) {
+            setCompanySettings(s);
             return;
           }
         }
@@ -372,8 +373,9 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     try {
       const res = await fetch('/api/company-settings');
       if (res.ok) {
-        const data = await res.json();
-        if (data && Object.keys(data).length > 0) freshSettings = data;
+        const json = await res.json();
+        const s = json?.settings || json;
+        if (s && typeof s === 'object' && s.companyName) freshSettings = s;
       }
     } catch {}
 
