@@ -475,7 +475,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
         </div>
         <Card className="p-8 shadow-lg">
           <CardContent className="p-0">
-            <header className="flex justify-between items-start mb-8">
+            <header className="flex flex-col gap-6 sm:flex-row sm:justify-between sm:items-start mb-8">
               <div>
                 {co.companyLogo && (
                   <Image src={co.companyLogo} alt={co.companyName || 'Company Logo'} width={120} height={50} className="object-contain mb-2" />
@@ -489,8 +489,8 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
                   {documentData.taxId && <p>Tax ID: {documentData.taxId}</p>}
                 </div>
               </div>
-              <div className="text-right">
-                <h1 className="text-4xl font-bold font-headline uppercase">{documentData.type}</h1>
+              <div className="text-left sm:text-right">
+                <h1 className="text-3xl sm:text-4xl font-bold font-headline uppercase break-words">{documentData.type}</h1>
                 <p className="text-muted-foreground"># {documentNumber}</p>
                 <div className="mt-2">
                   <Badge variant="outline" className={`text-sm ${statusStyles[documentData.status]}`}>{documentData.status}</Badge>
@@ -498,7 +498,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
               </div>
             </header>
 
-            <section className="grid grid-cols-2 gap-8 mb-8">
+            <section className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8">
               <div>
                 <h2 className="text-sm font-semibold text-muted-foreground mb-2">BILLED TO</h2>
                 <p className="font-bold">{documentData.clientName}</p>
@@ -506,7 +506,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
                 <p className="text-sm">{documentData.clientEmail}</p>
                 <p className="text-sm">{documentData.clientPhone}</p>
               </div>
-              <div className="text-right">
+              <div className="text-left sm:text-right">
                 <div className="grid grid-cols-2">
                   <span className="font-semibold">Date Issued:</span>
                   <span>{documentData.issuedDate}</span>
