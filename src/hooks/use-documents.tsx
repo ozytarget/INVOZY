@@ -1,7 +1,7 @@
 'use client';
 
 import { Document, Client, DocumentStatus, DocumentType, Payment } from '@/lib/types';
-import React, { useCallback, useMemo, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/supabase/client';
 import { useUser } from '@/supabase/provider';
@@ -219,6 +219,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   const [documents, setDocuments] = useState<Document[]>([]);
   const [storedClients, setStoredClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const previousDocsRef = useRef<Document[]>([]);
 
   // Load documents and clients from custom backend (with local fallback)
   const loadData = useCallback(async (options?: { silent?: boolean }) => {
@@ -472,8 +473,44 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     loadData();
   }, [loadData]);
 
+  // Detect external changes and notify user
+  useEffect(() => {
+    const detectChanges = () => {
+      if (previousDocsRef.current.length === 0) {
+        previousDocsRef.current = documents;
+        return;
+      }
+
+      const changedDocs = documents.filter(newDoc => {
+        const oldDoc = previousDocsRef.current.find(d => d.id === newDoc.id);
+        if (!oldDoc) return false; // New doc, not external change
+        return JSON.stringify(oldDoc) !== JSON.stringify(newDoc);
+      });
+
+      if (changedDocs.length > 0) {
+        console.warn('⚠️ External changes detected:', changedDocs);
+        // Could emit a toast here if needed:
+        // toast({
+        //   title: "Documents Updated",
+        //   description: `${changedDocs.length} document(s) were updated elsewhere.`,
+        // });
+      }
+
+      previousDocsRef.current = documents;
+    };
+
+    detectChanges();
+  }, [documents]);
+
   useEffect(() => {
     if (!user) return;
+
+    // Disable polling while editing to prevent data loss
+    const isEditingMode = typeof window !== 'undefined' && window.location.pathname.includes('/edit/');
+    if (isEditingMode) {
+      console.log('⏸️ Polling disabled while editing');
+      return;
+    }
 
     const refresh = () => {
       void loadData({ silent: true });

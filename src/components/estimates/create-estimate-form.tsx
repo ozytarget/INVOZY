@@ -98,10 +98,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
   const [companySettings, setCompanySettings] = useState<CompanySettings>({});
 
   const isEditMode = !!documentToEdit;
-  const lastLoadedRef = useRef<{ id: string | null; signature: string | null }>({
-    id: null,
-    signature: null,
-  });
+  const lastLoadedRef = useRef<string | null>(null);
 
   const findClientByEmail = useCallback((email?: string) => {
     if (!email) return undefined;
@@ -176,26 +173,9 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     });
 
     const docId = documentToEdit.id;
-    const docSignature = JSON.stringify({
-      id: documentToEdit.id,
-      clientEmail: documentToEdit.clientEmail,
-      projectTitle: documentToEdit.projectTitle,
-      issuedDate: documentToEdit.issuedDate,
-      notes: documentToEdit.notes,
-      terms: documentToEdit.terms,
-      lineItems: documentToEdit.lineItems,
-      projectPhotos: documentToEdit.projectPhotos,
-    });
 
-    const isNewDoc = lastLoadedRef.current.id !== docId;
-    const hasSameSignature = lastLoadedRef.current.signature === docSignature;
-
-    if (!isNewDoc && hasSameSignature) {
-      return;
-    }
-
-    if (!isNewDoc && isDirty) {
-      console.log('Skipping reset to preserve in-progress edits');
+    // Skip reset if we already loaded this exact document
+    if (lastLoadedRef.current.id === docId) {
       return;
     }
 
@@ -219,7 +199,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       projectPhotos,
     });
 
-    lastLoadedRef.current = { id: docId, signature: docSignature };
+    lastLoadedRef.current = docId;
     console.log('✓✓✓ Form population complete');
 
   }, [documentToEdit, isEditMode, form]);
@@ -270,6 +250,25 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     load();
   }, [user?.id]);
 
+  // Auto-save draft to sessionStorage
+  useEffect(() => {
+    if (!isEditMode || !documentToEdit) return;
+
+    const saveDraft = () => {
+      const formValues = form.getValues();
+      const draft = {
+        docId: documentToEdit.id,
+        data: formValues,
+        timestamp: Date.now(),
+      };
+      if (typeof window !== 'undefined' && isDirty) {
+        sessionStorage.setItem(`estimate_draft_${documentToEdit.id}`, JSON.stringify(draft));
+      }
+    };
+
+    const interval = window.setInterval(saveDraft, 5000); // Save every 5s if dirty
+    return () => window.clearInterval(interval);
+  }, [documentToEdit, isEditMode, form, isDirty]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
