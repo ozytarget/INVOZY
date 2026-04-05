@@ -61,6 +61,12 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
     return true;
   })
 
+  const sortedDocuments = [...filteredDocuments].sort((a, b) => {
+    const dateCompare = (b.issuedDate || '').localeCompare(a.issuedDate || '')
+    if (dateCompare !== 0) return dateCompare
+    return (b.id || '').localeCompare(a.id || '')
+  })
+
   const handleRowClick = (doc: Document) => {
     router.push(`/view/${doc.type.toLowerCase()}/${doc.id}?internal=true`);
   }
@@ -139,7 +145,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredDocuments.map((doc) => (
+                {sortedDocuments.map((doc) => (
                   <TableRow key={doc.id} onClick={() => handleRowClick(doc)} className="cursor-pointer">
                     <TableCell className="font-medium">{doc.clientName}</TableCell>
                     <TableCell>{doc.type === 'Estimate' ? doc.estimateNumber : doc.invoiceNumber}</TableCell>
@@ -187,7 +193,7 @@ export function DocumentsPage({ type }: DocumentsPageProps) {
 
           {/* Mobile View */}
           <div className="md:hidden space-y-4">
-            {filteredDocuments.map((doc) => (
+            {sortedDocuments.map((doc) => (
               <div key={doc.id} className="border rounded-lg p-4 space-y-2 cursor-pointer relative" onClick={() => handleRowClick(doc)}>
                 <div className="flex justify-between items-start">
                   <div>
