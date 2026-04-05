@@ -24,6 +24,28 @@ const DIMENSIONS_REGEX = /(\d+(?:\.\d+)?)\s*(?:x|by|\*)\s*(\d+(?:\.\d+)?)/i;
 
 type DimensionUnit = 'in' | 'ft' | 'yd';
 
+const DOOR_WIDTHS_IN = [22, 24, 26, 28, 30, 32, 34, 36];
+const DOOR_HEIGHTS_IN = [80, 84];
+
+const findClosest = (value: number, options: number[]) =>
+  options.reduce((prev, curr) => (Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev), options[0]);
+
+const normalizeDoorSize = (widthIn: number, heightIn: number) => {
+  const normalizedWidth = findClosest(widthIn, DOOR_WIDTHS_IN);
+  const normalizedHeight = findClosest(heightIn, DOOR_HEIGHTS_IN);
+  return {
+    width: normalizedWidth,
+    height: normalizedHeight,
+    changed: normalizedWidth !== Math.round(widthIn) || normalizedHeight !== Math.round(heightIn),
+  };
+};
+
+const toInches = (value: number, unit: DimensionUnit) => {
+  if (unit === 'in') return value;
+  if (unit === 'ft') return value * 12;
+  return value * 36;
+};
+
 const parseAreaFromDescription = (description: string) => {
   const match = description.match(DIMENSIONS_REGEX);
   if (!match) return null;
@@ -38,7 +60,8 @@ const parseAreaFromDescription = (description: string) => {
   const mentionsInches = /\b(in|inch|inches|\")\b/i.test(desc);
   const mentionsFeet = /\b(ft|feet|foot|\')\b/i.test(desc);
   const mentionsYards = /\b(yd|yds|yard|yards)\b/i.test(desc);
-  const isDoorOrWindow = /(door|window|puerta|ventana)/i.test(desc);
+  const isDoor = /(door|puerta)/i.test(desc);
+  const isWindow = /(window|ventana)/i.test(desc);
   const isFlooringJob = /(floor|flooring|lvp|vinyl|laminate|tile|piso|suelo|carpet|alfombra)/i.test(desc);
 
   let unit: DimensionUnit = 'ft';
@@ -46,7 +69,7 @@ const parseAreaFromDescription = (description: string) => {
     unit = 'yd';
   } else if (mentionsFeet) {
     unit = 'ft';
-  } else if (mentionsInches || isDoorOrWindow) {
+  } else if (mentionsInches || isDoor || isWindow) {
     unit = 'in';
   } else if (isFlooringJob) {
     unit = 'ft';
@@ -65,6 +88,8 @@ const parseAreaFromDescription = (description: string) => {
     length: rawLength,
     unit,
     squareFeet: Math.round(squareFeet * 100) / 100,
+    isDoor,
+    isWindow,
   };
 };
 
@@ -162,9 +187,20 @@ export function AiSuggestionsDialog({
       const materialNames = materialsToApply.map(item => item.description).slice(0, 5);
       const laborNames = laborToApply.map(item => item.description).slice(0, 5);
       const area = parseAreaFromDescription(projectDescription);
-      const sqftSummary = area
-        ? `Measured area: ${area.width} ${area.unit} x ${area.length} ${area.unit} = ${area.squareFeet} sq ft.`
-        : null;
+      let sqftSummary: string | null = null;
+      if (area) {
+        if (area.isDoor) {
+          const widthIn = toInches(area.width, area.unit);
+          const heightIn = toInches(area.length, area.unit);
+          const standard = normalizeDoorSize(widthIn, heightIn);
+          const measuredText = `${Math.round(widthIn)} in x ${Math.round(heightIn)} in`;
+          sqftSummary = standard.changed
+            ? `Door size provided: ${measuredText}. Standard size used: ${standard.width} in x ${standard.height} in.`
+            : `Door size: ${measuredText}.`;
+        } else {
+          sqftSummary = `Measured area: ${area.width} ${area.unit} x ${area.length} ${area.unit} = ${area.squareFeet} sq ft.`;
+        }
+      }
 
       const notes = [
         `Scope summary: ${projectDescription.trim()}.`,
