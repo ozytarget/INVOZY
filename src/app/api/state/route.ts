@@ -46,6 +46,7 @@ export async function GET() {
       subcontractors: Array.isArray(row.subcontractors_json) ? row.subcontractors_json : [],
     });
   } catch (error: any) {
+    console.error('[API /api/state GET] Error:', error?.message, error?.stack);
     return NextResponse.json({ error: error?.message || 'Could not load state' }, { status: 500 });
   }
 }
@@ -82,6 +83,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    console.error('[API /api/state PUT] Error:', error?.message, error?.stack);
     return NextResponse.json({ error: error?.message || 'Could not save state' }, { status: 500 });
   }
 }

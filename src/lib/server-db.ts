@@ -51,13 +51,21 @@ const ensureSchema = async () => {
         documents_json JSONB NOT NULL DEFAULT '[]'::jsonb,
         company_settings_json JSONB NOT NULL DEFAULT '{}'::jsonb,
         notifications_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+        subcontractors_json JSONB NOT NULL DEFAULT '[]'::jsonb,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
     `);
     await db.query(`
       ALTER TABLE app_state ADD COLUMN IF NOT EXISTS notifications_json JSONB NOT NULL DEFAULT '[]'::jsonb;
     `);
-  })();
+    await db.query(`
+      ALTER TABLE app_state ADD COLUMN IF NOT EXISTS subcontractors_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+    `);
+  })().catch((err) => {
+    // Clear cached promise so next call retries instead of returning the rejected promise forever
+    schemaReadyPromise = null;
+    throw err;
+  });
 
   return schemaReadyPromise;
 };
