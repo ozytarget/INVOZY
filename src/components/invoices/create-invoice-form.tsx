@@ -85,11 +85,43 @@ type CreateInvoiceFormProps = {
   documentToEdit?: Document;
 }
 
+const MAX_PHOTOS = 8;
+const MAX_IMAGE_DIMENSION = 1600;
+const IMAGE_QUALITY = 0.8;
+
 const fileToDataUrl = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+          if (width >= height) {
+            height = Math.round((height * MAX_IMAGE_DIMENSION) / width);
+            width = MAX_IMAGE_DIMENSION;
+          } else {
+            width = Math.round((width * MAX_IMAGE_DIMENSION) / height);
+            height = MAX_IMAGE_DIMENSION;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas not supported'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', IMAGE_QUALITY));
+      };
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error('File read failed'));
     reader.readAsDataURL(file);
   });
 }
@@ -570,11 +602,11 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     const files = e.target.files;
     if (!files) return;
 
-    if (photoFields.length + files.length > 5) {
+    if (photoFields.length + files.length > MAX_PHOTOS) {
       toast({
         variant: "destructive",
         title: "Too many photos",
-        description: "You can upload a maximum of 5 photos.",
+        description: `You can upload a maximum of ${MAX_PHOTOS} photos.`,
       });
       return;
     }
@@ -773,7 +805,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
               name="projectPhotos"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Upload up to 5 photos</FormLabel>
+                  <FormLabel>Upload up to 8 photos</FormLabel>
                   <FormControl>
                     <div className="flex items-center justify-center w-full">
                       <label htmlFor="photo-upload" className={cn(
