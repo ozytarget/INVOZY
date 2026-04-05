@@ -22,6 +22,52 @@ import type { LineItem } from '@/lib/types';
 
 const DIMENSIONS_REGEX = /(\d+(?:\.\d+)?)\s*(?:x|by|\*)\s*(\d+(?:\.\d+)?)/i;
 
+type DimensionUnit = 'in' | 'ft' | 'yd';
+
+const parseAreaFromDescription = (description: string) => {
+  const match = description.match(DIMENSIONS_REGEX);
+  if (!match) return null;
+
+  const rawWidth = Number(match[1]);
+  const rawLength = Number(match[2]);
+  if (!Number.isFinite(rawWidth) || !Number.isFinite(rawLength) || rawWidth <= 0 || rawLength <= 0) {
+    return null;
+  }
+
+  const desc = description.toLowerCase();
+  const mentionsInches = /\b(in|inch|inches|\")\b/i.test(desc);
+  const mentionsFeet = /\b(ft|feet|foot|\')\b/i.test(desc);
+  const mentionsYards = /\b(yd|yds|yard|yards)\b/i.test(desc);
+  const isDoorOrWindow = /(door|window|puerta|ventana)/i.test(desc);
+  const isFlooringJob = /(floor|flooring|lvp|vinyl|laminate|tile|piso|suelo|carpet|alfombra)/i.test(desc);
+
+  let unit: DimensionUnit = 'ft';
+  if (mentionsYards) {
+    unit = 'yd';
+  } else if (mentionsFeet) {
+    unit = 'ft';
+  } else if (mentionsInches || isDoorOrWindow) {
+    unit = 'in';
+  } else if (isFlooringJob) {
+    unit = 'ft';
+  } else if (rawWidth > 40 || rawLength > 40) {
+    unit = 'in';
+  }
+
+  const squareFeet = unit === 'in'
+    ? (rawWidth * rawLength) / 144
+    : unit === 'yd'
+      ? (rawWidth * rawLength) * 9
+      : rawWidth * rawLength;
+
+  return {
+    width: rawWidth,
+    length: rawLength,
+    unit,
+    squareFeet: Math.round(squareFeet * 100) / 100,
+  };
+};
+
 type AiSuggestionsDialogProps = {
   projectDescription: string;
   projectLocation: string;
@@ -115,9 +161,9 @@ export function AiSuggestionsDialog({
 
       const materialNames = materialsToApply.map(item => item.description).slice(0, 5);
       const laborNames = laborToApply.map(item => item.description).slice(0, 5);
-      const dimensions = projectDescription.match(DIMENSIONS_REGEX);
-      const sqftSummary = dimensions
-        ? `Measured area: ${dimensions[1]} x ${dimensions[2]} = ${Math.round(Number(dimensions[1]) * Number(dimensions[2]))} sq ft.`
+      const area = parseAreaFromDescription(projectDescription);
+      const sqftSummary = area
+        ? `Measured area: ${area.width} ${area.unit} x ${area.length} ${area.unit} = ${area.squareFeet} sq ft.`
         : null;
 
       const notes = [
