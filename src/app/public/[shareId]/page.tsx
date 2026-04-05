@@ -58,37 +58,46 @@ export default function PublicDocumentPage() {
       return;
     }
 
-    const loadDocument = async () => {
+    const fetchFromApi = async (): Promise<Document | null> => {
       try {
-        const backendResponse = await fetch(`/api/public/document?shareId=${encodeURIComponent(shareId)}`);
-        if (backendResponse.ok) {
-          const payload = await backendResponse.json();
-          if (payload?.document) {
-            const doc = payload.document as Document;
-            setDocument(doc);
-            logPublicViewNotification(doc);
-            return;
-          }
+        const res = await fetch(`/api/public/document?shareId=${encodeURIComponent(shareId)}`);
+        if (res.ok) {
+          const payload = await res.json();
+          if (payload?.document) return payload.document as Document;
         }
+      } catch {}
+      return null;
+    };
 
-        if (typeof window !== 'undefined') {
-          const demoDocs = getAllLocalDocuments();
-          const demoDoc = demoDocs.find(doc => doc.share_token === shareId);
-
-          if (demoDoc) {
-            setDocument(demoDoc);
-            logPublicViewNotification(demoDoc);
-            return;
-          }
+    const loadDocument = async () => {
+      // Try up to 3 times with short delays to handle DB cold start
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const doc = await fetchFromApi();
+        if (doc) {
+          setDocument(doc);
+          logPublicViewNotification(doc);
+          setIsLoading(false);
+          return;
         }
-
-        setDocument(null);
-      } catch (error) {
-        console.error('Error loading public document:', error);
-        setDocument(null);
-      } finally {
-        setIsLoading(false);
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 1200));
+        }
       }
+
+      // Fallback to localStorage
+      if (typeof window !== 'undefined') {
+        const demoDocs = getAllLocalDocuments();
+        const demoDoc = demoDocs.find(doc => doc.share_token === shareId);
+        if (demoDoc) {
+          setDocument(demoDoc);
+          logPublicViewNotification(demoDoc);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      setDocument(null);
+      setIsLoading(false);
     };
 
     loadDocument();
