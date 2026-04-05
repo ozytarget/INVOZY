@@ -10,19 +10,48 @@ import { render } from '@react-email/components';
 
 const DIMENSIONS_REGEX = /(\d+(?:\.\d+)?)\s*(?:x|by|\*)\s*(\d+(?:\.\d+)?)/i;
 
+type DimensionUnit = 'in' | 'ft' | 'yd';
+
 function parseSquareFootage(projectDescription: string) {
   const match = projectDescription.match(DIMENSIONS_REGEX);
   if (!match) return null;
 
-  const width = Number(match[1]);
-  const length = Number(match[2]);
+  const rawWidth = Number(match[1]);
+  const rawLength = Number(match[2]);
 
-  if (!Number.isFinite(width) || !Number.isFinite(length) || width <= 0 || length <= 0) {
+  if (!Number.isFinite(rawWidth) || !Number.isFinite(rawLength) || rawWidth <= 0 || rawLength <= 0) {
     return null;
   }
 
-  const squareFeet = Math.round(width * length);
-  return { width, length, squareFeet };
+  const desc = projectDescription.toLowerCase();
+  const mentionsInches = /\b(in|inch|inches|\")\b/i.test(desc);
+  const mentionsFeet = /\b(ft|feet|foot|\')\b/i.test(desc);
+  const mentionsYards = /\b(yd|yds|yard|yards)\b/i.test(desc);
+  const isDoorOrWindow = /(door|window|puerta|ventana)/i.test(desc);
+  const isFlooringJob = /(floor|flooring|lvp|vinyl|laminate|tile|piso|suelo|carpet|alfombra)/i.test(desc);
+
+  let unit: DimensionUnit = 'ft';
+  if (mentionsYards) {
+    unit = 'yd';
+  } else if (mentionsFeet) {
+    unit = 'ft';
+  } else if (mentionsInches || isDoorOrWindow) {
+    unit = 'in';
+  } else if (isFlooringJob) {
+    unit = 'ft';
+  } else if (rawWidth > 40 || rawLength > 40) {
+    unit = 'in';
+  }
+
+  const width = rawWidth;
+  const length = rawLength;
+  const squareFeet = unit === 'in'
+    ? (width * length) / 144
+    : unit === 'yd'
+      ? (width * length) * 9
+      : width * length;
+
+  return { width, length, squareFeet: Math.round(squareFeet * 100) / 100, unit };
 }
 
 function getOfflineSuggestions(input: AIPoweredEstimateSuggestionsInput) {
@@ -77,7 +106,7 @@ function getOfflineSuggestions(input: AIPoweredEstimateSuggestionsInput) {
   }
 
   const scopeSummary = parsedArea
-    ? `Scope summary: ${input.projectDescription}. Estimated area interpreted as ${parsedArea.width} x ${parsedArea.length} = ${parsedArea.squareFeet} sq ft.`
+    ? `Scope summary: ${input.projectDescription}. Estimated area interpreted as ${parsedArea.width} ${parsedArea.unit} x ${parsedArea.length} ${parsedArea.unit} = ${parsedArea.squareFeet} sq ft.`
     : `Scope summary: ${input.projectDescription}.`;
 
   const notes = [
