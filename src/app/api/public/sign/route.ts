@@ -63,12 +63,12 @@ export async function POST(request: Request) {
     }
 
     const notifications = Array.isArray(row.notifications_json) ? [...row.notifications_json] : [];
-    const docNumber = original.type === 'Estimate' ? original.estimateNumber : original.invoiceNumber;
+    const clientName = original.clientName || 'Client';
     const signedNotification = {
       id: crypto.randomUUID(),
       userId: row.user_id,
       event: 'signed',
-      message: `Client signed ${original.type} ${docNumber || original.id}`,
+      message: `Client signed ${original.type} ${clientName}`,
       documentId: original.id,
       documentType: original.type,
       timestamp: new Date().toISOString(),
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       // Update notification to point to the new invoice
       notifications[0].documentId = newInvoiceId;
       notifications[0].documentType = 'Invoice';
-      notifications[0].message = `Client signed Estimate ${docNumber || original.id} → Invoice ${invoiceNumber} created`;
+      notifications[0].message = `Client signed Estimate ${clientName} -> Invoice created`;
 
       await dbQuery(
         'UPDATE app_state SET documents_json = $1::jsonb, notifications_json = $2::jsonb, updated_at = now() WHERE user_id = $3',

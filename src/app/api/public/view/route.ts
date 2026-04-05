@@ -52,12 +52,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, skipped: true });
     }
 
-    const docNumber = doc.type === 'Estimate' ? doc.estimateNumber : doc.invoiceNumber;
+    const clientName = doc.clientName || 'Client';
     const newNotification = {
       id: crypto.randomUUID(),
       userId: row.user_id,
       event: 'viewed',
-      message: `Client viewed ${doc.type} ${docNumber || doc.id}`,
+      message: `Client viewed ${doc.type} ${clientName}`,
       documentId: doc.id,
       documentType: doc.type,
       timestamp: new Date().toISOString(),
