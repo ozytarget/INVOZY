@@ -93,7 +93,11 @@ const fileToDataUrl = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const img = new Image();
+      if (typeof window === 'undefined') {
+        reject(new Error('Image not available'));
+        return;
+      }
+      const img = new window.Image();
       img.onload = () => {
         let { width, height } = img;
         if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
