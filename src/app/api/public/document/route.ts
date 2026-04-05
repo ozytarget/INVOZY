@@ -8,7 +8,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const shareId = searchParams.get('shareId') || '';
 
+    console.log('[PublicDoc] Received shareId:', shareId);
+    console.log('[PublicDoc] UUID valid:', UUID_REGEX.test(shareId));
+
     if (!shareId || !UUID_REGEX.test(shareId)) {
+      console.log('[PublicDoc] REJECTED: shareId failed UUID validation');
       return NextResponse.json({ error: 'Invalid shareId' }, { status: 400 });
     }
 
@@ -23,7 +27,23 @@ export async function GET(request: Request) {
       [shareId]
     );
 
+    console.log('[PublicDoc] Query returned', rows.length, 'rows for shareId:', shareId);
+
     if (rows.length === 0) {
+      // Debug: check if any documents exist at all with share tokens
+      const { rows: debugRows } = await dbQuery<{ total_docs: number; tokens_sample: any }>(
+        `SELECT 
+          jsonb_array_length(documents_json) as total_docs,
+          (SELECT jsonb_agg(jsonb_build_object('type', d->>'type', 'id', d->>'id', 'token', d->>'share_token'))
+           FROM jsonb_array_elements(documents_json) d
+           LIMIT 10) as tokens_sample
+        FROM app_state
+        LIMIT 1`
+      );
+      if (debugRows.length > 0) {
+        console.log('[PublicDoc] DEBUG - Total docs in DB:', debugRows[0].total_docs);
+        console.log('[PublicDoc] DEBUG - Token samples:', JSON.stringify(debugRows[0].tokens_sample));
+      }
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
