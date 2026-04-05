@@ -145,7 +145,9 @@ export function StatsCards() {
         (doc) => doc.type === 'Invoice' && (doc.status === 'Paid' || doc.status === 'Partial')
     );
 
-    const { totalRevenue, grossProfit, materialsCost, taxesCollected, revenueDetails, profitDetails, materialDetails } = paidInvoices.reduce(
+    const allInvoices = documents.filter((doc) => doc.type === 'Invoice');
+
+    const { totalRevenue, grossProfit, materialsCost, revenueDetails, profitDetails, materialDetails } = paidInvoices.reduce(
         (acc, invoice) => {
             const explicitPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
             const amountPaid = explicitPaid > 0
@@ -164,11 +166,6 @@ export function StatsCards() {
                     amount: amountPaid,
                 });
             }
-
-            const subtotal = invoice.lineItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-            const taxAmount = invoice.taxRate ? subtotal * (invoice.taxRate / 100) : 0;
-
-            acc.taxesCollected += taxAmount * paymentRatio;
 
             invoice.lineItems.forEach((item) => {
                 const itemTotal = item.quantity * item.price;
@@ -202,12 +199,17 @@ export function StatsCards() {
             totalRevenue: 0,
             grossProfit: 0,
             materialsCost: 0,
-            taxesCollected: 0,
             revenueDetails: [] as DetailItem[],
             profitDetails: [] as DetailItem[],
             materialDetails: [] as DetailItem[],
         }
     );
+
+    const taxesCollected = allInvoices.reduce((sum, invoice) => {
+        const subtotal = invoice.lineItems.reduce((itemSum, item) => itemSum + item.price * item.quantity, 0);
+        const taxAmount = invoice.taxRate ? subtotal * (invoice.taxRate / 100) : 0;
+        return sum + taxAmount;
+    }, 0);
 
     const invoiceCount = documents.filter(doc => doc.type === 'Invoice').length;
     const estimateCount = documents.filter(doc => doc.type === 'Estimate' && doc.status !== 'Approved').length;
@@ -241,7 +243,7 @@ export function StatsCards() {
             <StatCard
                 title="Taxes Collected"
                 value={`$${taxesCollected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                subtext="From paid & partially paid invoices"
+                subtext="From all invoices"
                 icon={<Percent className="h-4 w-4 text-muted-foreground" />}
             />
             <StatCard
