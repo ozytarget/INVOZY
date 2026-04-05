@@ -16,14 +16,73 @@ import { ScrollArea } from "./ui/scroll-area"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Eye, PenLine } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Switch } from "./ui/switch"
 
 const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
+const NOTIFICATIONS_SOUND_KEY = 'notificationsSoundEnabled';
 
 export function NotificationsSheet({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const lastTimestampRef = useRef<number>(0);
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem(NOTIFICATIONS_SOUND_KEY);
+    setSoundEnabled(stored === 'true');
+  }, []);
+
+  const playNotificationSound = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+
+    const ctx = audioContextRef.current || new AudioCtx();
+    audioContextRef.current = ctx;
+
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 880;
+    gain.gain.value = 0.08;
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.2);
+  }, []);
+
+  const handleToggleSound = useCallback(async (checked: boolean) => {
+    setSoundEnabled(checked);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(NOTIFICATIONS_SOUND_KEY, String(checked));
+    }
+    if (checked) {
+      await playNotificationSound();
+    }
+  }, [playNotificationSound]);
+
+  const updateNotificationsState = useCallback((items: Notification[]) => {
+    const sorted = [...items].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    setNotifications(sorted);
+
+    const newestTimestamp = sorted[0]?.timestamp ? new Date(sorted[0].timestamp).getTime() : 0;
+    if (initializedRef.current && soundEnabled && newestTimestamp > lastTimestampRef.current) {
+      void playNotificationSound();
+    }
+    lastTimestampRef.current = newestTimestamp;
+    initializedRef.current = true;
+  }, [playNotificationSound, soundEnabled]);
 
   const loadNotifications = async () => {
     try {
@@ -31,10 +90,7 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.notifications)) {
-          const sorted = [...data.notifications].sort(
-            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          );
-          setNotifications(sorted);
+          updateNotificationsState(data.notifications);
           return;
         }
       }
@@ -44,8 +100,7 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
     if (typeof window === 'undefined') return;
     const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
     const parsed = raw ? (JSON.parse(raw) as Notification[]) : [];
-    parsed.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    setNotifications(parsed);
+    updateNotificationsState(parsed);
   };
 
   // Load on mount and poll every 30s
@@ -97,6 +152,13 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
         <SheetHeader>
           <SheetTitle>Notifications</SheetTitle>
         </SheetHeader>
+        <div className="flex items-center justify-between gap-3 border-b pb-4">
+          <div>
+            <p className="text-sm font-medium">Sound alerts</p>
+            <p className="text-xs text-muted-foreground">Play a sound when clients view or sign.</p>
+          </div>
+          <Switch checked={soundEnabled} onCheckedChange={handleToggleSound} />
+        </div>
         <div className="flex-1 overflow-hidden">
             <ScrollArea className="h-full pr-4">
                 <div className="space-y-4">
