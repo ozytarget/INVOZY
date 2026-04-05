@@ -41,17 +41,6 @@ export async function POST(request: Request) {
 
     const notifications = Array.isArray(row.notifications_json) ? [...row.notifications_json] : [];
 
-    // Avoid duplicate view notifications within 5 minutes
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    const recentView = notifications.find(
-      (n: any) => n.documentId === doc.id && n.event === 'viewed' &&
-        new Date(n.timestamp).getTime() > fiveMinutesAgo
-    );
-
-    if (recentView) {
-      return NextResponse.json({ ok: true, skipped: true });
-    }
-
     const clientName = doc.clientName || 'Client';
     const newNotification = {
       id: crypto.randomUUID(),
