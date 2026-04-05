@@ -93,6 +93,26 @@ const parseAreaFromDescription = (description: string) => {
   };
 };
 
+const formatNotesForDisplay = (notes: string, description: string) => {
+  const area = parseAreaFromDescription(description);
+  if (!area?.isDoor) return notes;
+
+  const widthIn = toInches(area.width, area.unit);
+  const heightIn = toInches(area.length, area.unit);
+  const standard = normalizeDoorSize(widthIn, heightIn);
+  const measuredText = `${Math.round(widthIn)} in x ${Math.round(heightIn)} in`;
+  const doorSummary = standard.changed
+    ? `Scope summary: ${description.trim()}. Door size provided: ${measuredText}. Standard size used: ${standard.width} in x ${standard.height} in.`
+    : `Scope summary: ${description.trim()}. Door size: ${measuredText}.`;
+
+  const filteredLines = notes
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(line => line && !/sq\s*ft|square\s*feet/i.test(line));
+
+  return [doorSummary, ...filteredLines].join('\n\n');
+};
+
 type AiSuggestionsDialogProps = {
   projectDescription: string;
   projectLocation: string;
@@ -330,7 +350,9 @@ export function AiSuggestionsDialog({
                             {renderTable('Labor', suggestions.laborLineItems, selectedLabor, 'labor')}
                             
                             <h3 className="font-semibold mt-4">Notes for Client</h3>
-                            <p className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50 whitespace-pre-wrap">{suggestions.notes}</p>
+                            <p className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/50 whitespace-pre-wrap">
+                              {formatNotesForDisplay(suggestions.notes, projectDescription)}
+                            </p>
                         </div>
                     </ScrollArea>
                 </div>

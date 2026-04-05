@@ -12,6 +12,28 @@ const DIMENSIONS_REGEX = /(\d+(?:\.\d+)?)\s*(?:x|by|\*)\s*(\d+(?:\.\d+)?)/i;
 
 type DimensionUnit = 'in' | 'ft' | 'yd';
 
+const DOOR_WIDTHS_IN = [22, 24, 26, 28, 30, 32, 34, 36];
+const DOOR_HEIGHTS_IN = [80, 84];
+
+const findClosest = (value: number, options: number[]) =>
+  options.reduce((prev, curr) => (Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev), options[0]);
+
+const normalizeDoorSize = (widthIn: number, heightIn: number) => {
+  const normalizedWidth = findClosest(widthIn, DOOR_WIDTHS_IN);
+  const normalizedHeight = findClosest(heightIn, DOOR_HEIGHTS_IN);
+  return {
+    width: normalizedWidth,
+    height: normalizedHeight,
+    changed: normalizedWidth !== Math.round(widthIn) || normalizedHeight !== Math.round(heightIn),
+  };
+};
+
+const toInches = (value: number, unit: DimensionUnit) => {
+  if (unit === 'in') return value;
+  if (unit === 'ft') return value * 12;
+  return value * 36;
+};
+
 function parseSquareFootage(projectDescription: string) {
   const match = projectDescription.match(DIMENSIONS_REGEX);
   if (!match) return null;
@@ -27,7 +49,8 @@ function parseSquareFootage(projectDescription: string) {
   const mentionsInches = /\b(in|inch|inches|\")\b/i.test(desc);
   const mentionsFeet = /\b(ft|feet|foot|\')\b/i.test(desc);
   const mentionsYards = /\b(yd|yds|yard|yards)\b/i.test(desc);
-  const isDoorOrWindow = /(door|window|puerta|ventana)/i.test(desc);
+  const isDoor = /(door|puerta)/i.test(desc);
+  const isWindow = /(window|ventana)/i.test(desc);
   const isFlooringJob = /(floor|flooring|lvp|vinyl|laminate|tile|piso|suelo|carpet|alfombra)/i.test(desc);
 
   let unit: DimensionUnit = 'ft';
@@ -35,7 +58,7 @@ function parseSquareFootage(projectDescription: string) {
     unit = 'yd';
   } else if (mentionsFeet) {
     unit = 'ft';
-  } else if (mentionsInches || isDoorOrWindow) {
+  } else if (mentionsInches || isDoor || isWindow) {
     unit = 'in';
   } else if (isFlooringJob) {
     unit = 'ft';
@@ -51,7 +74,7 @@ function parseSquareFootage(projectDescription: string) {
       ? (width * length) * 9
       : width * length;
 
-  return { width, length, squareFeet: Math.round(squareFeet * 100) / 100, unit };
+  return { width, length, squareFeet: Math.round(squareFeet * 100) / 100, unit, isDoor, isWindow };
 }
 
 function getOfflineSuggestions(input: AIPoweredEstimateSuggestionsInput) {
@@ -71,8 +94,16 @@ function getOfflineSuggestions(input: AIPoweredEstimateSuggestionsInput) {
   ];
 
   if (desc.includes('door')) {
+    const doorSizeLabel = parsedArea?.isDoor
+      ? (() => {
+          const widthIn = toInches(parsedArea.width, parsedArea.unit);
+          const heightIn = toInches(parsedArea.length, parsedArea.unit);
+          const standard = normalizeDoorSize(widthIn, heightIn);
+          return ` (${standard.width} in x ${standard.height} in)`;
+        })()
+      : '';
     materialLineItems.push(
-      { description: 'Pre-hung interior door unit', quantity: 1, price: 179 },
+      { description: `Pre-hung interior door unit${doorSizeLabel}`, quantity: 1, price: 179 },
       { description: 'Door hardware kit', quantity: 1, price: 49 },
       { description: 'Trim and finishing materials', quantity: 1, price: 42 }
     );
@@ -105,9 +136,24 @@ function getOfflineSuggestions(input: AIPoweredEstimateSuggestionsInput) {
     );
   }
 
-  const scopeSummary = parsedArea
-    ? `Scope summary: ${input.projectDescription}. Estimated area interpreted as ${parsedArea.width} ${parsedArea.unit} x ${parsedArea.length} ${parsedArea.unit} = ${parsedArea.squareFeet} sq ft.`
-    : `Scope summary: ${input.projectDescription}.`;
+  const scopeSummary = (() => {
+    if (!parsedArea) {
+      return `Scope summary: ${input.projectDescription}.`;
+    }
+
+    if (parsedArea.isDoor) {
+      const widthIn = toInches(parsedArea.width, parsedArea.unit);
+      const heightIn = toInches(parsedArea.length, parsedArea.unit);
+      const standard = normalizeDoorSize(widthIn, heightIn);
+      const measuredText = `${Math.round(widthIn)} in x ${Math.round(heightIn)} in`;
+      return standard.changed
+        ? `Scope summary: ${input.projectDescription}. Door size provided: ${measuredText}. Standard size used: ${standard.width} in x ${standard.height} in.`
+        : `Scope summary: ${input.projectDescription}. Door size: ${measuredText}.`;
+    }
+
+    const areaSummary = `Estimated area interpreted as ${parsedArea.width} ${parsedArea.unit} x ${parsedArea.length} ${parsedArea.unit} = ${parsedArea.squareFeet} sq ft.`;
+    return `Scope summary: ${input.projectDescription}. ${areaSummary}`;
+  })();
 
   const notes = [
     scopeSummary,
