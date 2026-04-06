@@ -77,6 +77,7 @@ export type Client = {
   email: string;
   phone: string;
   address: string;
+  secondaryEmail?: string;
   totalBilled: number;
   documentCount: number;
 };

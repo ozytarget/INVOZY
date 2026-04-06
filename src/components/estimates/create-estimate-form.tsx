@@ -455,7 +455,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
         title: "Estimate Updated",
         description: `Estimate for ${client.name} has been updated.`,
       });
-      router.push(`/view/estimate/${documentToEdit.id}`);
+      router.push(`/view/estimate/${documentToEdit.id}?internal=true`);
     } else {
       console.log('📝 CREATING new estimate');
       const newEstimate: Omit<Document, 'id'> = {
@@ -477,7 +477,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       })
 
       if (newDocId) {
-        router.push(`/view/estimate/${newDocId}`);
+        router.push(`/view/estimate/${newDocId}?internal=true`);
       } else {
         router.push("/dashboard/estimates");
       }

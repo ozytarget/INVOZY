@@ -55,7 +55,7 @@ export function ClientDetailSheet({ client, isOpen, onClose }: ClientDetailSheet
   const { toast } = useToast()
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
-  const [editForm, setEditForm] = useState({ name: "", phone: "", address: "" })
+  const [editForm, setEditForm] = useState({ name: "", phone: "", address: "", secondaryEmail: "" })
 
   // All docs belonging to this client
   const clientDocs: Document[] = useMemo(() => {
@@ -77,7 +77,7 @@ export function ClientDetailSheet({ client, isOpen, onClose }: ClientDetailSheet
 
   const startEdit = () => {
     if (!client) return
-    setEditForm({ name: client.name, phone: client.phone || "", address: client.address || "" })
+    setEditForm({ name: client.name, phone: client.phone || "", address: client.address || "", secondaryEmail: client.secondaryEmail || "" })
     setIsEditing(true)
   }
 
@@ -95,6 +95,7 @@ export function ClientDetailSheet({ client, isOpen, onClose }: ClientDetailSheet
       name: editForm.name.trim(),
       phone: editForm.phone.trim(),
       address: editForm.address.trim(),
+      secondaryEmail: editForm.secondaryEmail.trim() || undefined,
     })
     toast({ title: "Client updated", description: `${editForm.name} saved successfully.` })
     setIsEditing(false)
@@ -147,6 +148,10 @@ export function ClientDetailSheet({ client, isOpen, onClose }: ClientDetailSheet
               <Label htmlFor="edit-address">Address</Label>
               <Input id="edit-address" value={editForm.address} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))} placeholder="123 Main St" />
             </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-secondary-email">Secondary Email</Label>
+              <Input id="edit-secondary-email" type="email" value={editForm.secondaryEmail} onChange={e => setEditForm(f => ({ ...f, secondaryEmail: e.target.value }))} placeholder="Optional second email" />
+            </div>
           </div>
         )}
 
@@ -163,6 +168,12 @@ export function ClientDetailSheet({ client, isOpen, onClose }: ClientDetailSheet
               <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>{client.address}</span>
+              </div>
+            )}
+            {client.secondaryEmail && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Mail className="h-4 w-4 shrink-0" />
+                <span>{client.secondaryEmail} (secondary)</span>
               </div>
             )}
           </div>

@@ -533,7 +533,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       });
       // Regenerate work order in background after edit
       generateWorkOrderInBackground(documentToEdit.id, docData, updateDocument);
-      router.push(`/view/invoice/${documentToEdit.id}`);
+      router.push(`/view/invoice/${documentToEdit.id}?internal=true`);
     } else {
       console.log('📝 CREATING new invoice');
       const newInvoice: Omit<Document, 'id'> = {
@@ -557,7 +557,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       // Generate work order in background after create
       if (newDocId) {
         generateWorkOrderInBackground(newDocId, docData, updateDocument);
-        router.push(`/view/invoice/${newDocId}`);
+        router.push(`/view/invoice/${newDocId}?internal=true`);
       } else {
         router.push("/dashboard/invoices");
       }

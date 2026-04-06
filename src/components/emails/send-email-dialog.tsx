@@ -14,9 +14,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { Document } from "@/lib/types";
 import { sendDocumentEmail } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
+import { useDocuments } from "@/hooks/use-documents";
 import { Loader2 } from "lucide-react";
 
 // Ensure document data is synced to backend before sending email with public link
@@ -59,7 +68,14 @@ type SendEmailDialogProps = {
 
 export function SendEmailDialog({ document: documentData, companyName, onEmailSent, children }: SendEmailDialogProps) {
   const { toast } = useToast();
+  const { clients } = useDocuments();
   const [isLoading, setIsLoading] = useState(false);
+
+  const primaryEmail = documentData.clientEmail || "";
+  const matchedClient = clients.find(c => c.email.toLowerCase() === primaryEmail.toLowerCase());
+  const secondaryEmail = matchedClient?.secondaryEmail || "";
+  const hasSecondary = Boolean(secondaryEmail && secondaryEmail.toLowerCase() !== primaryEmail.toLowerCase());
+  const [selectedEmail, setSelectedEmail] = useState(primaryEmail);
 
   const handleSendEmail = async () => {
     setIsLoading(true);
@@ -77,7 +93,7 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
     console.log('[send-email] Sending document email');
     
     const result = await sendDocumentEmail({
-        to: documentData.clientEmail,
+        to: hasSecondary ? selectedEmail : primaryEmail,
         documentUrl,
         documentType: documentData.type,
         documentNumber: documentData.type === 'Invoice' ? documentData.invoiceNumber! : documentData.estimateNumber!,
@@ -91,7 +107,7 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
     if (result.success) {
         toast({
             title: "Email Sent",
-            description: `The ${documentData.type.toLowerCase()} has been sent to ${documentData.clientEmail}.`,
+            description: `The ${documentData.type.toLowerCase()} has been sent to ${hasSecondary ? selectedEmail : primaryEmail}.`,
         });
         onEmailSent();
     } else {
@@ -112,8 +128,28 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Send {documentData.type} to Client?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This will send an email to <span className="font-semibold">{documentData.clientName}</span> at <span className="font-semibold">{documentData.clientEmail}</span> with a link to view the document.
+          <AlertDialogDescription asChild>
+            <div className="text-sm text-muted-foreground">
+              <p>
+                This will send an email to <span className="font-semibold">{documentData.clientName}</span> with a link to view the document.
+              </p>
+              {hasSecondary ? (
+                <div className="mt-3 space-y-1.5">
+                  <Label htmlFor="email-select">Send to:</Label>
+                  <Select value={selectedEmail} onValueChange={setSelectedEmail}>
+                    <SelectTrigger id="email-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={primaryEmail}>{primaryEmail} (primary)</SelectItem>
+                      <SelectItem value={secondaryEmail}>{secondaryEmail} (secondary)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <p className="mt-1">Recipient: <span className="font-semibold">{primaryEmail}</span></p>
+              )}
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

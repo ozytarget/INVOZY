@@ -25,6 +25,7 @@ const formSchema = z.object({
   clientEmail: z.string().email("Invalid email address."),
   clientAddress: z.string().min(3, "Client address is required."),
   clientPhone: z.string().optional(),
+  clientSecondaryEmail: z.string().email("Invalid email address.").or(z.literal("")).optional(),
 })
 
 type ClientFormValues = z.infer<typeof formSchema>
@@ -46,6 +47,7 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
       clientEmail: "",
       clientAddress: "",
       clientPhone: "",
+      clientSecondaryEmail: "",
     },
   })
 
@@ -55,6 +57,7 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
       email: data.clientEmail,
       address: data.clientAddress,
       phone: data.clientPhone || "",
+      secondaryEmail: data.clientSecondaryEmail || undefined,
     }
 
     await addClient(newClientData);
@@ -138,6 +141,19 @@ export function CreateClientForm({ onSuccess }: CreateClientFormProps) {
                   <FormLabel>Client Phone</FormLabel>
                   <FormControl>
                     <Input placeholder="(123) 456-7890" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="clientSecondaryEmail"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Secondary Email (Optional)</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="alternate@acme.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
