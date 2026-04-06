@@ -29,6 +29,18 @@ export function SearchDialog({ children }: Props) {
     }
   }, [searchActive]);
 
+  React.useEffect(() => {
+    if (!searchActive) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSearchActive(false);
+        setSearchValue("");
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [searchActive]);
+
   const filteredDocs = React.useMemo(() => {
     if (!searchValue) return [];
     const search = searchValue.toLowerCase();
@@ -82,8 +94,14 @@ export function SearchDialog({ children }: Props) {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200 shadow-sm dark:bg-background/95 dark:border-border">
-        <div className="max-w-2xl mx-auto p-4 space-y-4">
+      {/* Backdrop overlay */}
+      <div
+        className="fixed inset-0 z-50 bg-black/40"
+        onClick={() => { setSearchActive(false); setSearchValue(""); }}
+      />
+      {/* Centered modal */}
+      <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-slate-50/95 shadow-lg backdrop-blur-sm dark:border-border dark:bg-background/95">
+        <div className="p-4 space-y-4">
           <div className="flex gap-2 items-center">
             <Input
               ref={inputRef}
@@ -102,7 +120,7 @@ export function SearchDialog({ children }: Props) {
           </div>
 
           {searchValue && (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
               {!hasResults && (
                 <div className="text-center py-8 text-slate-600 dark:text-muted-foreground">
                   No results for "{searchValue}"
