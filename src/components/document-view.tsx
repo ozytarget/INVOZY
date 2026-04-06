@@ -237,13 +237,6 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
       ? crypto.randomUUID()
       : `demo-invoice-${Date.now()}`;
 
-    const approvedEstimate: Document = {
-      ...originalDoc,
-      signature,
-      isSigned: true,
-      status: 'Approved',
-    };
-
     const newInvoice: Document = {
       ...originalDoc,
       id: newInvoiceId,
@@ -260,8 +253,9 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
       search_field: `${originalDoc.clientName} ${originalDoc.projectTitle} ${newInvoiceNumber}`.toLowerCase(),
     };
 
+    // Remove the estimate and add the invoice (same as /api/public/sign)
     const updatedDocs = [
-      ...ownerDocs.map(doc => (doc.id === originalDoc.id ? approvedEstimate : doc)),
+      ...ownerDocs.filter(doc => doc.id !== originalDoc.id),
       newInvoice,
     ].sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
 

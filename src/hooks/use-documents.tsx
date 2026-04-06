@@ -290,20 +290,17 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
           setStoredClients(remoteClients);
           setStoredSubcontractors(remoteSubcontractors);
 
-          // Merge remote + local to preserve any locally created documents not yet synced
+          // Server is the source of truth when it responds successfully.
+          // Do NOT merge with localStorage — that would resurrect documents
+          // deleted server-side (e.g. estimate→invoice conversion via public sign).
           const localDocsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, user.id);
-          const localDocs = safeParseArray<Document>(localStorage.getItem(localDocsKey)) || [];
-          const mergedDocuments = mergeDocuments(localDocs, remoteDocuments);
-          setDocuments(applyOverdueStatus(mergedDocuments.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime())));
+          setDocuments(applyOverdueStatus(remoteDocuments.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime())));
 
           writeCompanySettings(user.id, remoteSettings);
 
           persistDemoClients(remoteClients, user.id, false, true);
-          // Write merged documents to localStorage (no sync needed, we'll sync below)
-          const mergedDocsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, user.id);
-          localStorage.setItem(mergedDocsKey, JSON.stringify(mergedDocuments));
-          // Sync merged result back to server so any local-only docs reach the DB
-          void syncRemoteState(user.id);
+          // Overwrite localStorage with server state
+          localStorage.setItem(localDocsKey, JSON.stringify(remoteDocuments));
           const subKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user.id);
           localStorage.setItem(subKey, JSON.stringify(remoteSubcontractors));
           if (!silent) {
@@ -512,7 +509,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     if (originalDoc.type !== 'Estimate') {
         const updatedDocs = documents.map(doc =>
           doc.id === docId
-            ? { ...doc, signature, isSigned: true, status: 'Sent' as DocumentStatus }
+            ? { ...doc, signature, isSigned: true, status: 'Approved' as DocumentStatus }
             : doc
         );
 
