@@ -16,8 +16,7 @@ export async function GET() {
     );
 
     const settings = rows[0]?.company_settings_json || {};
-    console.log('[API] company-settings GET: User', user.id, 'retrieved:', Object.keys(settings).length, 'fields');
-    console.log('[API] company-settings GET: Data:', settings);
+    console.log('[company-settings] GET success');
 
     return NextResponse.json({ settings });
   } catch (error: any) {
@@ -37,7 +36,7 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const settings = body?.settings && typeof body.settings === 'object' ? body.settings : {};
 
-    console.log('[API] company-settings PUT: User', user.id, 'saving:', Object.keys(settings));
+    console.log('[company-settings] PUT request');
 
     const result = await dbQuery(
       `
@@ -53,8 +52,7 @@ export async function PUT(request: Request) {
     );
 
     const savedSettings = result.rows[0]?.company_settings_json || settings;
-    console.log('[API] company-settings PUT: ✓ Saved successfully for user', user.id);
-    console.log('[API] company-settings PUT: Saved data:', savedSettings);
+    console.log('[company-settings] PUT success');
 
     return NextResponse.json({ success: true, saved: savedSettings });
   } catch (error: any) {

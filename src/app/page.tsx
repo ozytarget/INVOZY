@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { LoginForm } from '@/components/auth/login-form';
-import { useUser } from '@/supabase/provider';
+import { useUser } from '@/providers/auth-provider';
 
 export default function LoginPage() {
   const router = useRouter();

@@ -47,6 +47,7 @@ type RecordPaymentDialogProps = {
 
 export function RecordPaymentDialog({ document: documentData, onRecordPayment, children }: RecordPaymentDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const amountPaid = documentData.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
   const balanceDue = documentData.amount - amountPaid;
 
@@ -58,10 +59,16 @@ export function RecordPaymentDialog({ document: documentData, onRecordPayment, c
     },
   })
 
-  function onSubmit(data: PaymentFormValues) {
-    onRecordPayment(data);
-    form.reset();
-    setIsOpen(false);
+  async function onSubmit(data: PaymentFormValues) {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      onRecordPayment(data);
+      form.reset();
+      setIsOpen(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
   
   const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
@@ -138,7 +145,7 @@ export function RecordPaymentDialog({ document: documentData, onRecordPayment, c
                         Cancel
                     </Button>
                 </DialogClose>
-                <Button type="submit">Record Payment</Button>
+                <Button type="submit" disabled={isSubmitting}>Record Payment</Button>
             </DialogFooter>
           </form>
         </Form>

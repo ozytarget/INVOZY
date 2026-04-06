@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { User as UserIcon, Settings } from "lucide-react";
-import { useAuth, useUser } from "@/supabase/provider";
+import { useAuth, useUser } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { readCompanySettings } from "@/lib/company-settings";

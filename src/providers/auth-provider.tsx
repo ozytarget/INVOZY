@@ -7,8 +7,7 @@ type LocalUser = {
   email: string;
 };
 
-// Define the shape of the Supabase context state
-export interface SupabaseContextState {
+export interface AuthContextState {
   user: LocalUser | null;
   isUserLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
@@ -16,15 +15,13 @@ export interface SupabaseContextState {
   signOut: () => Promise<void>;
 }
 
-// Create the React Context
-export const SupabaseContext = createContext<SupabaseContextState | undefined>(undefined);
+const AuthContext = createContext<AuthContextState | undefined>(undefined);
 
-// Define the props for the provider component
-interface SupabaseClientProviderProps {
+interface AuthProviderProps {
   children: ReactNode;
 }
 
-export function SupabaseClientProvider({ children }: SupabaseClientProviderProps) {
+export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<LocalUser | null>(null);
   const [isUserLoading, setIsUserLoading] = useState(true);
 
@@ -95,7 +92,7 @@ export function SupabaseClientProvider({ children }: SupabaseClientProviderProps
     setUser(null);
   };
 
-  const value: SupabaseContextState = {
+  const value: AuthContextState = {
     user,
     isUserLoading,
     signIn,
@@ -104,31 +101,29 @@ export function SupabaseClientProvider({ children }: SupabaseClientProviderProps
   };
 
   if (isUserLoading) {
-    return null; // You can render a loading spinner here if you want
+    return null;
   }
 
   return (
-    <SupabaseContext.Provider value={value}>
+    <AuthContext.Provider value={value}>
       {children}
-    </SupabaseContext.Provider>
+    </AuthContext.Provider>
   );
 }
 
-// Custom hook to access the Supabase context
-export const useSupabase = (): SupabaseContextState => {
-  const context = useContext(SupabaseContext);
+export const useAuthContext = (): AuthContextState => {
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useSupabase must be used within a SupabaseClientProvider.');
+    throw new Error('useAuthContext must be used within an AuthProvider.');
   }
   return context;
 };
 
-// Custom hooks for convenience
 export const useUser = () => {
-  const { user, isUserLoading } = useSupabase();
+  const { user, isUserLoading } = useAuthContext();
   return { user, isUserLoading };
 };
 
 export const useAuth = () => {
-  return useSupabase();
+  return useAuthContext();
 };

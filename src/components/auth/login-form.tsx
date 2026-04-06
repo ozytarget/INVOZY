@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/supabase/provider';
+import { useAuth } from '@/providers/auth-provider';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';

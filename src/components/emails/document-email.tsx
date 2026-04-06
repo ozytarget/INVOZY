@@ -22,7 +22,7 @@ export const DocumentEmail = ({
   documentType = 'Invoice',
   documentNumber = 'INV-001',
   companyName = 'Your Company',
-  documentUrl = 'http://localhost:9002',
+  documentUrl = 'https://invozy.com',
   schedulingUrl,
 }: DocumentEmailProps) => (
   <Html>

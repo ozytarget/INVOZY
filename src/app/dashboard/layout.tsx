@@ -12,7 +12,7 @@ import { SearchDialog } from "@/components/search-dialog"
 import { NotificationsSheet } from "@/components/notifications-sheet"
 import type { Notification } from "@/lib/types"
 import { Logo } from "@/components/logo"
-import { useUser } from "@/supabase/provider"
+import { useUser } from "@/providers/auth-provider"
 import { readCompanySettings } from "@/lib/company-settings"
 
 const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';

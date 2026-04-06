@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { SupabaseClientProvider } from '@/supabase/provider';
+import { AuthProvider } from '@/providers/auth-provider';
 import { DocumentProvider } from '@/hooks/use-documents';
 
 
@@ -29,11 +29,11 @@ export default function RootLayout({
         <meta name="theme-color" content="#27272A" />
       </head>
       <body className="font-body antialiased">
-        <SupabaseClientProvider>
+        <AuthProvider>
           <DocumentProvider>
             {children}
           </DocumentProvider>
-        </SupabaseClientProvider>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

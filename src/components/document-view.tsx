@@ -368,7 +368,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     // Construct the public share URL
     const appUrl = typeof window !== 'undefined'
       ? window.location.origin
-      : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
+      : (process.env.NEXT_PUBLIC_APP_URL || '');
     const publicUrl = `${appUrl}/public/${shareToken}`;
 
     try {
@@ -463,7 +463,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     // Use same URL format as handleShare
     const appUrl = typeof window !== 'undefined'
       ? window.location.origin
-      : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
+      : (process.env.NEXT_PUBLIC_APP_URL || '');
     const publicUrl = `${appUrl}/public/${shareToken}`;
 
     const message = `View your ${documentData.type.toLowerCase()}: ${documentData.projectTitle}\n${publicUrl}`;

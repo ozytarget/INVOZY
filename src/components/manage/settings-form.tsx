@@ -21,7 +21,7 @@ import { Globe, Calendar, Building, User, Mail, Phone, Image as ImageIcon, Perce
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useAuth, useUser } from "@/supabase/provider"
+import { useAuth, useUser } from "@/providers/auth-provider"
 import { readCompanySettings, writeCompanySettings } from "@/lib/company-settings"
 
 const settingsSchema = z.object({

@@ -49,7 +49,7 @@ import { CreateClientDialog } from "../clients/create-client-dialog"
 import { AiSuggestionsDialog } from "../estimates/ai-suggestions-dialog"
 import { Separator } from "../ui/separator"
 import { readCompanySettings, CompanySettings } from "@/lib/company-settings"
-import { useUser } from "@/supabase/provider"
+import { useUser } from "@/providers/auth-provider"
 
 const lineItemSchema = z.object({
   id: z.string().optional(),
