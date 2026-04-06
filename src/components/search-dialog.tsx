@@ -65,7 +65,7 @@ export function SearchDialog({ children }: Props) {
   const hasResults = filteredDocs.length > 0 || filteredClients.length > 0;
 
   const handleSelectDoc = (doc: Document) => {
-    router.push(`/view/${doc.type.toLowerCase()}/${doc.id}`)
+    router.push(`/view/${doc.type.toLowerCase()}/${doc.id}?internal=true`)
     setSearchActive(false);
     setSearchValue("");
   }
