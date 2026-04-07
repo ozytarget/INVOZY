@@ -28,13 +28,16 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const soundEnabledRef = useRef(false);
   const lastTimestampRef = useRef<number>(0);
   const initializedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const stored = localStorage.getItem(NOTIFICATIONS_SOUND_KEY);
-    setSoundEnabled(stored === 'true');
+    const enabled = stored === 'true';
+    setSoundEnabled(enabled);
+    soundEnabledRef.current = enabled;
   }, []);
 
   const playNotificationSound = useCallback(() => {
@@ -43,6 +46,7 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
 
   const handleToggleSound = useCallback(async (checked: boolean) => {
     setSoundEnabled(checked);
+    soundEnabledRef.current = checked;
     if (typeof window !== 'undefined') {
       localStorage.setItem(NOTIFICATIONS_SOUND_KEY, String(checked));
     }
@@ -58,12 +62,12 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
     setNotifications(sorted);
 
     const newestTimestamp = sorted[0]?.timestamp ? new Date(sorted[0].timestamp).getTime() : 0;
-    if (initializedRef.current && soundEnabled && newestTimestamp > lastTimestampRef.current) {
+    if (initializedRef.current && soundEnabledRef.current && newestTimestamp > lastTimestampRef.current) {
       void playNotificationSound();
     }
     lastTimestampRef.current = newestTimestamp;
     initializedRef.current = true;
-  }, [playNotificationSound, soundEnabled]);
+  }, [playNotificationSound]);
 
   const loadNotifications = async () => {
     try {
