@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils"
 import { Eye, PenLine } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Switch } from "./ui/switch"
+import { playAlertSound } from "@/lib/alert-sound"
 
 const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
 const NOTIFICATIONS_SOUND_KEY = 'notificationsSoundEnabled';
@@ -27,7 +28,6 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const audioContextRef = useRef<AudioContext | null>(null);
   const lastTimestampRef = useRef<number>(0);
   const initializedRef = useRef(false);
 
@@ -37,27 +37,8 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
     setSoundEnabled(stored === 'true');
   }, []);
 
-  const playNotificationSound = useCallback(async () => {
-    if (typeof window === 'undefined') return;
-    const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-
-    const ctx = audioContextRef.current || new AudioCtx();
-    audioContextRef.current = ctx;
-
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
-
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 880;
-    gain.gain.value = 0.08;
-    oscillator.connect(gain);
-    gain.connect(ctx.destination);
-    oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.2);
+  const playNotificationSound = useCallback(() => {
+    playAlertSound();
   }, []);
 
   const handleToggleSound = useCallback(async (checked: boolean) => {
