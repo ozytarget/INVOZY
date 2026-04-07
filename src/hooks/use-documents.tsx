@@ -15,6 +15,7 @@ const DEMO_SUBCONTRACTORS_STORAGE_KEY = 'demoSubcontractors';
 // Optimistic locking: track server timestamp
 let lastServerUpdatedAt: string | null = null;
 let _conflictRefetch: (() => Promise<void>) | null = null;
+let _syncInProgress = false;
 
 const getScopedStorageKey = (baseKey: string, userId?: string | null) => {
   return userId ? `${baseKey}:${userId}` : `${baseKey}:anonymous`;
@@ -48,6 +49,8 @@ const mergeDocuments = (existing: Document[], incoming: Document[]) => {
 
 const syncRemoteState = async (userId?: string | null) => {
   if (typeof window === 'undefined' || !userId) return;
+
+  _syncInProgress = true;
 
   const clientsKey = getScopedStorageKey(DEMO_CLIENTS_STORAGE_KEY, userId);
   const documentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, userId);
@@ -84,6 +87,8 @@ const syncRemoteState = async (userId?: string | null) => {
     }
   } catch (error) {
     console.error('Error syncing remote state:', error);
+  } finally {
+    _syncInProgress = false;
   }
 };
 
@@ -372,6 +377,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     const refresh = () => {
+      if (_syncInProgress) return;
       void loadData({ silent: true });
     };
 
@@ -498,7 +504,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     setStoredClients(updatedClients);
 
     if (typeof window !== 'undefined') {
-      persistDemoClients(updatedClients, user?.id);
+      persistDemoClients(updatedClients, user?.id, true, true);
+      await syncRemoteState(user?.id);
     }
   }, [user, storedClients]);
 
@@ -679,7 +686,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       }
     }
     setStoredClients(updatedClients);
-    persistDemoClients(updatedClients, user?.id, false);
+    persistDemoClients(updatedClients, user?.id, false, true);
+    await syncRemoteState(user?.id);
   }, [storedClients, documents, user?.id]);
 
   const persistSubcontractors = useCallback((subs: Subcontractor[]) => {
