@@ -14,8 +14,10 @@ import type { Notification } from "@/lib/types"
 import { Logo } from "@/components/logo"
 import { useUser } from "@/providers/auth-provider"
 import { readCompanySettings } from "@/lib/company-settings"
+import { playAlertSound, unlockAudio } from "@/lib/alert-sound"
 
 const NOTIFICATIONS_STORAGE_KEY = 'appNotifications';
+const NOTIFICATIONS_SOUND_KEY = 'notificationsSoundEnabled';
 
 export default function DashboardLayout({
   children,
@@ -26,6 +28,14 @@ export default function DashboardLayout({
   const router = useRouter()
   const { user, isUserLoading } = useUser()
   const [unreadNotifications, setUnreadNotifications] = React.useState<Notification[]>([]);
+  const prevUnreadCountRef = React.useRef<number>(-1);
+
+  // Unlock audio on first user interaction
+  React.useEffect(() => {
+    const unlock = () => { unlockAudio(); document.removeEventListener('click', unlock); };
+    document.addEventListener('click', unlock, { once: true });
+    return () => document.removeEventListener('click', unlock);
+  }, []);
 
   React.useEffect(() => {
     if (!isUserLoading && !user) {
@@ -48,7 +58,17 @@ export default function DashboardLayout({
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.notifications)) {
-          setUnreadNotifications(data.notifications.filter((n: Notification) => !n.isRead));
+          const unread = data.notifications.filter((n: Notification) => !n.isRead);
+          setUnreadNotifications(unread);
+
+          // Sound alert for new notifications
+          if (prevUnreadCountRef.current === -1) {
+            prevUnreadCountRef.current = unread.length;
+          } else if (unread.length > prevUnreadCountRef.current) {
+            const soundOn = typeof window !== 'undefined' && localStorage.getItem(NOTIFICATIONS_SOUND_KEY) === 'true';
+            if (soundOn) playAlertSound();
+          }
+          prevUnreadCountRef.current = unread.length;
           return;
         }
       }
