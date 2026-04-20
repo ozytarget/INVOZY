@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
     const settings = rows[0].company_settings_json || {};
     console.log('[public/company-settings] Owner resolved');
-    
+
     // Return in same format as authenticated endpoint: { settings: {...} }
     return NextResponse.json({ settings });
   } catch (error: any) {

@@ -72,7 +72,7 @@ export default function DashboardLayout({
           return;
         }
       }
-    } catch {}
+    } catch { }
     // Fallback: localStorage
     if (typeof window === 'undefined') return;
     const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
@@ -89,7 +89,7 @@ export default function DashboardLayout({
 
   const navItems = [
     { href: "/dashboard/estimates", icon: <FileText />, label: "Estimates" },
-    { href: "/dashboard/invoices", icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M11 15h4"/><path d="M11 11h4"/><path d="M11 7h4"/><path d="M7 11h0"/></svg>, label: "Invoices" },
+    { href: "/dashboard/invoices", icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M11 15h4" /><path d="M11 11h4" /><path d="M11 7h4" /><path d="M7 11h0" /></svg>, label: "Invoices" },
     { href: "/dashboard/clients", icon: <User />, label: "Clients" },
     { href: "/dashboard/payments", icon: <CreditCard />, label: "Payments" },
     { href: "/dashboard/manage", icon: <Settings />, label: "Manage" },
@@ -98,8 +98,8 @@ export default function DashboardLayout({
   const getTitle = () => {
     if (pathname === "/dashboard") return "Dashboard";
     if (pathname.includes('/create')) {
-        const type = pathname.split('/')[2];
-        return `Create ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+      const type = pathname.split('/')[2];
+      return `Create ${type.charAt(0).toUpperCase() + type.slice(1)}`;
     }
     const currentNavItem = navItems.find(item => pathname.startsWith(item.href));
     if (currentNavItem) return currentNavItem.label;
@@ -113,7 +113,7 @@ export default function DashboardLayout({
       </div>
     );
   }
-  
+
   return (
     <div className="flex flex-col h-screen bg-background">
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 px-4 sm:px-6" style={{ backgroundColor: 'hsl(var(--nav-background))', color: 'hsl(var(--nav-foreground))' }}>

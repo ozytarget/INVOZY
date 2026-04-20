@@ -83,7 +83,7 @@ const syncRemoteState = async (userId?: string | null) => {
         if (putResult.updated_at) {
           lastServerUpdatedAt = putResult.updated_at;
         }
-      } catch {}
+      } catch { }
     }
   } catch (error) {
     console.error('Error syncing remote state:', error);
@@ -276,55 +276,55 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     if (!silent) {
-        setIsLoading(true);
-      }
-      try {
-        const response = await fetch('/api/state', { method: 'GET', credentials: 'include' });
-        if (response.ok) {
-          const payload = await response.json();
-          const remoteClients = Array.isArray(payload.clients) ? (payload.clients as Client[]) : [];
-          const remoteDocuments = Array.isArray(payload.documents) ? (payload.documents as Document[]) : [];
-          const remoteSettings = payload?.companySettings && typeof payload.companySettings === 'object'
-            ? payload.companySettings
-            : {};
-          const remoteSubcontractors = Array.isArray(payload.subcontractors) ? (payload.subcontractors as Subcontractor[]) : [];
+      setIsLoading(true);
+    }
+    try {
+      const response = await fetch('/api/state', { method: 'GET', credentials: 'include' });
+      if (response.ok) {
+        const payload = await response.json();
+        const remoteClients = Array.isArray(payload.clients) ? (payload.clients as Client[]) : [];
+        const remoteDocuments = Array.isArray(payload.documents) ? (payload.documents as Document[]) : [];
+        const remoteSettings = payload?.companySettings && typeof payload.companySettings === 'object'
+          ? payload.companySettings
+          : {};
+        const remoteSubcontractors = Array.isArray(payload.subcontractors) ? (payload.subcontractors as Subcontractor[]) : [];
 
-          // Track server timestamp for optimistic locking
-          lastServerUpdatedAt = payload.updated_at || null;
+        // Track server timestamp for optimistic locking
+        lastServerUpdatedAt = payload.updated_at || null;
 
-          setStoredClients(remoteClients);
-          setStoredSubcontractors(remoteSubcontractors);
+        setStoredClients(remoteClients);
+        setStoredSubcontractors(remoteSubcontractors);
 
-          // Server is the source of truth when it responds successfully.
-          // Do NOT merge with localStorage — that would resurrect documents
-          // deleted server-side (e.g. estimate→invoice conversion via public sign).
-          const localDocsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, user.id);
-          setDocuments(applyOverdueStatus(remoteDocuments.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime())));
+        // Server is the source of truth when it responds successfully.
+        // Do NOT merge with localStorage — that would resurrect documents
+        // deleted server-side (e.g. estimate→invoice conversion via public sign).
+        const localDocsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, user.id);
+        setDocuments(applyOverdueStatus(remoteDocuments.sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime())));
 
-          writeCompanySettings(user.id, remoteSettings);
+        writeCompanySettings(user.id, remoteSettings);
 
-          persistDemoClients(remoteClients, user.id, false, true);
-          // Overwrite localStorage with server state
-          localStorage.setItem(localDocsKey, JSON.stringify(remoteDocuments));
-          const subKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user.id);
-          localStorage.setItem(subKey, JSON.stringify(remoteSubcontractors));
-          if (!silent) {
-            setIsLoading(false);
-          }
-          return;
+        persistDemoClients(remoteClients, user.id, false, true);
+        // Overwrite localStorage with server state
+        localStorage.setItem(localDocsKey, JSON.stringify(remoteDocuments));
+        const subKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user.id);
+        localStorage.setItem(subKey, JSON.stringify(remoteSubcontractors));
+        if (!silent) {
+          setIsLoading(false);
         }
-      } catch (error) {
-        console.error('Error loading backend state:', error);
+        return;
       }
+    } catch (error) {
+      console.error('Error loading backend state:', error);
+    }
 
-      const demoData = loadDemoData(user.id);
-      setStoredClients(demoData.clients);
-      setDocuments(applyOverdueStatus(demoData.documents));
-      const subKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user.id);
-      setStoredSubcontractors(safeParseArray<Subcontractor>(localStorage.getItem(subKey)) || []);
-      if (!silent) {
-        setIsLoading(false);
-      }
+    const demoData = loadDemoData(user.id);
+    setStoredClients(demoData.clients);
+    setDocuments(applyOverdueStatus(demoData.documents));
+    const subKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user.id);
+    setStoredSubcontractors(safeParseArray<Subcontractor>(localStorage.getItem(subKey)) || []);
+    if (!silent) {
+      setIsLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -394,14 +394,14 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   const addDocument = useCallback(async (docData: Omit<Document, 'id' | 'userId' | 'estimateNumber' | 'invoiceNumber' | 'search_field'>): Promise<string | undefined> => {
     const currentDocs = typeof window !== 'undefined'
       ? (() => {
-          try {
-            const scopedDocumentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, user?.id);
-            const scopedRaw = localStorage.getItem(scopedDocumentsKey);
-            return scopedRaw ? (JSON.parse(scopedRaw) as Document[]) : documents;
-          } catch {
-            return documents;
-          }
-        })()
+        try {
+          const scopedDocumentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, user?.id);
+          const scopedRaw = localStorage.getItem(scopedDocumentsKey);
+          return scopedRaw ? (JSON.parse(scopedRaw) as Document[]) : documents;
+        } catch {
+          return documents;
+        }
+      })()
       : documents;
 
     const docCount = currentDocs.filter(d => d.type === docData.type).length;
@@ -514,55 +514,55 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     if (!originalDoc) return;
 
     if (originalDoc.type !== 'Estimate') {
-        const updatedDocs = documents.map(doc =>
-          doc.id === docId
-            ? { ...doc, signature, isSigned: true, status: 'Approved' as DocumentStatus }
-            : doc
-        );
-
-        setDocuments(updatedDocs);
-        if (typeof window !== 'undefined') {
-          persistDemoDocuments(updatedDocs, user?.id, true, true);
-          await syncRemoteState(user?.id);
-        }
-        return undefined;
-      }
-
-      const invoiceCount = documents.filter(d => d.type === 'Invoice').length;
-      const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
-      const newInvoiceId = typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `demo-invoice-${Date.now()}`;
-
-      const newInvoice: Document = {
-        ...originalDoc,
-        id: newInvoiceId,
-        userId: 'demo-user',
-        share_token: generateShareToken(),
-        type: 'Invoice',
-        status: 'Sent',
-        signature,
-        isSigned: true,
-        issuedDate: format(new Date(), "yyyy-MM-dd"),
-        dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
-        invoiceNumber: newInvoiceNumber,
-        estimateNumber: undefined,
-        search_field: `${originalDoc.clientName} ${originalDoc.projectTitle} ${newInvoiceNumber}`.toLowerCase(),
-      };
-
-      // Remove the original estimate and add the invoice
-      const updatedDocs = [
-        ...documents.filter(doc => doc.id !== docId),
-        newInvoice,
-      ].sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
+      const updatedDocs = documents.map(doc =>
+        doc.id === docId
+          ? { ...doc, signature, isSigned: true, status: 'Approved' as DocumentStatus }
+          : doc
+      );
 
       setDocuments(updatedDocs);
       if (typeof window !== 'undefined') {
         persistDemoDocuments(updatedDocs, user?.id, true, true);
         await syncRemoteState(user?.id);
       }
+      return undefined;
+    }
 
-      return newInvoiceId;
+    const invoiceCount = documents.filter(d => d.type === 'Invoice').length;
+    const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
+    const newInvoiceId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `demo-invoice-${Date.now()}`;
+
+    const newInvoice: Document = {
+      ...originalDoc,
+      id: newInvoiceId,
+      userId: 'demo-user',
+      share_token: generateShareToken(),
+      type: 'Invoice',
+      status: 'Sent',
+      signature,
+      isSigned: true,
+      issuedDate: format(new Date(), "yyyy-MM-dd"),
+      dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), "yyyy-MM-dd"),
+      invoiceNumber: newInvoiceNumber,
+      estimateNumber: undefined,
+      search_field: `${originalDoc.clientName} ${originalDoc.projectTitle} ${newInvoiceNumber}`.toLowerCase(),
+    };
+
+    // Remove the original estimate and add the invoice
+    const updatedDocs = [
+      ...documents.filter(doc => doc.id !== docId),
+      newInvoice,
+    ].sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime());
+
+    setDocuments(updatedDocs);
+    if (typeof window !== 'undefined') {
+      persistDemoDocuments(updatedDocs, user?.id, true, true);
+      await syncRemoteState(user?.id);
+    }
+
+    return newInvoiceId;
   }, [user, documents]);
 
   const recordPayment = useCallback(async (invoiceId: string, payment: Omit<Payment, 'id' | 'date'>) => {

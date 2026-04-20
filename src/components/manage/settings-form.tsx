@@ -39,28 +39,28 @@ const settingsSchema = z.object({
 type SettingsFormValues = z.infer<typeof settingsSchema>
 
 const fileToDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export function SettingsForm() {
-    const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
-      const target = event.target as HTMLElement;
-      if (event.key === 'Enter' && target.tagName !== 'TEXTAREA') {
-        event.preventDefault();
-        (event.currentTarget as HTMLFormElement).requestSubmit();
-      }
-    };
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    const target = event.target as HTMLElement;
+    if (event.key === 'Enter' && target.tagName !== 'TEXTAREA') {
+      event.preventDefault();
+      (event.currentTarget as HTMLFormElement).requestSubmit();
+    }
+  };
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useUser();
   const { signOut } = useAuth();
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  
+
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
@@ -114,85 +114,85 @@ export function SettingsForm() {
 
   async function onSubmit(data: SettingsFormValues) {
     try {
-        // Step 1: Save to localStorage
-        console.log('[Settings] 1. Saving to localStorage:', data);
-        writeCompanySettings(user?.id, data);
-        console.log('[Settings] ✓ Saved to localStorage for user:', user?.id);
+      // Step 1: Save to localStorage
+      console.log('[Settings] 1. Saving to localStorage:', data);
+      writeCompanySettings(user?.id, data);
+      console.log('[Settings] ✓ Saved to localStorage for user:', user?.id);
 
-        // Step 2: Save to backend if authenticated
-        if (user) {
-          console.log('[Settings] 2. Sending to API /api/company-settings (PUT)...');
-          const response = await fetch('/api/company-settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ settings: data }),
+      // Step 2: Save to backend if authenticated
+      if (user) {
+        console.log('[Settings] 2. Sending to API /api/company-settings (PUT)...');
+        const response = await fetch('/api/company-settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ settings: data }),
+        });
+
+        console.log('[Settings] API Response Status:', response.status, response.statusText);
+
+        if (!response.ok) {
+          const errorPayload = await response.json().catch(() => ({}));
+          console.error('[Settings] ✗ API Error:', errorPayload);
+          toast({
+            variant: "destructive",
+            title: "Backend Save Failed",
+            description: `API Error (${response.status}): ${errorPayload?.error || 'Unknown error'}`,
           });
-
-          console.log('[Settings] API Response Status:', response.status, response.statusText);
-          
-          if (!response.ok) {
-            const errorPayload = await response.json().catch(() => ({}));
-            console.error('[Settings] ✗ API Error:', errorPayload);
-            toast({
-              variant: "destructive",
-              title: "Backend Save Failed",
-              description: `API Error (${response.status}): ${errorPayload?.error || 'Unknown error'}`,
-            });
-            return;
-          }
-
-          const successPayload = await response.json();
-          console.log('[Settings] ✓ API Success:', successPayload);
-        } else {
-          console.log('[Settings] ⚠ No user authenticated - skipping backend save');
+          return;
         }
 
-        console.log('[Settings] 3. Broadcasting storage event for UI sync...');
-        // This will force a re-render of components that depend on localStorage
-        window.dispatchEvent(new Event("storage"));
+        const successPayload = await response.json();
+        console.log('[Settings] ✓ API Success:', successPayload);
+      } else {
+        console.log('[Settings] ⚠ No user authenticated - skipping backend save');
+      }
 
-        toast({
-          title: "Settings Saved",
-          description: "Your information has been updated successfully.",
-        });
+      console.log('[Settings] 3. Broadcasting storage event for UI sync...');
+      // This will force a re-render of components that depend on localStorage
+      window.dispatchEvent(new Event("storage"));
 
-        console.log('[Settings] ✓ All steps completed - redirecting to dashboard');
-        router.push('/dashboard');
+      toast({
+        title: "Settings Saved",
+        description: "Your information has been updated successfully.",
+      });
+
+      console.log('[Settings] ✓ All steps completed - redirecting to dashboard');
+      router.push('/dashboard');
     } catch (error) {
-        console.error('[Settings] ✗ Exception during save:', error);
-        toast({
-            variant: "destructive",
-            title: "Error Saving",
-            description: error instanceof Error ? error.message : "Could not save settings.",
-        });
+      console.error('[Settings] ✗ Exception during save:', error);
+      toast({
+        variant: "destructive",
+        title: "Error Saving",
+        description: error instanceof Error ? error.message : "Could not save settings.",
+      });
     }
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'companyLogo', setPreview: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-        if (file.size > 2 * 1024 * 1024) { // 2MB limit
-            toast({
-                variant: "destructive",
-                title: "File too large",
-                description: "Please upload an image smaller than 2MB.",
-            });
-            return;
-        }
-        const dataUrl = await fileToDataUrl(file);
-        form.setValue(fieldName, dataUrl, { shouldDirty: true });
-        setPreview(dataUrl);
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({
+          variant: "destructive",
+          title: "File too large",
+          description: "Please upload an image smaller than 2MB.",
+        });
+        return;
+      }
+      const dataUrl = await fileToDataUrl(file);
+      form.setValue(fieldName, dataUrl, { shouldDirty: true });
+      setPreview(dataUrl);
     }
   }
-  
+
   // Add a listener to update nav when settings change in another tab
   useEffect(() => {
     const handleStorageChange = () => {
       const parsed = readCompanySettings(user?.id);
       if (Object.keys(parsed).length > 0) {
         form.reset(parsed);
-         if (parsed.companyLogo) {
+        if (parsed.companyLogo) {
           setLogoPreview(parsed.companyLogo);
         }
       }
@@ -251,7 +251,7 @@ export function SettingsForm() {
                   <FormItem>
                     <FormLabel>State Tax Rate (%)</FormLabel>
                     <FormControl>
-                       <div className="relative">
+                      <div className="relative">
                         <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input type="number" step="0.01" placeholder="e.g., 8.25" {...field} className="pl-10" />
                       </div>
@@ -261,35 +261,35 @@ export function SettingsForm() {
                 )}
               />
             </div>
-             <FormField
-                control={form.control}
-                name="contractorName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Your Name (Contractor)</FormLabel>
-                    <FormControl>
-                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="e.g., John Doe" {...field} className="pl-10" />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-             <FormField
-                control={form.control}
-                name="companyAddress"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Address</FormLabel>
-                    <FormControl>
-                        <Textarea placeholder="123 Main St, Anytown, USA 12345" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
+            <FormField
+              control={form.control}
+              name="contractorName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Your Name (Contractor)</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="e.g., John Doe" {...field} className="pl-10" />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="companyAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="123 Main St, Anytown, USA 12345" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -314,7 +314,7 @@ export function SettingsForm() {
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                     <div className="relative">
+                      <div className="relative">
                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input placeholder="(123) 456-7890" {...field} className="pl-10" />
                       </div>
@@ -324,63 +324,63 @@ export function SettingsForm() {
                 )}
               />
             </div>
-             <div className="grid md:grid-cols-2 gap-4">
-                <FormField
-                    control={form.control}
-                    name="companyWebsite"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Website</FormLabel>
-                        <FormControl>
-                        <div className="relative">
-                            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="acme.com" {...field} className="pl-10" />
-                        </div>
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="schedulingUrl"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Scheduling URL</FormLabel>
-                        <FormControl>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="calendly.com/acme" {...field} className="pl-10" />
-                        </div>
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
+            <div className="grid md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="companyWebsite"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Website</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="acme.com" {...field} className="pl-10" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="schedulingUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Scheduling URL</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="calendly.com/acme" {...field} className="pl-10" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
             <div className="grid grid-cols-1 gap-8 items-start">
-                <FormField
-                    control={form.control}
-                    name="companyLogo"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Company Logo</FormLabel>
-                        <div className="flex items-center gap-4">
-                          <div className="w-20 h-20 rounded-md border border-dashed flex items-center justify-center bg-muted">
-                            {logoPreview ? (
-                              <Image src={logoPreview} alt="Company logo preview" width={80} height={80} className="object-contain rounded-md" />
-                            ) : (
-                              <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                            )}
-                          </div>
-                          <FormControl>
-                            <Input id="companyLogoInput" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'companyLogo', setLogoPreview)} className="file:text-primary file:font-medium" />
-                          </FormControl>
-                        </div>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
+              <FormField
+                control={form.control}
+                name="companyLogo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company Logo</FormLabel>
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-20 rounded-md border border-dashed flex items-center justify-center bg-muted">
+                        {logoPreview ? (
+                          <Image src={logoPreview} alt="Company logo preview" width={80} height={80} className="object-contain rounded-md" />
+                        ) : (
+                          <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                        )}
+                      </div>
+                      <FormControl>
+                        <Input id="companyLogoInput" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'companyLogo', setLogoPreview)} className="file:text-primary file:font-medium" />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </CardContent>
         </Card>

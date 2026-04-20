@@ -84,7 +84,7 @@ const forceBackendSync = async () => {
       credentials: 'include',
       body: JSON.stringify({ clients, documents, companySettings, subcontractors }),
     });
-  } catch {}
+  } catch { }
 };
 
 const generateShareToken = (): string => {
@@ -140,24 +140,24 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     const load = async () => {
       try {
         let endpoint = '/api/company-settings'; // Internal view (authenticated)
-        
+
         if (isPublic && documentData.share_token) {
           // Public view: load owner's settings
           endpoint = `/api/public/company-settings?shareId=${encodeURIComponent(documentData.share_token)}`;
         }
-        
+
         console.log('[DocumentView] Loading company settings from:', endpoint);
         const res = await fetch(endpoint);
         console.log('[DocumentView] API Response Status:', res.status);
-        
+
         if (res.ok) {
           const data = await res.json();
           console.log('[DocumentView] Received data:', data);
-          
+
           // Handle both { settings: {...} } and { ...settings } formats
           const settingsData = data?.settings || data?.company_settings_json || data;
           console.log('[DocumentView] Extracted settings:', settingsData);
-          
+
           if (settingsData && Object.keys(settingsData).length > 0) {
             console.log('[DocumentView] ✓ Updating liveSettings with:', Object.keys(settingsData));
             setLiveSettings(settingsData);
@@ -171,7 +171,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
         console.error('[DocumentView] Exception loading settings:', err);
       }
     };
-    
+
     load();
     const interval = setInterval(load, 60000); // Poll every 60s
     return () => clearInterval(interval);
@@ -759,7 +759,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
                   </RecordPaymentDialog>
                 )}
                 <SendEmailDialog
-                  document={{...documentData, schedulingUrl: co.schedulingUrl || documentData.schedulingUrl}}
+                  document={{ ...documentData, schedulingUrl: co.schedulingUrl || documentData.schedulingUrl }}
                   companyName={co.companyName || "Your Company"}
                   onEmailSent={handleEmailSent}
                 >

@@ -70,7 +70,7 @@ export function RecordPaymentDialog({ document: documentData, onRecordPayment, c
       setIsSubmitting(false);
     }
   }
-  
+
   const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
     const target = event.target as HTMLElement;
     if (event.key === 'Enter' && target.tagName !== 'TEXTAREA') {
@@ -139,13 +139,13 @@ export function RecordPaymentDialog({ document: documentData, onRecordPayment, c
                 </FormItem>
               )}
             />
-             <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary">
-                        Cancel
-                    </Button>
-                </DialogClose>
-                <Button type="submit" disabled={isSubmitting}>Record Payment</Button>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={isSubmitting}>Record Payment</Button>
             </DialogFooter>
           </form>
         </Form>

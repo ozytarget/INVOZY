@@ -246,7 +246,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     } catch {
       localStorage.removeItem(DRAFT_KEY);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -308,11 +308,11 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     const dueDate = isNaN(parsedDue.getTime()) ? new Date() : parsedDue;
     const lineItems = Array.isArray(documentToEdit.lineItems) && documentToEdit.lineItems.length > 0
       ? documentToEdit.lineItems.map(item => ({
-          ...item,
-          description: item.description || '',
-          quantity: Number(item.quantity) || 0,
-          price: Number(item.price) || 0,
-        }))
+        ...item,
+        description: item.description || '',
+        quantity: Number(item.quantity) || 0,
+        price: Number(item.price) || 0,
+      }))
       : [{ description: "", quantity: 1, price: 0 }];
     const projectPhotos = Array.isArray(documentToEdit.projectPhotos)
       ? documentToEdit.projectPhotos.map(p => ({ url: p.url || '', description: p.description || '' }))
@@ -370,7 +370,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
             return;
           }
         }
-      } catch {}
+      } catch { }
       if (typeof window !== 'undefined') {
         try {
           const parsedSettings = readCompanySettings(user?.id);
@@ -489,7 +489,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
         const s = json?.settings || json;
         if (s && typeof s === 'object' && s.companyName) freshSettings = s;
       }
-    } catch {}
+    } catch { }
 
     const mappedLineItems = data.lineItems.map((item, index) => ({ ...item, id: item.id || `${Date.now()}-${index}` }));
     console.log('📝 Invoice mapped lineItems:', mappedLineItems);

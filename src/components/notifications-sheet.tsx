@@ -128,40 +128,40 @@ export function NotificationsSheet({ children }: { children: React.ReactNode }) 
           <Switch checked={soundEnabled} onCheckedChange={handleToggleSound} />
         </div>
         <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full pr-4">
-                <div className="space-y-4">
-                {notifications && notifications.length > 0 ? (
-                    notifications.map(notification => (
-                    <div
-                        key={notification.id}
-                        className={cn(
-                          "p-4 rounded-lg cursor-pointer transition-colors hover:bg-muted/50 flex gap-3 items-start",
-                          !notification.isRead ? "bg-primary/10" : "bg-muted/20"
-                        )}
-                        onClick={() => handleNotificationClick(notification)}
-                    >
-                        <div className="mt-0.5 shrink-0">
-                          {notification.event === 'signed'
-                            ? <PenLine className="h-4 w-4 text-green-500" />
-                            : <Eye className="h-4 w-4 text-blue-500" />}
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{notification.message}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {notification.timestamp ? formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true }) : 'just now'}
-                          </p>
-                        </div>
+          <ScrollArea className="h-full pr-4">
+            <div className="space-y-4">
+              {notifications && notifications.length > 0 ? (
+                notifications.map(notification => (
+                  <div
+                    key={notification.id}
+                    className={cn(
+                      "p-4 rounded-lg cursor-pointer transition-colors hover:bg-muted/50 flex gap-3 items-start",
+                      !notification.isRead ? "bg-primary/10" : "bg-muted/20"
+                    )}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <div className="mt-0.5 shrink-0">
+                      {notification.event === 'signed'
+                        ? <PenLine className="h-4 w-4 text-green-500" />
+                        : <Eye className="h-4 w-4 text-blue-500" />}
                     </div>
-                    ))
-                ) : (
-                    <div className="text-center text-muted-foreground py-16">
-                    <p>You have no notifications.</p>
+                    <div>
+                      <p className="font-medium text-sm">{notification.message}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {notification.timestamp ? formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true }) : 'just now'}
+                      </p>
                     </div>
-                )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-16">
+                  <p>You have no notifications.</p>
                 </div>
-            </ScrollArea>
+              )}
+            </div>
+          </ScrollArea>
         </div>
-         {notifications && notifications.some(n => !n.isRead) && (
+        {notifications && notifications.some(n => !n.isRead) && (
           <div className="pt-4 border-t">
             <Button
               variant="outline"

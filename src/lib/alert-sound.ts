@@ -19,7 +19,7 @@ export function unlockAudio(): void {
       audio.pause();
       audio.currentTime = 0;
       audioUnlocked = true;
-    }).catch(() => {});
+    }).catch(() => { });
   } catch {
     // silent
   }
@@ -29,7 +29,7 @@ export function playAlertSound(): void {
   try {
     const audio = getAudio();
     audio.currentTime = 0;
-    audio.play().catch(() => {});
+    audio.play().catch(() => { });
   } catch {
     // Fallback silencioso si el browser bloquea audio
   }

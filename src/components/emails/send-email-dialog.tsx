@@ -35,19 +35,19 @@ async function ensureDocumentSynced() {
     const allKeys = Object.keys(localStorage);
     const docKey = allKeys.find(k => k.startsWith('demoDocuments:') && !k.includes('Backup'));
     const clientKey = allKeys.find(k => k.startsWith('demoClients:') && !k.includes('Backup'));
-    
+
     if (!docKey) return;
-    
+
     const documents = JSON.parse(localStorage.getItem(docKey) || '[]');
     const clients = JSON.parse(localStorage.getItem(clientKey || '') || '[]');
-    
+
     // Find company settings
     const settingsKey = allKeys.find(k => k.startsWith('companySettings:'));
     const companySettings = settingsKey ? JSON.parse(localStorage.getItem(settingsKey) || '{}') : {};
-    
+
     const subKey = allKeys.find(k => k.startsWith('demoSubcontractors:'));
     const subcontractors = subKey ? JSON.parse(localStorage.getItem(subKey) || '[]') : [];
-    
+
     await fetch('/api/state', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -79,25 +79,25 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
 
   const handleSendEmail = async () => {
     setIsLoading(true);
-    
+
     // Force sync to ensure document exists in DB before sending link
     await ensureDocumentSynced();
-    
+
     // Build public share URL instead of current page URL
     const appUrl = typeof window !== 'undefined'
       ? window.location.origin
       : (process.env.NEXT_PUBLIC_APP_URL || '');
-    
+
     const documentUrl = `${appUrl}/public/${documentData.share_token}`;
-    
+
     console.log('[send-email] Sending document email');
-    
+
     const result = await sendDocumentEmail({
-        to: hasSecondary ? selectedEmail : primaryEmail,
-        documentUrl,
-        documentType: documentData.type,
-        documentNumber: documentData.type === 'Invoice' ? documentData.invoiceNumber! : documentData.estimateNumber!,
-        companyName,
+      to: hasSecondary ? selectedEmail : primaryEmail,
+      documentUrl,
+      documentType: documentData.type,
+      documentNumber: documentData.type === 'Invoice' ? documentData.invoiceNumber! : documentData.estimateNumber!,
+      companyName,
       companyEmail: documentData.companyEmail,
       schedulingUrl: documentData.schedulingUrl,
     });
@@ -105,17 +105,17 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
     setIsLoading(false);
 
     if (result.success) {
-        toast({
-            title: "Email Sent",
-            description: `The ${documentData.type.toLowerCase()} has been sent to ${hasSecondary ? selectedEmail : primaryEmail}.`,
-        });
-        onEmailSent();
+      toast({
+        title: "Email Sent",
+        description: `The ${documentData.type.toLowerCase()} has been sent to ${hasSecondary ? selectedEmail : primaryEmail}.`,
+      });
+      onEmailSent();
     } else {
-        toast({
-            variant: "destructive",
-            title: "Error Sending Email",
-            description: result.error,
-        });
+      toast({
+        variant: "destructive",
+        title: "Error Sending Email",
+        description: result.error,
+      });
     }
   }
 

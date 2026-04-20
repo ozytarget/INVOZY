@@ -21,9 +21,9 @@ import { useToast } from "@/hooks/use-toast";
 import { readCompanySettings } from "@/lib/company-settings";
 
 type UserSettings = {
-    contractorName: string;
-    companyEmail: string;
-    companyLogo?: string;
+  contractorName: string;
+  companyEmail: string;
+  companyLogo?: string;
 }
 
 export function UserNav() {
@@ -35,10 +35,10 @@ export function UserNav() {
 
   const updateSettingsFromStorage = () => {
     if (typeof window !== 'undefined') {
-        const parsed = readCompanySettings(user?.id) as UserSettings;
-        if (Object.keys(parsed).length > 0) {
-          setSettings(parsed);
-        }
+      const parsed = readCompanySettings(user?.id) as UserSettings;
+      if (Object.keys(parsed).length > 0) {
+        setSettings(parsed);
+      }
     }
   };
 
@@ -69,7 +69,7 @@ export function UserNav() {
       });
     }
   };
-  
+
   const getInitials = (name: string | undefined | null): string => {
     if (!name) return "";
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -86,7 +86,7 @@ export function UserNav() {
           <Avatar className="h-9 w-9">
             <AvatarImage src={avatarSrc} alt="User avatar" />
             <AvatarFallback>
-                {fallbackText}
+              {fallbackText}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -102,12 +102,12 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-           <DropdownMenuItem asChild>
-                <Link href="/dashboard/manage">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                </Link>
-            </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/manage">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </Link>
+          </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>

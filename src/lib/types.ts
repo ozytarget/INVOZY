@@ -30,7 +30,7 @@ export type Document = {
   type: DocumentType;
   status: DocumentStatus;
   share_token?: string; // UUID for public sharing
-  
+
   // Company Info (embedded for public viewing)
   companyName: string;
   companyAddress: string;
@@ -40,13 +40,13 @@ export type Document = {
   companyWebsite?: string;
   contractorName?: string;
   schedulingUrl?: string;
-  
+
   // Client Info
   clientName: string;
   clientEmail: string;
   clientAddress: string;
   clientPhone: string;
-  
+
   // Document Details
   projectTitle: string;
   issuedDate: string;
