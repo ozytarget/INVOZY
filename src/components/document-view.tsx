@@ -402,8 +402,8 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
   const handleAddFromSigned = async () => {
     await duplicateDocument(documentData.id);
     toast({
-      title: `New ${documentData.type} Created`,
-      description: `A new draft ${documentData.type.toLowerCase()} has been created from this signed document.`,
+      title: `Extras Draft Created`,
+      description: `A new draft ${documentData.type.toLowerCase()} was created from this signed document so you can add extra work and materials.`,
     });
     router.push(`/dashboard/${documentData.type.toLowerCase()}s`);
     setIsFabMenuOpen(false);
@@ -788,7 +788,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
                   <FabMenuItem
                     onClick={handleAddFromSigned}
                     icon={<Plus className="h-6 w-6" />}
-                    label="Add"
+                    label="Add Extras"
                   />
                 ) : (
                   <FabMenuItem
