@@ -7,7 +7,7 @@ export type LineItem = {
   price: number;
 };
 
-export type PaymentMethod = "Cash" | "Bank Transfer" | "Credit Card" | "Debit Card";
+export type PaymentMethod = "Cash" | "Bank Transfer" | "Credit Card" | "Debit Card" | "Check";
 
 export type Payment = {
   id: string;

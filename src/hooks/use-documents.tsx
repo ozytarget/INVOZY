@@ -437,14 +437,26 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [user, documents]);
 
   const updateDocument = useCallback(async (docId: string, docData: Partial<Document>) => {
-    const originalDoc = documents.find(d => d.id === docId);
+    const currentDocs = typeof window !== 'undefined'
+      ? (() => {
+          try {
+            const scopedDocumentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, user?.id);
+            const scopedRaw = localStorage.getItem(scopedDocumentsKey);
+            return scopedRaw ? (JSON.parse(scopedRaw) as Document[]) : documents;
+          } catch {
+            return documents;
+          }
+        })()
+      : documents;
+
+    const originalDoc = currentDocs.find(d => d.id === docId);
     if (!originalDoc) return;
 
     const docNumber = originalDoc.type === 'Estimate' ? originalDoc.estimateNumber : originalDoc.invoiceNumber;
     const clientName = docData.clientName || originalDoc.clientName;
     const projectTitle = docData.projectTitle || originalDoc.projectTitle;
 
-    const updatedDocs = documents.map(doc => {
+    const updatedDocs = currentDocs.map(doc => {
       if (doc.id !== docId) return doc;
       return {
         ...doc,

@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Document, Payment, PaymentMethod } from "@/lib/types";
 
-const paymentMethods = ["Cash", "Bank Transfer", "Credit Card", "Debit Card"] as const;
+const paymentMethods = ["Cash", "Bank Transfer", "Credit Card", "Debit Card", "Check"] as const;
 
 const formSchema = z.object({
   amount: z.coerce.number().positive("Amount must be greater than 0."),
