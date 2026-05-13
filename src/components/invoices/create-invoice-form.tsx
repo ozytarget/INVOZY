@@ -89,6 +89,14 @@ const MAX_PHOTOS = 8;
 const MAX_IMAGE_DIMENSION = 1600;
 const IMAGE_QUALITY = 0.8;
 
+const buildProjectDescriptionFallback = (lineItems?: Array<{ description?: string }>) => {
+  if (!Array.isArray(lineItems) || lineItems.length === 0) return '';
+  const descriptions = lineItems
+    .map(item => item.description?.trim())
+    .filter((description): description is string => Boolean(description));
+  return descriptions.join('\n');
+};
+
 const fileToDataUrl = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -322,7 +330,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     form.reset({
       clientId: documentToEdit.clientEmail || "",
       projectTitle: documentToEdit.projectTitle || "",
-      projectDescription: documentToEdit.projectDescription || documentToEdit.notes || "",
+      projectDescription: documentToEdit.projectDescription || buildProjectDescriptionFallback(documentToEdit.lineItems) || documentToEdit.notes || "",
       issuedDate,
       dueDate,
       lineItems,

@@ -85,6 +85,14 @@ const MAX_PHOTOS = 8;
 const MAX_IMAGE_DIMENSION = 1600;
 const IMAGE_QUALITY = 0.8;
 
+const buildProjectDescriptionFallback = (lineItems?: Array<{ description?: string }>) => {
+  if (!Array.isArray(lineItems) || lineItems.length === 0) return '';
+  const descriptions = lineItems
+    .map(item => item.description?.trim())
+    .filter((description): description is string => Boolean(description));
+  return descriptions.join('\n');
+};
+
 const fileToDataUrl = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -224,7 +232,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       form.reset({
         clientId: d.clientId || '',
         projectTitle: d.projectTitle || '',
-        projectDescription: d.projectDescription || d.notes || '',
+        projectDescription: d.projectDescription || buildProjectDescriptionFallback(d.lineItems) || d.notes || '',
         issuedDate: d.issuedDate ? new Date(d.issuedDate) : new Date(),
         lineItems: d.lineItems || [{ description: '', quantity: 1, price: 0 }],
         notes: d.notes || '',
