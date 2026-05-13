@@ -179,6 +179,11 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     name: "projectPhotos"
   });
 
+  const { fields, append, remove, replace } = useFieldArray({
+    control: form.control,
+    name: "lineItems",
+  })
+
   const { formState: { isDirty } } = form;
 
   // --- Draft auto-save & recovery ---
@@ -246,6 +251,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
         terms: d.terms || 'Net 30',
         projectPhotos: d.projectPhotos || [],
       });
+      replace(d.lineItems || [{ description: '', quantity: 1, price: 0 }]);
       if (d.clientId) {
         const c = findClientByEmail(d.clientId);
         if (c) setSelectedClient(c);
@@ -338,6 +344,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       terms: documentToEdit.terms || "",
       projectPhotos,
     });
+    replace(lineItems);
 
     lastLoadedRef.current = docId;
     console.log('✓✓✓ Form population complete');
@@ -410,11 +417,6 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     const interval = window.setInterval(saveDraft, 5000); // Save every 5s if dirty
     return () => window.clearInterval(interval);
   }, [documentToEdit, isEditMode, form, isDirty]);
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "lineItems",
-  })
 
   const lineItems = form.watch("lineItems");
   const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
