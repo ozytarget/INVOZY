@@ -224,7 +224,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       form.reset({
         clientId: d.clientId || '',
         projectTitle: d.projectTitle || '',
-        projectDescription: d.projectDescription || '',
+        projectDescription: d.projectDescription || d.notes || '',
         issuedDate: d.issuedDate ? new Date(d.issuedDate) : new Date(),
         lineItems: d.lineItems || [{ description: '', quantity: 1, price: 0 }],
         notes: d.notes || '',
@@ -434,6 +434,7 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       clientAddress: client.address,
       clientPhone: client.phone || '',
       projectTitle: data.projectTitle,
+      projectDescription: data.projectDescription || documentToEdit?.projectDescription || documentToEdit?.notes || '',
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
       amount: totalAmount,
       taxRate: taxRate,

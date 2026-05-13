@@ -712,10 +712,16 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
                 </section>
               )}
 
+              {documentData.projectDescription && (
+                <div>
+                  <h3 className="font-semibold mb-1">Project Description</h3>
+                  <p className="text-sm text-muted-foreground whitespace-pre-line">{documentData.projectDescription}</p>
+                </div>
+              )}
               {documentData.notes && (
                 <div>
                   <h3 className="font-semibold mb-1">Notes</h3>
-                  <p className="text-sm text-muted-foreground">{documentData.notes}</p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-line">{documentData.notes}</p>
                 </div>
               )}
               {documentData.terms && (

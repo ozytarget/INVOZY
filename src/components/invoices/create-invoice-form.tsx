@@ -322,7 +322,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     form.reset({
       clientId: documentToEdit.clientEmail || "",
       projectTitle: documentToEdit.projectTitle || "",
-      projectDescription: documentToEdit.notes || "",
+      projectDescription: documentToEdit.projectDescription || documentToEdit.notes || "",
       issuedDate,
       dueDate,
       lineItems,
@@ -431,7 +431,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     }));
     getWorkOrder({
       projectTitle: docData.projectTitle || '',
-      projectDescription: docData.notes || '',
+      projectDescription: docData.projectDescription || docData.notes || '',
       lineItems,
     }).then(result => {
       if (result.success && result.data) {
@@ -509,6 +509,7 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       clientAddress: client.address,
       clientPhone: client.phone || '',
       projectTitle: data.projectTitle,
+      projectDescription: data.projectDescription || documentToEdit?.projectDescription || documentToEdit?.notes || '',
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
       dueDate: format(data.dueDate, "yyyy-MM-dd"),
       amount: totalAmount,

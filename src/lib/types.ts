@@ -49,6 +49,7 @@ export type Document = {
 
   // Document Details
   projectTitle: string;
+  projectDescription?: string;
   issuedDate: string;
   dueDate?: string;
   amount: number; // This is the TOTAL amount, including tax
