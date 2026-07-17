@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery } from '@/lib/server-db';
+import { dbQuery, syncNormalizedNotifications } from '@/lib/server-db';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       `UPDATE app_state SET notifications_json = $1, updated_at = now() WHERE user_id = $2`,
       [JSON.stringify(notifications), row.user_id]
     );
+    await syncNormalizedNotifications(row.user_id, notifications);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

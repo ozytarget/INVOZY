@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery } from '@/lib/server-db';
+import { dbQuery, resyncNormalizedFromLegacy } from '@/lib/server-db';
 
 const generateShareToken = (): string => {
   return crypto.randomUUID();
@@ -112,6 +112,7 @@ export async function POST(request: Request) {
         'UPDATE app_state SET documents_json = $1::jsonb, notifications_json = $2::jsonb, updated_at = now() WHERE user_id = $3',
         [JSON.stringify(docs), JSON.stringify(notifications), row.user_id]
       );
+      await resyncNormalizedFromLegacy(row.user_id);
 
       return NextResponse.json({ success: true, type: 'estimate', invoiceId: newInvoiceId });
     }
@@ -127,6 +128,7 @@ export async function POST(request: Request) {
       'UPDATE app_state SET documents_json = $1::jsonb, notifications_json = $2::jsonb, updated_at = now() WHERE user_id = $3',
       [JSON.stringify(docs), JSON.stringify(notifications), row.user_id]
     );
+    await resyncNormalizedFromLegacy(row.user_id);
 
     return NextResponse.json({ success: true, type: 'invoice' });
   } catch (error: any) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery } from '@/lib/server-db';
+import { dbQuery, getNormalizedState } from '@/lib/server-db';
 import { getAuthenticatedUser } from '@/lib/server-auth';
 
 export async function GET() {
@@ -14,7 +14,10 @@ export async function GET() {
       [user.id]
     );
 
-    const notifications = rows.length > 0 && Array.isArray(rows[0].notifications_json)
+    const normalized = await getNormalizedState(user.id);
+    const notifications = normalized.notifications.length > 0
+      ? normalized.notifications
+      : rows.length > 0 && Array.isArray(rows[0].notifications_json)
       ? rows[0].notifications_json
       : [];
 

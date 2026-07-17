@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery } from '@/lib/server-db';
+import { dbQuery, getNormalizedState } from '@/lib/server-db';
 import { getAuthenticatedUser } from '@/lib/server-auth';
 
 export async function GET() {
@@ -15,7 +15,10 @@ export async function GET() {
       [user.id]
     );
 
-    const settings = rows[0]?.company_settings_json || {};
+    const normalized = await getNormalizedState(user.id);
+    const settings = Object.keys(normalized.companySettings).length > 0
+      ? normalized.companySettings
+      : (rows[0]?.company_settings_json || {});
     console.log('[company-settings] GET success');
 
     return NextResponse.json({ settings });

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery, syncNormalizedState } from '@/lib/server-db';
+import { dbQuery, getNormalizedState, syncNormalizedState } from '@/lib/server-db';
 import { getAuthenticatedUser } from '@/lib/server-auth';
 import { createOnboardingSeed } from '@/lib/onboarding-seed';
 import { z } from 'zod';
@@ -48,6 +48,11 @@ export async function GET() {
     }
 
     const row = rows[0];
+    const normalized = await getNormalizedState(user.id);
+    const hasNormalizedData = normalized.documents.length > 0 || normalized.clients.length > 0 || normalized.subcontractors.length > 0 || Object.keys(normalized.companySettings).length > 0;
+    if (hasNormalizedData) {
+      return NextResponse.json({ ...normalized, updated_at: row.updated_at });
+    }
     return NextResponse.json({
       clients: Array.isArray(row.clients_json) ? row.clients_json : [],
       documents: Array.isArray(row.documents_json) ? row.documents_json : [],

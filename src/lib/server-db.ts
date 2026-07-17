@@ -235,3 +235,67 @@ export const syncNormalizedState = async (userId: string, state: {
     [userId, JSON.stringify(state.companySettings || {})]
   );
 };
+
+export const getNormalizedState = async (userId: string) => {
+  const [documentsResult, photosResult, clientsResult, subcontractorsResult, notificationsResult, settingsResult] = await Promise.all([
+    dbQuery<{ document_json: any; document_id: string }>('SELECT document_id, document_json FROM app_documents WHERE user_id = $1 ORDER BY updated_at DESC', [userId]),
+    dbQuery<{ document_id: string; photo_index: number; photo_json: any }>('SELECT document_id, photo_index, photo_json FROM app_document_photos WHERE user_id = $1 ORDER BY document_id, photo_index', [userId]),
+    dbQuery<{ client_json: any }>('SELECT client_json FROM app_clients WHERE user_id = $1', [userId]),
+    dbQuery<{ subcontractor_json: any }>('SELECT subcontractor_json FROM app_subcontractors WHERE user_id = $1', [userId]),
+    dbQuery<{ notification_json: any }>('SELECT notification_json FROM app_notifications WHERE user_id = $1 ORDER BY created_at DESC', [userId]),
+    dbQuery<{ settings_json: any }>('SELECT settings_json FROM app_company_settings WHERE user_id = $1 LIMIT 1', [userId]),
+  ]);
+
+  const photosByDocument = new Map<string, any[]>();
+  for (const row of photosResult.rows) {
+    const photos = photosByDocument.get(row.document_id) || [];
+    photos[row.photo_index] = row.photo_json;
+    photosByDocument.set(row.document_id, photos);
+  }
+
+  const documents = documentsResult.rows.map(row => {
+    const photos = photosByDocument.get(row.document_id);
+    return photos?.length ? { ...row.document_json, projectPhotos: photos.filter(Boolean) } : row.document_json;
+  });
+
+  return {
+    clients: clientsResult.rows.map(row => row.client_json),
+    documents,
+    companySettings: settingsResult.rows[0]?.settings_json || {},
+    subcontractors: subcontractorsResult.rows.map(row => row.subcontractor_json),
+    notifications: notificationsResult.rows.map(row => row.notification_json),
+  };
+};
+
+export const resyncNormalizedFromLegacy = async (userId: string) => {
+  const { rows } = await dbQuery<{
+    clients_json: any;
+    documents_json: any;
+    company_settings_json: any;
+    subcontractors_json: any;
+    notifications_json: any;
+  }>(
+    `SELECT clients_json, documents_json, company_settings_json, subcontractors_json, notifications_json
+     FROM app_state WHERE user_id = $1 LIMIT 1`,
+    [userId]
+  );
+  const row = rows[0];
+  if (!row) return;
+  await syncNormalizedState(userId, {
+    clients: Array.isArray(row.clients_json) ? row.clients_json : [],
+    documents: Array.isArray(row.documents_json) ? row.documents_json : [],
+    companySettings: row.company_settings_json || {},
+    subcontractors: Array.isArray(row.subcontractors_json) ? row.subcontractors_json : [],
+    notifications: Array.isArray(row.notifications_json) ? row.notifications_json : [],
+  });
+};
+
+export const syncNormalizedNotifications = async (userId: string, notifications: unknown[]) => {
+  await dbQuery('DELETE FROM app_notifications WHERE user_id = $1', [userId]);
+  await dbQuery(
+    `INSERT INTO app_notifications (user_id, notification_id, notification_json)
+     SELECT $1, COALESCE(NULLIF(n->>'id', ''), md5(n::text)), n
+     FROM jsonb_array_elements($2::jsonb) n`,
+    [userId, JSON.stringify(notifications)]
+  );
+};
