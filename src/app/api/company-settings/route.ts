@@ -52,6 +52,16 @@ export async function PUT(request: Request) {
     );
 
     const savedSettings = result.rows[0]?.company_settings_json || settings;
+    try {
+      await dbQuery(
+        `INSERT INTO app_company_settings (user_id, settings_json, updated_at)
+         VALUES ($1, $2::jsonb, now())
+         ON CONFLICT (user_id) DO UPDATE SET settings_json = EXCLUDED.settings_json, updated_at = now()`,
+        [user.id, JSON.stringify(savedSettings)]
+      );
+    } catch (normalizedError) {
+      console.error('[company-settings] Normalized sync deferred:', normalizedError);
+    }
     console.log('[company-settings] PUT success');
 
     return NextResponse.json({ success: true, saved: savedSettings });

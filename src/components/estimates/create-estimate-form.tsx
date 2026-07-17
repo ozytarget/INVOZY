@@ -82,8 +82,10 @@ type CreateEstimateFormProps = {
 }
 
 const MAX_PHOTOS = 8;
-const MAX_IMAGE_DIMENSION = 1600;
-const IMAGE_QUALITY = 0.8;
+// Photos are embedded in the document state payload. Keep them small enough
+// that a document with several photos remains below the API's 5 MB limit.
+const MAX_IMAGE_DIMENSION = 1200;
+const IMAGE_QUALITY = 0.65;
 
 const buildProjectDescriptionFallback = (lineItems?: Array<{ description?: string }>) => {
   if (!Array.isArray(lineItems) || lineItems.length === 0) return '';
@@ -546,9 +548,27 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       return;
     }
 
-    const filePromises = Array.from(files).map(fileToDataUrl);
-    const newPhotos = await Promise.all(filePromises);
-    newPhotos.forEach(url => appendPhoto({ url, description: '' }));
+    try {
+      const newPhotos = await Promise.all(Array.from(files).map(fileToDataUrl));
+      const existingPhotoBytes = photoFields.reduce((total, photo) => total + (photo.url?.length || 0), 0);
+      const totalPhotoBytes = existingPhotoBytes + newPhotos.reduce((total, url) => total + url.length, 0);
+      if (totalPhotoBytes > 3_000_000) {
+        toast({
+          variant: "destructive",
+          title: "Photos are too large",
+          description: "Please upload fewer or smaller photos so the estimate can be saved.",
+        });
+        return;
+      }
+      newPhotos.forEach(url => appendPhoto({ url, description: '' }));
+    } catch (error) {
+      console.error('[Estimate] Photo processing failed:', error);
+      toast({
+        variant: "destructive",
+        title: "Could not load photo",
+        description: "Please try a JPG or PNG image.",
+      });
+    }
   };
 
   const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
@@ -705,14 +725,14 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
                     <div className="flex items-center justify-center w-full">
                       <label htmlFor="photo-upload" className={cn(
                         "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80",
-                        (photoFields.length >= 5) && "cursor-not-allowed opacity-50"
+                        (photoFields.length >= MAX_PHOTOS) && "cursor-not-allowed opacity-50"
                       )}>
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                           <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
                           <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
                           <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 10MB</p>
                         </div>
-                        <Input id="photo-upload" type="file" className="hidden" multiple accept="image/*" onChange={handlePhotoUpload} disabled={photoFields.length >= 5} />
+                        <Input id="photo-upload" type="file" className="hidden" multiple accept="image/*" onChange={handlePhotoUpload} disabled={photoFields.length >= MAX_PHOTOS} />
                       </label>
                     </div>
                   </FormControl>

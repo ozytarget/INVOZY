@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery } from '@/lib/server-db';
+import { dbQuery, syncNormalizedState } from '@/lib/server-db';
 import { getAuthenticatedUser } from '@/lib/server-auth';
 import { createOnboardingSeed } from '@/lib/onboarding-seed';
 import { z } from 'zod';
@@ -113,6 +113,14 @@ export async function PUT(request: Request) {
       `,
       [user.id, JSON.stringify(clients), JSON.stringify(documents), JSON.stringify(companySettings), JSON.stringify(subcontractors)]
     );
+
+    // Compatibility write completed successfully. Populate normalized tables
+    // separately so a migration issue can never reject the user's save.
+    try {
+      await syncNormalizedState(user.id, { clients, documents, companySettings, subcontractors });
+    } catch (normalizedError) {
+      console.error('[API /api/state PUT] Normalized sync deferred:', normalizedError);
+    }
 
     return NextResponse.json({ success: true, updated_at: result.rows[0]?.updated_at });
   } catch (error: any) {

@@ -61,6 +61,100 @@ const ensureSchema = async () => {
     await db.query(`
       ALTER TABLE app_state ADD COLUMN IF NOT EXISTS subcontractors_json JSONB NOT NULL DEFAULT '[]'::jsonb;
     `);
+
+    // Additive normalized storage for the migration away from the monolithic
+    // app_state JSON. The legacy columns remain untouched until all consumers
+    // have been migrated and verified.
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS app_documents (
+        user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+        document_id TEXT NOT NULL,
+        document_json JSONB NOT NULL,
+        share_token TEXT,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, document_id)
+      );
+      CREATE INDEX IF NOT EXISTS app_documents_share_token_idx ON app_documents(share_token);
+    `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS app_document_photos (
+        user_id UUID NOT NULL,
+        document_id TEXT NOT NULL,
+        photo_index INTEGER NOT NULL,
+        photo_json JSONB NOT NULL,
+        PRIMARY KEY (user_id, document_id, photo_index),
+        FOREIGN KEY (user_id, document_id)
+          REFERENCES app_documents(user_id, document_id) ON DELETE CASCADE
+      );
+    `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS app_clients (
+        user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+        client_key TEXT NOT NULL,
+        client_json JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, client_key)
+      );
+      CREATE TABLE IF NOT EXISTS app_subcontractors (
+        user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+        subcontractor_id TEXT NOT NULL,
+        subcontractor_json JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, subcontractor_id)
+      );
+      CREATE TABLE IF NOT EXISTS app_notifications (
+        user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+        notification_id TEXT NOT NULL,
+        notification_json JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, notification_id)
+      );
+      CREATE TABLE IF NOT EXISTS app_company_settings (
+        user_id UUID PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+        settings_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `);
+
+    // Backfill is idempotent and never deletes or rewrites legacy data.
+    await db.query(`
+      INSERT INTO app_documents (user_id, document_id, document_json, share_token)
+      SELECT s.user_id, d->>'id', d, d->>'share_token'
+      FROM app_state s
+      CROSS JOIN LATERAL jsonb_array_elements(s.documents_json) d
+      WHERE d->>'id' IS NOT NULL
+      ON CONFLICT (user_id, document_id) DO NOTHING;
+
+      INSERT INTO app_document_photos (user_id, document_id, photo_index, photo_json)
+      SELECT s.user_id, d->>'id', p.ordinality - 1, p.photo
+      FROM app_state s
+      CROSS JOIN LATERAL jsonb_array_elements(s.documents_json) d
+      CROSS JOIN LATERAL jsonb_array_elements(COALESCE(d->'projectPhotos', '[]'::jsonb)) WITH ORDINALITY p(photo, ordinality)
+      WHERE d->>'id' IS NOT NULL
+      ON CONFLICT (user_id, document_id, photo_index) DO NOTHING;
+
+      INSERT INTO app_company_settings (user_id, settings_json)
+      SELECT user_id, company_settings_json FROM app_state
+      ON CONFLICT (user_id) DO NOTHING;
+
+      INSERT INTO app_clients (user_id, client_key, client_json)
+      SELECT s.user_id, COALESCE(NULLIF(c->>'email', ''), md5(c::text)), c
+      FROM app_state s
+      CROSS JOIN LATERAL jsonb_array_elements(s.clients_json) c
+      ON CONFLICT (user_id, client_key) DO NOTHING;
+
+      INSERT INTO app_subcontractors (user_id, subcontractor_id, subcontractor_json)
+      SELECT s.user_id, COALESCE(NULLIF(sc->>'id', ''), md5(sc::text)), sc
+      FROM app_state s
+      CROSS JOIN LATERAL jsonb_array_elements(s.subcontractors_json) sc
+      ON CONFLICT (user_id, subcontractor_id) DO NOTHING;
+
+      INSERT INTO app_notifications (user_id, notification_id, notification_json)
+      SELECT s.user_id, COALESCE(NULLIF(n->>'id', ''), md5(n::text)), n
+      FROM app_state s
+      CROSS JOIN LATERAL jsonb_array_elements(s.notifications_json) n
+      ON CONFLICT (user_id, notification_id) DO NOTHING;
+    `);
   })().catch((err) => {
     // Clear cached promise so next call retries instead of returning the rejected promise forever
     schemaReadyPromise = null;
@@ -75,4 +169,69 @@ export const dbQuery = async <T = any>(sql: string, params?: any[]) => {
   const db = getPool();
   const result = await db.query(sql, params);
   return result as { rows: T[]; rowCount: number | null };
+};
+
+/**
+ * Keep the normalized tables in sync while app_state remains the compatibility
+ * source of truth. This is intentionally best-effort: a normalized write must
+ * never make the existing document save fail during the migration window.
+ */
+export const syncNormalizedState = async (userId: string, state: {
+  clients: unknown[];
+  documents: unknown[];
+  companySettings: Record<string, unknown>;
+  subcontractors: unknown[];
+  notifications?: unknown[];
+}) => {
+  await dbQuery('DELETE FROM app_document_photos WHERE user_id = $1', [userId]);
+  await dbQuery('DELETE FROM app_documents WHERE user_id = $1', [userId]);
+  await dbQuery('DELETE FROM app_clients WHERE user_id = $1', [userId]);
+  await dbQuery('DELETE FROM app_subcontractors WHERE user_id = $1', [userId]);
+  await dbQuery('DELETE FROM app_notifications WHERE user_id = $1', [userId]);
+
+  await dbQuery(
+    `INSERT INTO app_documents (user_id, document_id, document_json, share_token)
+     SELECT $1, d->>'id', d - 'projectPhotos', d->>'share_token'
+     FROM jsonb_array_elements($2::jsonb) d
+     WHERE d->>'id' IS NOT NULL
+     ON CONFLICT (user_id, document_id) DO UPDATE SET
+       document_json = EXCLUDED.document_json,
+       share_token = EXCLUDED.share_token,
+       updated_at = now()`,
+    [userId, JSON.stringify(state.documents)]
+  );
+  await dbQuery(
+    `INSERT INTO app_document_photos (user_id, document_id, photo_index, photo_json)
+     SELECT $1, d->>'id', p.ordinality - 1, p.photo
+     FROM jsonb_array_elements($2::jsonb) d
+     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(d->'projectPhotos', '[]'::jsonb)) WITH ORDINALITY p(photo, ordinality)
+     WHERE d->>'id' IS NOT NULL`,
+    [userId, JSON.stringify(state.documents)]
+  );
+  await dbQuery(
+    `INSERT INTO app_clients (user_id, client_key, client_json)
+     SELECT $1, COALESCE(NULLIF(c->>'email', ''), md5(c::text)), c
+     FROM jsonb_array_elements($2::jsonb) c`,
+    [userId, JSON.stringify(state.clients)]
+  );
+  await dbQuery(
+    `INSERT INTO app_subcontractors (user_id, subcontractor_id, subcontractor_json)
+     SELECT $1, COALESCE(NULLIF(s->>'id', ''), md5(s::text)), s
+     FROM jsonb_array_elements($2::jsonb) s`,
+    [userId, JSON.stringify(state.subcontractors)]
+  );
+  if (state.notifications) {
+    await dbQuery(
+      `INSERT INTO app_notifications (user_id, notification_id, notification_json)
+       SELECT $1, COALESCE(NULLIF(n->>'id', ''), md5(n::text)), n
+       FROM jsonb_array_elements($2::jsonb) n`,
+      [userId, JSON.stringify(state.notifications)]
+    );
+  }
+  await dbQuery(
+    `INSERT INTO app_company_settings (user_id, settings_json, updated_at)
+     VALUES ($1, $2::jsonb, now())
+     ON CONFLICT (user_id) DO UPDATE SET settings_json = EXCLUDED.settings_json, updated_at = now()`,
+    [userId, JSON.stringify(state.companySettings || {})]
+  );
 };

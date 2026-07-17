@@ -39,6 +39,17 @@ export async function PUT(request: Request) {
       'UPDATE app_state SET notifications_json = $1::jsonb, updated_at = now() WHERE user_id = $2',
       [JSON.stringify(notifications), user.id]
     );
+    try {
+      await dbQuery('DELETE FROM app_notifications WHERE user_id = $1', [user.id]);
+      await dbQuery(
+        `INSERT INTO app_notifications (user_id, notification_id, notification_json)
+         SELECT $1, COALESCE(NULLIF(n->>'id', ''), md5(n::text)), n
+         FROM jsonb_array_elements($2::jsonb) n`,
+        [user.id, JSON.stringify(notifications)]
+      );
+    } catch (normalizedError) {
+      console.error('[notifications] Normalized sync deferred:', normalizedError);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
