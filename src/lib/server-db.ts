@@ -299,3 +299,24 @@ export const syncNormalizedNotifications = async (userId: string, notifications:
     [userId, JSON.stringify(notifications)]
   );
 };
+
+export const getNormalizedDocumentByShareToken = async (shareToken: string) => {
+  const { rows } = await dbQuery<{ user_id: string; document_id: string; document_json: any; settings_json: any }>(
+    `SELECT d.user_id, d.document_id, d.document_json, COALESCE(s.settings_json, '{}'::jsonb) AS settings_json
+     FROM app_documents d
+     LEFT JOIN app_company_settings s ON s.user_id = d.user_id
+     WHERE d.share_token = $1 LIMIT 1`,
+    [shareToken]
+  );
+  if (!rows[0]) return null;
+
+  const photos = await dbQuery<{ photo_json: any }>(
+    `SELECT photo_json FROM app_document_photos
+     WHERE user_id = $1 AND document_id = $2 ORDER BY photo_index`,
+    [rows[0].user_id, rows[0].document_id]
+  );
+  const document = photos.rows.length
+    ? { ...rows[0].document_json, projectPhotos: photos.rows.map(row => row.photo_json) }
+    : rows[0].document_json;
+  return { userId: rows[0].user_id, document, companySettings: rows[0].settings_json || {} };
+};

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery } from '@/lib/server-db';
+import { dbQuery, getNormalizedDocumentByShareToken } from '@/lib/server-db';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -12,6 +12,11 @@ export async function GET(request: Request) {
 
     if (!shareId || !UUID_REGEX.test(shareId)) {
       return NextResponse.json({ error: 'Invalid share ID' }, { status: 400 });
+    }
+
+    const normalized = await getNormalizedDocumentByShareToken(shareId);
+    if (normalized) {
+      return NextResponse.json({ settings: normalized.companySettings });
     }
 
     // Find the owner of this document

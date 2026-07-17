@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery } from '@/lib/server-db';
+import { dbQuery, getNormalizedDocumentByShareToken } from '@/lib/server-db';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -10,6 +10,26 @@ export async function GET(request: Request) {
 
     if (!shareId || !UUID_REGEX.test(shareId)) {
       return NextResponse.json({ error: 'Invalid shareId' }, { status: 400 });
+    }
+
+    const normalized = await getNormalizedDocumentByShareToken(shareId);
+    if (normalized) {
+      const doc = normalized.document;
+      const companySettings = normalized.companySettings;
+      return NextResponse.json({
+        document: {
+          ...doc,
+          companyName: companySettings.companyName || doc.companyName || 'Your Company',
+          companyAddress: companySettings.companyAddress || doc.companyAddress || '',
+          companyEmail: companySettings.companyEmail || doc.companyEmail || '',
+          companyPhone: companySettings.companyPhone || doc.companyPhone || '',
+          companyLogo: companySettings.companyLogo || doc.companyLogo,
+          companyWebsite: companySettings.companyWebsite || doc.companyWebsite,
+          contractorName: companySettings.contractorName || doc.contractorName,
+          schedulingUrl: companySettings.schedulingUrl || doc.schedulingUrl,
+        },
+        ownerId: normalized.userId,
+      });
     }
 
     const { rows } = await dbQuery<{ user_id: string; doc: any; company_settings_json: any }>(
