@@ -31,6 +31,38 @@ const safeParseArray = <T,>(raw: string | null): T[] | null => {
   }
 };
 
+// Company logos are data URLs and can be hundreds of KB. They are already stored
+// once in company settings, so repeating one in every cached document quickly
+// exhausts localStorage (and the backup doubles that cost).
+const compactDocumentsForLocalStorage = (documents: Document[]): Document[] =>
+  documents.map(document => {
+    if (!document.companyLogo?.startsWith('data:')) return document;
+    const { companyLogo: _companyLogo, ...compactDocument } = document;
+    return compactDocument as Document;
+  });
+
+const writeDocumentCache = (key: string, documents: Document[]) => {
+  const serialized = JSON.stringify(compactDocumentsForLocalStorage(documents));
+  try {
+    localStorage.setItem(key, serialized);
+  } catch (error) {
+    // Backups are disposable caches. Free them before one final attempt so a
+    // storage quota problem never prevents the server-backed save.
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      Object.keys(localStorage)
+        .filter(storageKey => storageKey.startsWith(DEMO_DOCUMENTS_BACKUP_STORAGE_KEY))
+        .forEach(storageKey => localStorage.removeItem(storageKey));
+      try {
+        localStorage.setItem(key, serialized);
+      } catch (retryError) {
+        console.warn('[documents] Local cache is full; continuing with server storage.', retryError);
+      }
+      return;
+    }
+    throw error;
+  }
+};
+
 const mergeClients = (existing: Client[], incoming: Client[]) => {
   const clientMap = new Map<string, Client>();
   existing.forEach(client => clientMap.set(client.email.toLowerCase(), client));
@@ -108,9 +140,9 @@ const persistDemoDocuments = (updatedDocuments: Document[], userId?: string | nu
   const documentsKey = getScopedStorageKey(DEMO_DOCUMENTS_STORAGE_KEY, userId);
   const documentsBackupKey = getScopedStorageKey(DEMO_DOCUMENTS_BACKUP_STORAGE_KEY, userId);
   const existing = safeParseArray<Document>(localStorage.getItem(documentsKey)) || [];
-  localStorage.setItem(documentsBackupKey, JSON.stringify(existing));
+  writeDocumentCache(documentsBackupKey, existing);
   const finalDocuments = merge ? mergeDocuments(existing, updatedDocuments) : updatedDocuments;
-  localStorage.setItem(documentsKey, JSON.stringify(finalDocuments));
+  writeDocumentCache(documentsKey, finalDocuments);
   if (!skipSync) void syncRemoteState(userId);
 };
 
@@ -305,7 +337,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
 
         persistDemoClients(remoteClients, user.id, false, true);
         // Overwrite localStorage with server state
-        localStorage.setItem(localDocsKey, JSON.stringify(remoteDocuments));
+        writeDocumentCache(localDocsKey, remoteDocuments);
         const subKey = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user.id);
         localStorage.setItem(subKey, JSON.stringify(remoteSubcontractors));
         if (!silent) {
