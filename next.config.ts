@@ -9,6 +9,15 @@ const allowedOrigins = [
 
 const nextConfig: NextConfig = {
   /* config options here */
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Genkit's OpenTelemetry SDK supports Jaeger optionally. This product does
+      // not enable that exporter, so keep the abandoned package out of the
+      // production bundle instead of installing it only to satisfy resolution.
+      config.resolve.alias['@opentelemetry/exporter-jaeger'] = false;
+    }
+    return config;
+  },
   typescript: {
     ignoreBuildErrors: false,
   },
