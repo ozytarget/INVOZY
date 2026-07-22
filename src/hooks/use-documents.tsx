@@ -330,6 +330,14 @@ interface DocumentContextType {
   revertInvoiceToDraft: (invoiceId: string) => Promise<void>;
   revertLastPayment: (invoiceId: string) => Promise<void>;
   sendDocument: (docId: string, type: DocumentType) => Promise<void>;
+  /**
+   * Push the current user's local state to the server through the ONE shared
+   * sync path (scoped keys + optimistic lock + conflict handling). Components
+   * must use this instead of hand-rolled PUT /api/state calls: an out-of-band
+   * PUT advances the server timestamp without updating the lock this module
+   * tracks, making the next regular save fail with a spurious 409.
+   */
+  syncNow: () => Promise<boolean>;
   isLoading: boolean;
 }
 
@@ -747,6 +755,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, [user, documents]);
 
+  const syncNow = useCallback(() => syncRemoteState(user?.id), [user]);
+
   const clients = useMemo(() => {
     return getCombinedClients(documents, storedClients);
   }, [documents, storedClients]);
@@ -806,7 +816,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   }, [storedSubcontractors, persistSubcontractors]);
 
   return (
-    <DocumentContext.Provider value={{ documents, addDocument, updateDocument, deleteDocument, duplicateDocument, clients, addClient, updateClient, subcontractors: storedSubcontractors, addSubcontractor, updateSubcontractor, deleteSubcontractor, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, sendDocument, isLoading }}>
+    <DocumentContext.Provider value={{ documents, addDocument, updateDocument, deleteDocument, duplicateDocument, clients, addClient, updateClient, subcontractors: storedSubcontractors, addSubcontractor, updateSubcontractor, deleteSubcontractor, signAndProcessDocument, recordPayment, revertInvoiceToDraft, revertLastPayment, sendDocument, syncNow, isLoading }}>
       {children}
     </DocumentContext.Provider>
   );

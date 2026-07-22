@@ -26,55 +26,12 @@ import { Document } from "@/lib/types";
 import { sendDocumentEmail } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useDocuments } from "@/hooks/use-documents";
-import { useAuth } from "@/providers/auth-provider";
 import { Loader2 } from "lucide-react";
 
-// Ensure document data is synced to backend before sending email with public link.
-// Reads only the authenticated user's scoped keys and uses the server timestamp
-// as an optimistic lock so a stale cache can never blindly overwrite newer
-// server state (e.g. a signature that just landed from the public page).
-async function ensureDocumentSynced(userId?: string | null) {
-  if (typeof window === 'undefined' || !userId) return;
-  try {
-    const readArray = (key: string): unknown[] => {
-      try {
-        const parsed = JSON.parse(localStorage.getItem(key) || '[]');
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    };
-
-    const documents = readArray(`demoDocuments:${userId}`);
-    // Nothing cached locally: the document already lives server-side.
-    if (documents.length === 0) return;
-
-    const clients = readArray(`demoClients:${userId}`);
-    const subcontractors = readArray(`demoSubcontractors:${userId}`);
-    let companySettings: Record<string, unknown> = {};
-    try {
-      const rawSettings = localStorage.getItem(`companySettings:${userId}`);
-      const parsedSettings = rawSettings ? JSON.parse(rawSettings) : {};
-      if (parsedSettings && typeof parsedSettings === 'object') companySettings = parsedSettings;
-    } catch {
-      companySettings = {};
-    }
-
-    const stateRes = await fetch('/api/state', { credentials: 'include' });
-    if (!stateRes.ok) return;
-    const serverState = await stateRes.json().catch(() => null);
-    const updated_at: string | undefined = serverState?.updated_at;
-
-    await fetch('/api/state', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ clients, documents, companySettings, subcontractors, updated_at }),
-    });
-  } catch (e) {
-    console.warn('[SendEmail] Pre-send sync failed:', e);
-  }
-}
+// The pre-send sync goes through DocumentContext.syncNow — the ONE shared sync
+// path — so the optimistic-lock timestamp the provider tracks stays coherent.
+// A hand-rolled PUT here advanced the server timestamp behind the provider's
+// back and made the very next save (marking the doc as Sent) fail with a 409.
 
 type SendEmailDialogProps = {
   document: Document;
@@ -85,8 +42,7 @@ type SendEmailDialogProps = {
 
 export function SendEmailDialog({ document: documentData, companyName, onEmailSent, children }: SendEmailDialogProps) {
   const { toast } = useToast();
-  const { clients } = useDocuments();
-  const { user } = useAuth();
+  const { clients, syncNow } = useDocuments();
   const [isLoading, setIsLoading] = useState(false);
 
   const primaryEmail = documentData.clientEmail || "";
@@ -98,8 +54,11 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
   const handleSendEmail = async () => {
     setIsLoading(true);
 
-    // Force sync to ensure document exists in DB before sending link
-    await ensureDocumentSynced(user?.id);
+    // Force sync to ensure document exists in DB before sending link. On a
+    // conflict the provider refetches and refreshes its lock, so one retry
+    // pushes the reconciled state successfully.
+    const synced = await syncNow();
+    if (!synced) await syncNow();
 
     // Build public share URL instead of current page URL
     const appUrl = typeof window !== 'undefined'
@@ -107,8 +66,6 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
       : (process.env.NEXT_PUBLIC_APP_URL || '');
 
     const documentUrl = `${appUrl}/public/${documentData.share_token}`;
-
-    console.log('[send-email] Sending document email');
 
     const result = await sendDocumentEmail({
       to: hasSecondary ? selectedEmail : primaryEmail,

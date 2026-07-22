@@ -80,46 +80,10 @@ const readScopedArray = <T,>(key: string): T[] => {
   }
 };
 
-// Force sync localStorage state to backend (ensures public links work).
-// Only syncs the authenticated user's own scoped data, with optimistic locking.
-const forceBackendSync = async (userId?: string | null) => {
-  if (typeof window === 'undefined' || !userId) return;
-  try {
-    const documents = readScopedArray<Document>(`${DEMO_DOCUMENTS_STORAGE_KEY}:${userId}`);
-    // Nothing loaded locally yet (e.g. the provider has not hydrated on a fresh
-    // browser): the document being shared already lives on the server, so there
-    // is nothing to push. Skipping avoids overwriting good server state with an
-    // empty array.
-    if (documents.length === 0) return;
-    const clients = readScopedArray<unknown>(`demoClients:${userId}`);
-    const subcontractors = readScopedArray<unknown>(`demoSubcontractors:${userId}`);
-    const companySettings = readCompanySettings(userId);
-
-    // Optimistic locking: fetch the server's current timestamp before writing.
-    const stateRes = await fetch('/api/state', { credentials: 'include' });
-    if (!stateRes.ok) return; // Not authenticated (or server error): skip sync.
-    const serverState = await stateRes.json().catch(() => null);
-    const updated_at: string | undefined = serverState?.updated_at;
-
-    const putRes = await fetch('/api/state', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ clients, documents, companySettings, subcontractors, updated_at }),
-    });
-
-    if (putRes.status === 409) {
-      // Server state is newer: refetch and refresh the local cache, do NOT overwrite.
-      const refreshed = await fetch('/api/state', { credentials: 'include' });
-      if (refreshed.ok) {
-        const fresh = await refreshed.json().catch(() => null);
-        if (fresh && Array.isArray(fresh.documents)) {
-          persistStoredDocuments(fresh.documents as Document[], userId);
-        }
-      }
-    }
-  } catch { }
-};
+// Backend sync for share/SMS flows goes through DocumentContext.syncNow — the
+// ONE shared sync path — so the optimistic-lock timestamp the provider tracks
+// stays coherent. A hand-rolled PUT here advanced the server timestamp behind
+// the provider's back and made the owner's next save fail with a spurious 409.
 
 const generateShareToken = (): string => {
   return crypto.randomUUID();
@@ -145,7 +109,7 @@ const FabMenuItem = ({ onClick, icon, label, variant = 'secondary', className = 
 
 export function DocumentView({ document: documentData, isPublic = false }: DocumentViewProps) {
   const sigCanvas = useRef<SignatureCanvas>(null);
-  const { signAndProcessDocument, deleteDocument, duplicateDocument, recordPayment, sendDocument } = useDocuments();
+  const { signAndProcessDocument, deleteDocument, duplicateDocument, recordPayment, sendDocument, syncNow } = useDocuments();
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -374,8 +338,11 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
       shareToken = newToken;
     }
 
-    // Ensure the document is synced to backend so the public link works
-    await forceBackendSync(user?.id);
+    // Ensure the document is synced to backend so the public link works. On a
+    // conflict the provider refetches and refreshes its lock; one retry pushes
+    // the reconciled state.
+    const synced = await syncNow();
+    if (!synced) await syncNow();
 
     if (!shareToken) {
       toast({
