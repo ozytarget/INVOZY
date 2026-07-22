@@ -115,13 +115,10 @@ export function SettingsForm() {
   async function onSubmit(data: SettingsFormValues) {
     try {
       // Step 1: Save to localStorage
-      console.log('[Settings] 1. Saving to localStorage:', data);
       writeCompanySettings(user?.id, data);
-      console.log('[Settings] ✓ Saved to localStorage for user:', user?.id);
 
       // Step 2: Save to backend if authenticated
       if (user) {
-        console.log('[Settings] 2. Sending to API /api/company-settings (PUT)...');
         const response = await fetch('/api/company-settings', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -129,11 +126,9 @@ export function SettingsForm() {
           body: JSON.stringify({ settings: data }),
         });
 
-        console.log('[Settings] API Response Status:', response.status, response.statusText);
-
         if (!response.ok) {
+          console.error('[Settings] Backend save failed with status', response.status);
           const errorPayload = await response.json().catch(() => ({}));
-          console.error('[Settings] ✗ API Error:', errorPayload);
           toast({
             variant: "destructive",
             title: "Backend Save Failed",
@@ -142,10 +137,7 @@ export function SettingsForm() {
           return;
         }
 
-        const successPayload = await response.json();
-        console.log('[Settings] ✓ API Success:', successPayload);
-      } else {
-        console.log('[Settings] ⚠ No user authenticated - skipping backend save');
+        await response.json().catch(() => ({}));
       }
 
       console.log('[Settings] 3. Broadcasting storage event for UI sync...');

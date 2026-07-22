@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery, getNormalizedState, syncNormalizedState } from '@/lib/server-db';
+import { dbQuery, getNormalizedState, syncNormalizedState, withTransaction } from '@/lib/server-db';
 import { getAuthenticatedUser } from '@/lib/server-auth';
 import { createOnboardingSeed } from '@/lib/onboarding-seed';
 import { z } from 'zod';
@@ -62,7 +62,7 @@ export async function GET() {
     });
   } catch (error: any) {
     console.error('[API /api/state GET] Error:', error?.message, error?.stack);
-    return NextResponse.json({ error: error?.message || 'Could not load state' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to load state.' }, { status: 500 });
   }
 }
 
@@ -103,33 +103,33 @@ export async function PUT(request: Request) {
       }
     }
 
-    const result = await dbQuery<{ updated_at: string }>(
-      `
-        INSERT INTO app_state (user_id, clients_json, documents_json, company_settings_json, subcontractors_json, updated_at)
-        VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5::jsonb, now())
-        ON CONFLICT (user_id)
-        DO UPDATE SET
-          clients_json = EXCLUDED.clients_json,
-          documents_json = EXCLUDED.documents_json,
-          company_settings_json = EXCLUDED.company_settings_json,
-          subcontractors_json = EXCLUDED.subcontractors_json,
-          updated_at = now()
-        RETURNING updated_at
-      `,
-      [user.id, JSON.stringify(clients), JSON.stringify(documents), JSON.stringify(companySettings), JSON.stringify(subcontractors)]
-    );
+    // The legacy app_state upsert and the normalized-table sync commit or
+    // roll back together so the two representations can never diverge.
+    const savedUpdatedAt = await withTransaction(async (tx) => {
+      const result = await tx.query<{ updated_at: string }>(
+        `
+          INSERT INTO app_state (user_id, clients_json, documents_json, company_settings_json, subcontractors_json, updated_at)
+          VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5::jsonb, now())
+          ON CONFLICT (user_id)
+          DO UPDATE SET
+            clients_json = EXCLUDED.clients_json,
+            documents_json = EXCLUDED.documents_json,
+            company_settings_json = EXCLUDED.company_settings_json,
+            subcontractors_json = EXCLUDED.subcontractors_json,
+            updated_at = now()
+          RETURNING updated_at
+        `,
+        [user.id, JSON.stringify(clients), JSON.stringify(documents), JSON.stringify(companySettings), JSON.stringify(subcontractors)]
+      );
 
-    // Compatibility write completed successfully. Populate normalized tables
-    // separately so a migration issue can never reject the user's save.
-    try {
-      await syncNormalizedState(user.id, { clients, documents, companySettings, subcontractors });
-    } catch (normalizedError) {
-      console.error('[API /api/state PUT] Normalized sync deferred:', normalizedError);
-    }
+      await syncNormalizedState(user.id, { clients, documents, companySettings, subcontractors }, tx);
 
-    return NextResponse.json({ success: true, updated_at: result.rows[0]?.updated_at });
+      return result.rows[0]?.updated_at;
+    });
+
+    return NextResponse.json({ success: true, updated_at: savedUpdatedAt });
   } catch (error: any) {
     console.error('[API /api/state PUT] Error:', error?.message, error?.stack);
-    return NextResponse.json({ error: error?.message || 'Could not save state' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to save state.' }, { status: 500 });
   }
 }

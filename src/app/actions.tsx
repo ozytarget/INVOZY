@@ -7,6 +7,114 @@ import { Resend } from 'resend';
 import DocumentEmail from '@/components/emails/document-email';
 import WorkOrderEmail from '@/components/emails/work-order-email';
 import { render } from '@react-email/components';
+import { getAuthenticatedUser } from '@/lib/server-auth';
+import { dbQuery } from '@/lib/server-db';
+
+// Simple in-memory rate limiter (per-process, reset on deploy) — same pattern
+// as src/app/api/auth/signin/route.ts, keyed by authenticated user id.
+type RateLimitEntry = { count: number; resetAt: number };
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const AI_MAX_REQUESTS = 30;
+const EMAIL_MAX_REQUESTS = 30;
+const aiRequests = new Map<string, RateLimitEntry>();
+const emailRequests = new Map<string, RateLimitEntry>();
+
+function isRateLimited(requests: Map<string, RateLimitEntry>, key: string, maxRequests: number): boolean {
+  const now = Date.now();
+  const entry = requests.get(key);
+  if (!entry || now > entry.resetAt) {
+    requests.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > maxRequests;
+}
+
+const RATE_LIMIT_ERROR = 'Too many requests. Please try again later.';
+const NOT_AUTHENTICATED_ERROR = 'Not authenticated.';
+
+// Share tokens are UUIDs (see generateShareToken in use-documents and the
+// validation in src/app/api/public/document/route.ts).
+const SHARE_TOKEN_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validates that documentUrl points at our own app's public document page and
+ * extracts the shareId. If NEXT_PUBLIC_APP_URL is defined at runtime the URL
+ * origin must match it; otherwise we fall back to requiring the
+ * /public/<shareId> path pattern on an absolute URL.
+ */
+function extractShareIdFromDocumentUrl(documentUrl: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(documentUrl);
+  } catch {
+    return null;
+  }
+
+  // We only need a well-formed /public/<shareId> path with a valid token shape.
+  // The real authorization gate is userOwnsSharedDocument() below, which ties the
+  // shareId to the authenticated user in the database; the URL origin is not
+  // trusted for security and is intentionally not matched against
+  // NEXT_PUBLIC_APP_URL, so serving the app from an additional domain (e.g. a
+  // Railway subdomain alongside a custom domain) cannot break document emails.
+  const match = parsed.pathname.match(/^\/public\/([^/]+)\/?$/);
+  if (!match || !SHARE_TOKEN_REGEX.test(match[1])) return null;
+
+  return match[1];
+}
+
+/**
+ * Ownership check: mirrors the lookup patterns of
+ * src/app/api/public/document/route.ts (normalized app_documents table first,
+ * then the legacy app_state blob), but scoped to the authenticated user.
+ */
+async function userOwnsSharedDocument(userId: string, shareId: string): Promise<boolean> {
+  const normalized = await dbQuery<{ document_id: string }>(
+    'SELECT document_id FROM app_documents WHERE share_token = $1 AND user_id = $2 LIMIT 1',
+    [shareId, userId]
+  );
+  if (normalized.rows.length > 0) return true;
+
+  const legacy = await dbQuery<{ user_id: string }>(
+    `
+      SELECT user_id
+      FROM app_state,
+      LATERAL jsonb_array_elements(documents_json) AS doc
+      WHERE doc->>'share_token' = $1 AND user_id = $2
+      LIMIT 1
+    `,
+    [shareId, userId]
+  );
+  return legacy.rows.length > 0;
+}
+
+/**
+ * Checks that the recipient is one of the authenticated user's subcontractors
+ * (normalized app_subcontractors table first, then the legacy app_state blob).
+ */
+async function userHasSubcontractorEmail(userId: string, email: string): Promise<boolean> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const normalized = await dbQuery<{ subcontractor_id: string }>(
+    `SELECT subcontractor_id FROM app_subcontractors
+     WHERE user_id = $1 AND lower(subcontractor_json->>'email') = $2
+     LIMIT 1`,
+    [userId, normalizedEmail]
+  );
+  if (normalized.rows.length > 0) return true;
+
+  const legacy = await dbQuery<{ user_id: string }>(
+    `
+      SELECT user_id
+      FROM app_state,
+      LATERAL jsonb_array_elements(subcontractors_json) AS sub
+      WHERE user_id = $1 AND lower(sub->>'email') = $2
+      LIMIT 1
+    `,
+    [userId, normalizedEmail]
+  );
+  return legacy.rows.length > 0;
+}
 
 const DIMENSIONS_REGEX = /(\d+(?:\.\d+)?)\s*(?:x|by|\*)\s*(\d+(?:\.\d+)?)/i;
 
@@ -169,17 +277,33 @@ function getOfflineSuggestions(input: AIPoweredEstimateSuggestionsInput) {
 }
 
 export async function getSuggestions(input: AIPoweredEstimateSuggestionsInput) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return { success: false, error: NOT_AUTHENTICATED_ERROR };
+  }
+  if (isRateLimited(aiRequests, user.id, AI_MAX_REQUESTS)) {
+    return { success: false, error: RATE_LIMIT_ERROR };
+  }
+
   try {
     const output = await getAIPoweredEstimateSuggestions(input);
-    return { success: true, data: output };
+    return { success: true, data: output, source: 'ai' as const };
   } catch (error) {
     console.error(error);
     const fallback = getOfflineSuggestions(input);
-    return { success: true, data: fallback };
+    return { success: true, data: fallback, source: 'offline' as const };
   }
 }
 
 export async function getWorkOrder(input: WorkOrderInput) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return { success: false, error: NOT_AUTHENTICATED_ERROR };
+  }
+  if (isRateLimited(aiRequests, user.id, AI_MAX_REQUESTS)) {
+    return { success: false, error: RATE_LIMIT_ERROR };
+  }
+
   try {
     const output = await generateWorkOrder(input);
     return { success: true, data: output };
@@ -207,6 +331,14 @@ export async function sendDocumentEmail({
   companyEmail?: string;
   schedulingUrl?: string;
 }) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return { success: false, error: NOT_AUTHENTICATED_ERROR };
+  }
+  if (isRateLimited(emailRequests, user.id, EMAIL_MAX_REQUESTS)) {
+    return { success: false, error: RATE_LIMIT_ERROR };
+  }
+
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
     const fromEmail = process.env.RESEND_FROM_EMAIL;
@@ -240,19 +372,58 @@ export async function sendDocumentEmail({
     }
 
     if (!to || !to.includes('@')) {
-      console.error('[Email] Invalid client email:', to);
+      console.error('[Email] Invalid client email address provided');
       return { success: false, error: 'Invalid client email address.' };
+    }
+
+    // Ownership check: the link must point at our own /public/<shareId> page
+    // and the shared document must belong to the authenticated user.
+    const shareId = extractShareIdFromDocumentUrl(documentUrl);
+    if (!shareId) {
+      return { success: false, error: 'Document not found.' };
+    }
+    const ownsDocument = await userOwnsSharedDocument(user.id, shareId);
+    if (!ownsDocument) {
+      return { success: false, error: 'Document not found.' };
+    }
+
+    // Rebuild the link server-side from the validated shareId so the email can
+    // never carry a client-chosen origin (anti-phishing). Prefer the canonical
+    // app origin; fall back to the origin the caller used (already restricted
+    // to a well-formed /public/<shareId> URL by the extraction above).
+    let linkOrigin = new URL(documentUrl).origin;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (appUrl) {
+      try {
+        linkOrigin = new URL(appUrl).origin;
+      } catch {
+        // Misconfigured NEXT_PUBLIC_APP_URL: keep the caller's origin.
+      }
+    }
+    const safeDocumentUrl = `${linkOrigin}/public/${shareId}`;
+
+    // Only allow http(s) scheduling links in outgoing mail.
+    let safeSchedulingUrl: string | undefined;
+    if (schedulingUrl) {
+      try {
+        const parsedScheduling = new URL(schedulingUrl);
+        if (parsedScheduling.protocol === 'https:' || parsedScheduling.protocol === 'http:') {
+          safeSchedulingUrl = parsedScheduling.toString();
+        }
+      } catch {
+        safeSchedulingUrl = undefined;
+      }
     }
 
     const resend = new Resend(resendApiKey);
 
     const emailHtml = render(
       <DocumentEmail
-        documentUrl={documentUrl}
+        documentUrl={safeDocumentUrl}
         documentType={documentType}
         documentNumber={documentNumber}
         companyName={companyName}
-        schedulingUrl={schedulingUrl}
+        schedulingUrl={safeSchedulingUrl}
       />
     );
 
@@ -260,13 +431,11 @@ export async function sendDocumentEmail({
       `${documentType} ${documentNumber} from ${companyName}`,
       '',
       `You have received a new ${documentType.toLowerCase()} from ${companyName}.`,
-      `View ${documentType.toLowerCase()}: ${documentUrl}`,
+      `View ${documentType.toLowerCase()}: ${safeDocumentUrl}`,
       '',
-      ...(schedulingUrl ? [`Schedule: ${schedulingUrl}`] : []),
+      ...(safeSchedulingUrl ? [`Schedule: ${safeSchedulingUrl}`] : []),
       `If you have any questions, reply to ${replyTo}.`,
     ].join('\n');
-
-    console.log('[Email] Sending', documentType, documentNumber, 'to:', to);
 
     const { data, error } = await resend.emails.send({
       from: fromValue,
@@ -282,7 +451,6 @@ export async function sendDocumentEmail({
       return { success: false, error: error.message };
     }
 
-    console.log('[Email] ✓ Sent successfully to', to);
     return { success: true, data };
   } catch (error) {
     console.error('[Email] Exception:', error);
@@ -315,6 +483,14 @@ export async function sendWorkOrderEmail({
   companyName: string;
   companyEmail?: string;
 }) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return { success: false, error: NOT_AUTHENTICATED_ERROR };
+  }
+  if (isRateLimited(emailRequests, user.id, EMAIL_MAX_REQUESTS)) {
+    return { success: false, error: RATE_LIMIT_ERROR };
+  }
+
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
     const fromEmail = process.env.RESEND_FROM_EMAIL;
@@ -330,6 +506,12 @@ export async function sendWorkOrderEmail({
     const replyTo = companyEmail && emailRegex.test(companyEmail) ? companyEmail : normalizedFromEmail;
 
     if (!to || !emailRegex.test(to)) return { success: false, error: 'Invalid subcontractor email.' };
+
+    // Recipient must be one of the authenticated user's subcontractors.
+    const isKnownSubcontractor = await userHasSubcontractorEmail(user.id, to);
+    if (!isKnownSubcontractor) {
+      return { success: false, error: 'Subcontractor not found.' };
+    }
 
     const resend = new Resend(resendApiKey);
 
@@ -385,7 +567,6 @@ export async function sendWorkOrderEmail({
       return { success: false, error: error.message };
     }
 
-    console.log('[WorkOrderEmail] ✓ Sent to', to);
     return { success: true, data };
   } catch (error) {
     console.error('[WorkOrderEmail] Exception:', error);

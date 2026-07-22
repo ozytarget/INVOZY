@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -13,7 +13,11 @@ const getPool = () => {
   if (!pool) {
     pool = new Pool({
       connectionString: databaseUrl,
-      ssl: databaseUrl.includes('localhost') ? false : { rejectUnauthorized: false },
+      // Default behavior is unchanged; DATABASE_SSL_REJECT_UNAUTHORIZED=true is
+      // an additive opt-in to strict certificate verification.
+      ssl: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'true'
+        ? { rejectUnauthorized: true }
+        : databaseUrl.includes('localhost') ? false : { rejectUnauthorized: false },
     });
   }
 
@@ -172,24 +176,58 @@ export const dbQuery = async <T = any>(sql: string, params?: any[]) => {
 };
 
 /**
- * Keep the normalized tables in sync while app_state remains the compatibility
- * source of truth. This is intentionally best-effort: a normalized write must
- * never make the existing document save fail during the migration window.
+ * Run `fn` inside a single database transaction. Commits on success, rolls
+ * back and rethrows on failure, and always releases the client back to the
+ * pool.
  */
-export const syncNormalizedState = async (userId: string, state: {
-  clients: unknown[];
-  documents: unknown[];
-  companySettings: Record<string, unknown>;
-  subcontractors: unknown[];
-  notifications?: unknown[];
-}) => {
-  await dbQuery('DELETE FROM app_document_photos WHERE user_id = $1', [userId]);
-  await dbQuery('DELETE FROM app_documents WHERE user_id = $1', [userId]);
-  await dbQuery('DELETE FROM app_clients WHERE user_id = $1', [userId]);
-  await dbQuery('DELETE FROM app_subcontractors WHERE user_id = $1', [userId]);
-  await dbQuery('DELETE FROM app_notifications WHERE user_id = $1', [userId]);
+export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  await ensureSchema();
+  const db = getPool();
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('[server-db] ROLLBACK failed:', rollbackError);
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
-  await dbQuery(
+/**
+ * Keep the normalized tables in sync while app_state remains the compatibility
+ * source of truth. Pass the transaction `client` to make these writes atomic
+ * with the legacy app_state upsert. Collections the caller does not provide
+ * (currently only `notifications`, which /api/state PUT never receives) are
+ * left untouched instead of being wiped.
+ */
+export const syncNormalizedState = async (
+  userId: string,
+  state: {
+    clients: unknown[];
+    documents: unknown[];
+    companySettings: Record<string, unknown>;
+    subcontractors: unknown[];
+    notifications?: unknown[];
+  },
+  client?: PoolClient
+) => {
+  const run = (sql: string, params?: any[]) =>
+    client ? client.query(sql, params) : dbQuery(sql, params);
+
+  await run('DELETE FROM app_document_photos WHERE user_id = $1', [userId]);
+  await run('DELETE FROM app_documents WHERE user_id = $1', [userId]);
+  await run('DELETE FROM app_clients WHERE user_id = $1', [userId]);
+  await run('DELETE FROM app_subcontractors WHERE user_id = $1', [userId]);
+
+  await run(
     `INSERT INTO app_documents (user_id, document_id, document_json, share_token)
      SELECT $1, d->>'id', d - 'projectPhotos', d->>'share_token'
      FROM jsonb_array_elements($2::jsonb) d
@@ -200,7 +238,7 @@ export const syncNormalizedState = async (userId: string, state: {
        updated_at = now()`,
     [userId, JSON.stringify(state.documents)]
   );
-  await dbQuery(
+  await run(
     `INSERT INTO app_document_photos (user_id, document_id, photo_index, photo_json)
      SELECT $1, d->>'id', p.ordinality - 1, p.photo
      FROM jsonb_array_elements($2::jsonb) d
@@ -208,27 +246,31 @@ export const syncNormalizedState = async (userId: string, state: {
      WHERE d->>'id' IS NOT NULL`,
     [userId, JSON.stringify(state.documents)]
   );
-  await dbQuery(
+  await run(
     `INSERT INTO app_clients (user_id, client_key, client_json)
      SELECT $1, COALESCE(NULLIF(c->>'email', ''), md5(c::text)), c
      FROM jsonb_array_elements($2::jsonb) c`,
     [userId, JSON.stringify(state.clients)]
   );
-  await dbQuery(
+  await run(
     `INSERT INTO app_subcontractors (user_id, subcontractor_id, subcontractor_json)
      SELECT $1, COALESCE(NULLIF(s->>'id', ''), md5(s::text)), s
      FROM jsonb_array_elements($2::jsonb) s`,
     [userId, JSON.stringify(state.subcontractors)]
   );
-  if (state.notifications) {
-    await dbQuery(
+  if (Array.isArray(state.notifications)) {
+    // Only replace notifications when the caller actually provides them.
+    // /api/state PUT never sends notifications, so deleting unconditionally
+    // here used to wipe app_notifications on every save.
+    await run('DELETE FROM app_notifications WHERE user_id = $1', [userId]);
+    await run(
       `INSERT INTO app_notifications (user_id, notification_id, notification_json)
        SELECT $1, COALESCE(NULLIF(n->>'id', ''), md5(n::text)), n
        FROM jsonb_array_elements($2::jsonb) n`,
       [userId, JSON.stringify(state.notifications)]
     );
   }
-  await dbQuery(
+  await run(
     `INSERT INTO app_company_settings (user_id, settings_json, updated_at)
      VALUES ($1, $2::jsonb, now())
      ON CONFLICT (user_id) DO UPDATE SET settings_json = EXCLUDED.settings_json, updated_at = now()`,

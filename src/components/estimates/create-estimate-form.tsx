@@ -48,6 +48,7 @@ import { Client, Document, ProjectPhoto } from "@/lib/types"
 import { CreateClientDialog } from "../clients/create-client-dialog"
 import { Separator } from "../ui/separator"
 import { readCompanySettings, CompanySettings } from "@/lib/company-settings"
+import { roundCents } from "@/lib/money"
 import { useUser } from "@/providers/auth-provider"
 
 const lineItemSchema = z.object({
@@ -276,30 +277,16 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
 
 
   useEffect(() => {
-    console.log('=== ESTIMATE FORM useEffect ===');
-    console.log('isEditMode:', isEditMode);
-    console.log('documentToEdit:', documentToEdit);
-
     // For new estimates, set default dates
     if (!isEditMode) {
-      console.log('New estimate mode - setting default dates');
       form.setValue('issuedDate', new Date());
       return;
     }
 
     // For edit mode, ensure documentToEdit is loaded
     if (!documentToEdit) {
-      console.log('No documentToEdit yet, waiting...');
       return;
     }
-
-    console.log('✓ EDIT MODE - Loading data into form');
-    console.log('documentToEdit ID:', documentToEdit.id);
-    console.log('documentToEdit data:', {
-      clientEmail: documentToEdit.clientEmail,
-      projectTitle: documentToEdit.projectTitle,
-      lineItems: documentToEdit.lineItems?.length,
-    });
 
     const docId = documentToEdit.id;
 
@@ -322,7 +309,6 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       ? documentToEdit.projectPhotos.map(p => ({ url: p.url || '', description: p.description || '' }))
       : [];
 
-    console.log('Populating form fields with reset...');
     form.reset({
       clientId: documentToEdit.clientEmail || "",
       projectTitle: documentToEdit.projectTitle || "",
@@ -336,8 +322,6 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     replace(lineItems);
 
     lastLoadedRef.current = docId;
-    console.log('✓✓✓ Form population complete');
-
   }, [documentToEdit, isEditMode, form]);
 
   useEffect(() => {
@@ -390,10 +374,10 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
   // --- Old sessionStorage draft replaced by localStorage auto-save above ---
 
   const lineItems = form.watch("lineItems");
-  const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+  const subtotal = roundCents(lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0));
   const taxRate = documentToEdit?.taxRate ?? companySettings.taxRate ?? 0;
-  const taxAmount = subtotal * (taxRate / 100);
-  const totalAmount = subtotal + taxAmount;
+  const taxAmount = roundCents(subtotal * (taxRate / 100));
+  const totalAmount = roundCents(subtotal + taxAmount);
 
   const handleClientChange = useCallback((clientId: string) => {
     form.setValue('clientId', clientId, { shouldValidate: true });
@@ -402,9 +386,6 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
   }, [findClientByEmail, form]);
 
   async function onSubmit(data: EstimateFormValues) {
-    console.log('📝 FORM SUBMITTED - Raw data:', data);
-    console.log('📝 Form lineItems raw:', data.lineItems);
-
     const normalizedClientId = data.clientId.trim().toLowerCase();
     const client = findClientByEmail(normalizedClientId)
       ?? (selectedClient && selectedClient.email.toLowerCase() === normalizedClientId ? selectedClient : null);
@@ -429,8 +410,6 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
     } catch { }
 
     const mappedLineItems = data.lineItems.map((item, index) => ({ ...item, id: item.id || `${Date.now()}-${index}` }));
-    console.log('📝 Mapped lineItems:', mappedLineItems);
-    console.log('📝 Mapped lineItems count:', mappedLineItems.length);
 
     const docData: Partial<Document> = {
       companyName: freshSettings.companyName || 'Your Company',
@@ -448,21 +427,16 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       projectTitle: data.projectTitle,
       projectDescription: data.projectDescription || documentToEdit?.projectDescription || documentToEdit?.notes || '',
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
-      amount: totalAmount,
+      amount: roundCents(totalAmount),
       taxRate: taxRate,
       lineItems: mappedLineItems,
       notes: data.notes || '',
       terms: data.terms || '',
       projectPhotos: data.projectPhotos?.map(p => ({ url: p.url, description: p.description || '' })) || [],
     };
-    console.log('📝 Final docData to be saved:', docData);
-    console.log('📝 docData.lineItems:', docData.lineItems);
 
     if (isEditMode && documentToEdit) {
-      console.log('📝 UPDATING estimate:', documentToEdit.id);
-      console.log('📝 Update data lineItems:', docData.lineItems);
       await updateDocument(documentToEdit.id, docData);
-      console.log('📝 Update completed');
       clearDraft();
       toast({
         title: "Estimate Updated",
@@ -470,18 +444,13 @@ export function CreateEstimateForm({ documentToEdit }: CreateEstimateFormProps) 
       });
       router.push(`/view/estimate/${documentToEdit.id}?internal=true`);
     } else {
-      console.log('📝 CREATING new estimate');
       const newEstimate: Omit<Document, 'id'> = {
         ...docData,
         type: 'Estimate',
         status: 'Draft',
       } as Omit<Document, 'id'>;
 
-      console.log('📝 New estimate data:', newEstimate);
-      console.log('📝 New estimate lineItems:', newEstimate.lineItems);
-
       const newDocId = await addDocument(newEstimate);
-      console.log('📝 Create completed, new ID:', newDocId);
       clearDraft();
 
       toast({

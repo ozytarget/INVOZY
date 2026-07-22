@@ -20,7 +20,11 @@
 *.pem
 .vscode/
 .idx/
-.modified/
+.modified
+.agents/
+.sixth/
+.ruff_cache/
+.willy-test-tmp/
 
 # debug
 npm-debug.log*

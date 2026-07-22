@@ -19,6 +19,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { DeleteDocumentDialog } from "./delete-document-dialog";
 import { RecordPaymentDialog } from "./invoices/record-payment-dialog";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/providers/auth-provider";
+import { nextDocumentNumber } from "@/lib/document-numbering";
+import { roundCents } from "@/lib/money";
+import { readCompanySettings } from "@/lib/company-settings";
 import { SendEmailDialog } from "./emails/send-email-dialog";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "./ui/carousel";
 
@@ -65,25 +69,55 @@ const persistStoredDocuments = (documents: Document[], userId?: string | null) =
   localStorage.setItem(key, JSON.stringify(documents));
 };
 
-// Force sync localStorage state to backend (ensures public links work)
-const forceBackendSync = async () => {
+const readScopedArray = <T,>(key: string): T[] => {
+  const raw = localStorage.getItem(key);
+  if (!raw) return [];
   try {
-    const allKeys = Object.keys(localStorage);
-    const docKey = allKeys.find(k => k.startsWith('demoDocuments:') && !k.includes('Backup'));
-    const clientKey = allKeys.find(k => k.startsWith('demoClients:') && !k.includes('Backup'));
-    if (!docKey) return;
-    const documents = JSON.parse(localStorage.getItem(docKey) || '[]');
-    const clients = JSON.parse(localStorage.getItem(clientKey || '') || '[]');
-    const settingsKey = allKeys.find(k => k.startsWith('companySettings:'));
-    const companySettings = settingsKey ? JSON.parse(localStorage.getItem(settingsKey) || '{}') : {};
-    const subKey = allKeys.find(k => k.startsWith('demoSubcontractors:'));
-    const subcontractors = subKey ? JSON.parse(localStorage.getItem(subKey) || '[]') : [];
-    await fetch('/api/state', {
+    const parsed = JSON.parse(raw) as T[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+// Force sync localStorage state to backend (ensures public links work).
+// Only syncs the authenticated user's own scoped data, with optimistic locking.
+const forceBackendSync = async (userId?: string | null) => {
+  if (typeof window === 'undefined' || !userId) return;
+  try {
+    const documents = readScopedArray<Document>(`${DEMO_DOCUMENTS_STORAGE_KEY}:${userId}`);
+    // Nothing loaded locally yet (e.g. the provider has not hydrated on a fresh
+    // browser): the document being shared already lives on the server, so there
+    // is nothing to push. Skipping avoids overwriting good server state with an
+    // empty array.
+    if (documents.length === 0) return;
+    const clients = readScopedArray<unknown>(`demoClients:${userId}`);
+    const subcontractors = readScopedArray<unknown>(`demoSubcontractors:${userId}`);
+    const companySettings = readCompanySettings(userId);
+
+    // Optimistic locking: fetch the server's current timestamp before writing.
+    const stateRes = await fetch('/api/state', { credentials: 'include' });
+    if (!stateRes.ok) return; // Not authenticated (or server error): skip sync.
+    const serverState = await stateRes.json().catch(() => null);
+    const updated_at: string | undefined = serverState?.updated_at;
+
+    const putRes = await fetch('/api/state', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ clients, documents, companySettings, subcontractors }),
+      body: JSON.stringify({ clients, documents, companySettings, subcontractors, updated_at }),
     });
+
+    if (putRes.status === 409) {
+      // Server state is newer: refetch and refresh the local cache, do NOT overwrite.
+      const refreshed = await fetch('/api/state', { credentials: 'include' });
+      if (refreshed.ok) {
+        const fresh = await refreshed.json().catch(() => null);
+        if (fresh && Array.isArray(fresh.documents)) {
+          persistStoredDocuments(fresh.documents as Document[], userId);
+        }
+      }
+    }
   } catch { }
 };
 
@@ -112,6 +146,7 @@ const FabMenuItem = ({ onClick, icon, label, variant = 'secondary', className = 
 export function DocumentView({ document: documentData, isPublic = false }: DocumentViewProps) {
   const sigCanvas = useRef<SignatureCanvas>(null);
   const { signAndProcessDocument, deleteDocument, duplicateDocument, recordPayment, sendDocument } = useDocuments();
+  const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -146,26 +181,17 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
           endpoint = `/api/public/company-settings?shareId=${encodeURIComponent(documentData.share_token)}`;
         }
 
-        console.log('[DocumentView] Loading company settings from:', endpoint);
         const res = await fetch(endpoint);
-        console.log('[DocumentView] API Response Status:', res.status);
 
         if (res.ok) {
           const data = await res.json();
-          console.log('[DocumentView] Received data:', data);
 
           // Handle both { settings: {...} } and { ...settings } formats
           const settingsData = data?.settings || data?.company_settings_json || data;
-          console.log('[DocumentView] Extracted settings:', settingsData);
 
           if (settingsData && Object.keys(settingsData).length > 0) {
-            console.log('[DocumentView] ✓ Updating liveSettings with:', Object.keys(settingsData));
             setLiveSettings(settingsData);
-          } else {
-            console.log('[DocumentView] ⚠ Received empty settings object');
           }
-        } else {
-          console.log('[DocumentView] ✗ API returned error status:', res.status);
         }
       } catch (err) {
         console.error('[DocumentView] Exception loading settings:', err);
@@ -202,11 +228,11 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
 
   // ✅ Validar lineItems es Array antes de usar reduce()
   const lineItems = Array.isArray(documentData.lineItems) ? documentData.lineItems : [];
-  const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
-  const taxAmount = documentData.taxRate ? subtotal * (documentData.taxRate / 100) : 0;
-  const totalAmount = subtotal + taxAmount;
-  const amountPaid = documentData.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
-  const balanceDue = totalAmount - amountPaid;
+  const subtotal = roundCents(lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0));
+  const taxAmount = documentData.taxRate ? roundCents(subtotal * (documentData.taxRate / 100)) : 0;
+  const totalAmount = roundCents(subtotal + taxAmount);
+  const amountPaid = roundCents(documentData.payments?.reduce((acc, p) => acc + p.amount, 0) || 0);
+  const balanceDue = roundCents(totalAmount - amountPaid);
 
   const clearSignature = () => {
     sigCanvas.current?.clear();
@@ -231,8 +257,7 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
       return undefined;
     }
 
-    const invoiceCount = ownerDocs.filter(doc => doc.type === 'Invoice').length;
-    const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
+    const newInvoiceNumber = nextDocumentNumber(ownerDocs, 'Invoice');
     const newInvoiceId = typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
       : `demo-invoice-${Date.now()}`;
@@ -329,13 +354,15 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
     router.push('/dashboard');
   };
 
-  const handleShare = async () => {
+  // Ensure the document has a share token (generating and persisting one if
+  // needed), sync it to the backend, and return the public URL. Returns null
+  // (after showing a toast) when no token could be produced.
+  const ensurePublicUrl = async (): Promise<string | null> => {
     let shareToken = documentData.share_token;
 
     if (!shareToken && typeof window !== 'undefined') {
       const key = getDocumentsStorageKey(documentData.userId);
-      const rawDocs = localStorage.getItem(key);
-      const demoDocs = rawDocs ? (JSON.parse(rawDocs) as Document[]) : [];
+      const demoDocs = readScopedArray<Document>(key);
       const newToken = generateShareToken();
 
       const updatedDocs = demoDocs.map(doc => {
@@ -347,8 +374,8 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
       shareToken = newToken;
     }
 
-    // Ensure the document is synced to backend so public link works
-    await forceBackendSync();
+    // Ensure the document is synced to backend so the public link works
+    await forceBackendSync(user?.id);
 
     if (!shareToken) {
       toast({
@@ -356,14 +383,19 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
         title: "Share Link Unavailable",
         description: "This document has no public token yet. Save and try again.",
       });
-      return;
+      return null;
     }
 
     // Construct the public share URL
     const appUrl = typeof window !== 'undefined'
       ? window.location.origin
       : (process.env.NEXT_PUBLIC_APP_URL || '');
-    const publicUrl = `${appUrl}/public/${shareToken}`;
+    return `${appUrl}/public/${shareToken}`;
+  };
+
+  const handleShare = async () => {
+    const publicUrl = await ensurePublicUrl();
+    if (!publicUrl) return;
 
     try {
       // Try using the native Share API first
@@ -424,41 +456,9 @@ export function DocumentView({ document: documentData, isPublic = false }: Docum
       return;
     }
 
-    let shareToken = documentData.share_token;
-
-    // Generate token if needed
-    if (!shareToken && typeof window !== 'undefined') {
-      const key = getDocumentsStorageKey(documentData.userId);
-      const rawDocs = localStorage.getItem(key);
-      const demoDocs = rawDocs ? (JSON.parse(rawDocs) as Document[]) : [];
-      const newToken = generateShareToken();
-
-      const updatedDocs = demoDocs.map(doc => {
-        if (doc.id !== documentData.id) return doc;
-        return { ...doc, share_token: newToken };
-      });
-
-      localStorage.setItem(key, JSON.stringify(updatedDocs));
-      shareToken = newToken;
-    }
-
-    // Ensure document is synced to backend
-    await forceBackendSync();
-
-    if (!shareToken) {
-      toast({
-        variant: "destructive",
-        title: "Share Link Unavailable",
-        description: "This document has no public token yet. Save and try again.",
-      });
-      return;
-    }
-
-    // Use same URL format as handleShare
-    const appUrl = typeof window !== 'undefined'
-      ? window.location.origin
-      : (process.env.NEXT_PUBLIC_APP_URL || '');
-    const publicUrl = `${appUrl}/public/${shareToken}`;
+    // Same token generation, backend sync and URL format as handleShare
+    const publicUrl = await ensurePublicUrl();
+    if (!publicUrl) return;
 
     const message = `View your ${documentData.type.toLowerCase()}: ${documentData.projectTitle}\n${publicUrl}`;
     const smsUrl = `sms:${documentData.clientPhone}?body=${encodeURIComponent(message)}`;

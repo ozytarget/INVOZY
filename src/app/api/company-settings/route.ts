@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { dbQuery, getNormalizedState } from '@/lib/server-db';
 import { getAuthenticatedUser } from '@/lib/server-auth';
+
+// Company logos are stored inline as data URLs and can be hundreds of KB.
+// Matches the 5MB cap of PUT /api/state, which persists the same settings, so
+// a logo accepted by one route can never be rejected by the other.
+const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5MB
+
+const putBodySchema = z
+  .object({
+    settings: z.object({}).passthrough().optional(),
+  })
+  .passthrough();
 
 export async function GET() {
   try {
@@ -22,9 +34,9 @@ export async function GET() {
     console.log('[company-settings] GET success');
 
     return NextResponse.json({ settings });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[API] company-settings GET: ERROR', error);
-    return NextResponse.json({ error: error?.message || 'Could not load company settings' }, { status: 500 });
+    return NextResponse.json({ error: 'Could not load company settings' }, { status: 500 });
   }
 }
 
@@ -36,8 +48,24 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const settings = body?.settings && typeof body.settings === 'object' ? body.settings : {};
+    const raw = await request.text();
+    if (Buffer.byteLength(raw, 'utf8') > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 400 });
+    }
+
+    let parsedBody: unknown;
+    try {
+      parsedBody = JSON.parse(raw);
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+
+    const validated = putBodySchema.safeParse(parsedBody);
+    if (!validated.success) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+
+    const settings = validated.data.settings ?? {};
 
     console.log('[company-settings] PUT request');
 
@@ -68,8 +96,8 @@ export async function PUT(request: Request) {
     console.log('[company-settings] PUT success');
 
     return NextResponse.json({ success: true, saved: savedSettings });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[API] company-settings PUT: ERROR', error);
-    return NextResponse.json({ error: error?.message || 'Could not save company settings' }, { status: 500 });
+    return NextResponse.json({ error: 'Could not save company settings' }, { status: 500 });
   }
 }

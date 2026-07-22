@@ -1,39 +1,60 @@
 #!/bin/bash
 
-# Este script automatiza la configuración del repositorio remoto y la subida de cambios a GitHub.
+# Deploy script: runs quality checks, then commits and pushes to GitHub.
+# Usage: ./deploy.sh "commit message"
 
-echo "PASO 1: Configurando la conexión con tu repositorio de GitHub..."
-# Primero, intenta eliminar 'origin' por si existe y está mal configurado.
-# El '|| true' evita que el script se detenga si 'origin' no existe.
-git remote remove origin || true
-# Ahora, añade 'origin' con la URL correcta. Este es el comando clave que faltaba.
-git remote add origin https://github.com/ozytarget/INVOZY.git
-echo "Conexión establecida con https://github.com/ozytarget/INVOZY.git"
+set -euo pipefail
+
+if [ $# -lt 1 ] || [ -z "${1}" ]; then
+    echo "Error: a commit message is required."
+    echo "Usage: ./deploy.sh \"commit message\""
+    exit 1
+fi
+
+COMMIT_MESSAGE="$1"
+
+echo "Step 1/4: Checking that no env files are tracked by git..."
+if git ls-files --error-unmatch .env > /dev/null 2>&1 || git ls-files --error-unmatch .env.local > /dev/null 2>&1; then
+    echo "Error: .env or .env.local is tracked by git. Aborting to avoid leaking secrets."
+    echo "Untrack them first with: git rm --cached .env .env.local"
+    exit 1
+fi
+echo "OK: no env files are tracked."
 echo "----------------------------------------------------"
 echo ""
 
-echo "PASO 2: Preparando todos los cambios para subirlos..."
-git add .
-echo "Archivos preparados."
+echo "Step 2/4: Running quality checks (typecheck, lint, build)..."
+npm run typecheck
+npm run lint
+npm run build
+echo "All checks passed."
 echo "----------------------------------------------------"
 echo ""
 
-echo "PASO 3: Empaquetando los cambios con un mensaje..."
-# Se creará un commit solo si hay cambios nuevos que guardar.
-if git diff-index --quiet HEAD --; then
-    echo "No hay cambios nuevos que empaquetar. Pasando al siguiente paso."
+echo "Step 3/4: Staging and committing changes..."
+git add -A
+
+# Abort if any env file would end up in the commit.
+if git diff --cached --name-only | grep -E '^\.env(\.local)?$' > /dev/null; then
+    git restore --staged .env .env.local 2> /dev/null || true
+    echo "Error: .env or .env.local was staged for commit. Aborting to avoid leaking secrets."
+    exit 1
+fi
+
+git status --short
+
+if git diff --cached --quiet; then
+    echo "No changes to commit. Skipping commit."
 else
-    git commit -m "Deploy: Sincronización automática de archivos del proyecto"
-    echo "Cambios empaquetados."
+    git commit -m "$COMMIT_MESSAGE"
+    echo "Changes committed."
 fi
 echo "----------------------------------------------------"
 echo ""
 
-echo "PASO 4: Subiendo tu código a GitHub..."
-# Forzamos la subida a la rama 'main'
+echo "Step 4/4: Pushing to GitHub..."
 git push origin main
 
 echo ""
 echo "----------------------------------------------------"
-echo "¡LISTO! Tu proyecto ha sido subido a GitHub."
-echo "Puedes verificarlo en: https://github.com/ozytarget/INVOZY"
+echo "Done! Your project has been pushed to GitHub."

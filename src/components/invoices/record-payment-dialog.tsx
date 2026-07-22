@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Document, Payment, PaymentMethod } from "@/lib/types";
+import { roundCents } from "@/lib/money";
 
 const paymentMethods = ["Cash", "Bank Transfer", "Credit Card", "Debit Card", "Check"] as const;
 
@@ -48,8 +49,8 @@ type RecordPaymentDialogProps = {
 export function RecordPaymentDialog({ document: documentData, onRecordPayment, children }: RecordPaymentDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const amountPaid = documentData.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
-  const balanceDue = documentData.amount - amountPaid;
+  const amountPaid = roundCents(documentData.payments?.reduce((acc, p) => acc + p.amount, 0) || 0);
+  const balanceDue = roundCents(documentData.amount - amountPaid);
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(formSchema),
@@ -90,7 +91,7 @@ export function RecordPaymentDialog({ document: documentData, onRecordPayment, c
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Record Payment for INV-{documentData.invoiceNumber}</DialogTitle>
+          <DialogTitle>Record Payment for {documentData.invoiceNumber}</DialogTitle>
           <DialogDescription>
             Record a new payment for this invoice. The balance due is ${balanceDue.toFixed(2)}.
           </DialogDescription>

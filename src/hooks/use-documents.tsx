@@ -5,6 +5,9 @@ import React, { useCallback, useMemo, useEffect, useState, useRef } from 'react'
 import { format } from 'date-fns';
 import { useUser } from '@/providers/auth-provider';
 import { readCompanySettings, writeCompanySettings } from '@/lib/company-settings';
+import { nextDocumentNumber } from '@/lib/document-numbering';
+import { roundCents, amountsCover } from '@/lib/money';
+import { toast } from '@/hooks/use-toast';
 
 const DEMO_CLIENTS_STORAGE_KEY = 'demoClients';
 const DEMO_DOCUMENTS_STORAGE_KEY = 'demoDocuments';
@@ -79,8 +82,10 @@ const mergeDocuments = (existing: Document[], incoming: Document[]) => {
   );
 };
 
-const syncRemoteState = async (userId?: string | null) => {
-  if (typeof window === 'undefined' || !userId) return;
+// Returns true when the change reached the server (or there was nothing to
+// sync), false when it only exists locally so callers can react if needed.
+const syncRemoteState = async (userId?: string | null): Promise<boolean> => {
+  if (typeof window === 'undefined' || !userId) return true;
 
   _syncInProgress = true;
 
@@ -106,19 +111,42 @@ const syncRemoteState = async (userId?: string | null) => {
     if (res.status === 409) {
       console.warn('[sync] Conflict detected — refetching server state');
       if (_conflictRefetch) await _conflictRefetch();
-      return;
+      toast({
+        variant: 'destructive',
+        title: 'Updated from another device',
+        description:
+          'Changes made on another device were loaded. Your latest change was not saved to the server — please apply it again.',
+      });
+      return false;
     }
 
-    if (res.ok) {
-      try {
-        const putResult = await res.json();
-        if (putResult.updated_at) {
-          lastServerUpdatedAt = putResult.updated_at;
-        }
-      } catch { }
+    if (!res.ok) {
+      console.warn('[sync] Server rejected sync request with status', res.status);
+      toast({
+        variant: 'destructive',
+        title: 'Sync failed',
+        description:
+          'Your change was saved on this device but did not reach the server. It will not appear on other devices until a sync succeeds.',
+      });
+      return false;
     }
+
+    try {
+      const putResult = await res.json();
+      if (putResult.updated_at) {
+        lastServerUpdatedAt = putResult.updated_at;
+      }
+    } catch { }
+    return true;
   } catch (error) {
     console.error('Error syncing remote state:', error);
+    toast({
+      variant: 'destructive',
+      title: 'Sync failed',
+      description:
+        'Your change was saved on this device but did not reach the server. Check your connection and try again.',
+    });
+    return false;
   } finally {
     _syncInProgress = false;
   }
@@ -129,9 +157,17 @@ const persistDemoClients = (updatedClients: Client[], userId?: string | null, me
   const clientsKey = getScopedStorageKey(DEMO_CLIENTS_STORAGE_KEY, userId);
   const clientsBackupKey = getScopedStorageKey(DEMO_CLIENTS_BACKUP_STORAGE_KEY, userId);
   const existing = safeParseArray<Client>(localStorage.getItem(clientsKey)) || [];
-  localStorage.setItem(clientsBackupKey, JSON.stringify(existing));
+  try {
+    localStorage.setItem(clientsBackupKey, JSON.stringify(existing));
+  } catch (error) {
+    console.warn('[clients] Could not write local backup cache.', error);
+  }
   const finalClients = merge ? mergeClients(existing, updatedClients) : updatedClients;
-  localStorage.setItem(clientsKey, JSON.stringify(finalClients));
+  try {
+    localStorage.setItem(clientsKey, JSON.stringify(finalClients));
+  } catch (error) {
+    console.warn('[clients] Local cache is full; continuing with server storage.', error);
+  }
   if (!skipSync) void syncRemoteState(userId);
 };
 
@@ -216,13 +252,24 @@ const generateShareToken = (): string => {
   return crypto.randomUUID();
 };
 
+// Parse a 'yyyy-MM-dd' string as a LOCAL date. `new Date('yyyy-MM-dd')`
+// interprets the string as UTC midnight, which shifts the day for users in
+// negative-offset timezones.
+const parseLocalDate = (value: string): Date => {
+  const [year, month, day] = value.split('-').map(Number);
+  if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
+    return new Date(year, month - 1, day);
+  }
+  return new Date(value);
+};
+
 // Mark past-due sent/partial invoices as Overdue
 const applyOverdueStatus = (docs: Document[]): Document[] => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return docs.map(doc => {
     if (doc.type === 'Invoice' && (doc.status === 'Sent' || doc.status === 'Partial') && doc.dueDate) {
-      const dueDate = new Date(doc.dueDate);
+      const dueDate = parseLocalDate(doc.dueDate);
       dueDate.setHours(0, 0, 0, 0);
       if (dueDate < today) {
         return { ...doc, status: 'Overdue' as DocumentStatus };
@@ -257,7 +304,7 @@ const getCombinedClients = (documents: Document[], storedClients: Client[]): Cli
       };
     }
     if (doc.type === "Invoice") {
-      client.totalBilled += doc.amount;
+      client.totalBilled = roundCents(client.totalBilled + doc.amount);
     }
     client.documentCount += 1;
     clientsMap.set(doc.clientEmail, client);
@@ -384,12 +431,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       });
 
       if (changedDocs.length > 0) {
-        console.warn('⚠️ External changes detected:', changedDocs);
-        // Could emit a toast here if needed:
-        // toast({
-        //   title: "Documents Updated",
-        //   description: `${changedDocs.length} document(s) were updated elsewhere.`,
-        // });
+        console.warn(`[documents] ${changedDocs.length} document(s) changed externally.`);
       }
 
       previousDocsRef.current = documents;
@@ -436,10 +478,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       })()
       : documents;
 
-    const docCount = currentDocs.filter(d => d.type === docData.type).length;
-    const prefix = docData.type === 'Estimate' ? 'EST' : 'INV';
-    const number = (docCount + 1).toString().padStart(3, '0');
-    const docNumber = `${prefix}-${number}`;
+    const docNumber = nextDocumentNumber(currentDocs, docData.type);
     const newId = typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
       : `demo-${docData.type.toLowerCase()}-${Date.now()}`;
@@ -572,8 +611,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       return undefined;
     }
 
-    const invoiceCount = documents.filter(d => d.type === 'Invoice').length;
-    const newInvoiceNumber = `INV-${(invoiceCount + 1).toString().padStart(3, '0')}`;
+    const newInvoiceNumber = nextDocumentNumber(documents, 'Invoice');
     const newInvoiceId = typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
       : `demo-invoice-${Date.now()}`;
@@ -581,7 +619,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     const newInvoice: Document = {
       ...originalDoc,
       id: newInvoiceId,
-      userId: 'demo-user',
+      userId: user?.id || originalDoc.userId,
       share_token: generateShareToken(),
       type: 'Invoice',
       status: 'Sent',
@@ -623,8 +661,8 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
       if (doc.id !== invoiceId) return doc;
 
       const updatedPayments = [...(doc.payments || []), newPayment];
-      const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
-      const newStatus: DocumentStatus = totalPaid >= doc.amount ? 'Paid' : 'Partial';
+      const totalPaid = roundCents(updatedPayments.reduce((sum, p) => sum + p.amount, 0));
+      const newStatus: DocumentStatus = amountsCover(totalPaid, doc.amount) ? 'Paid' : 'Partial';
 
       return {
         ...doc,
@@ -667,7 +705,7 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
     if (existingPayments.length === 0) return;
 
     const updatedPayments = existingPayments.slice(0, -1);
-    const totalPaid = updatedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+    const totalPaid = roundCents(updatedPayments.reduce((sum, payment) => sum + payment.amount, 0));
 
     let newStatus: DocumentStatus = 'Draft';
     if (totalPaid > 0) {
@@ -737,7 +775,11 @@ export const DocumentProvider = ({ children }: { children: React.ReactNode }) =>
   const persistSubcontractors = useCallback((subs: Subcontractor[]) => {
     if (typeof window === 'undefined') return;
     const key = getScopedStorageKey(DEMO_SUBCONTRACTORS_STORAGE_KEY, user?.id);
-    localStorage.setItem(key, JSON.stringify(subs));
+    try {
+      localStorage.setItem(key, JSON.stringify(subs));
+    } catch (error) {
+      console.warn('[subcontractors] Local cache is full; continuing with server storage.', error);
+    }
     void syncRemoteState(user?.id);
   }, [user?.id]);
 

@@ -49,6 +49,7 @@ import { CreateClientDialog } from "../clients/create-client-dialog"
 import { AiSuggestionsDialog } from "../estimates/ai-suggestions-dialog"
 import { Separator } from "../ui/separator"
 import { readCompanySettings, CompanySettings } from "@/lib/company-settings"
+import { roundCents } from "@/lib/money"
 import { useUser } from "@/providers/auth-provider"
 
 const lineItemSchema = z.object({
@@ -280,13 +281,8 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
 
 
   useEffect(() => {
-    console.log('=== INVOICE FORM useEffect ===');
-    console.log('isEditMode:', isEditMode);
-    console.log('documentToEdit:', documentToEdit);
-
     // For new invoices, set default dates
     if (!isEditMode) {
-      console.log('New invoice mode - setting default dates');
       form.setValue('issuedDate', new Date());
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 30);
@@ -296,18 +292,8 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
 
     // For edit mode, ensure documentToEdit is loaded
     if (!documentToEdit) {
-      console.log('No documentToEdit yet, waiting...');
       return;
     }
-
-    console.log('✓ EDIT MODE - Loading data into form');
-    console.log('documentToEdit ID:', documentToEdit.id);
-    console.log('documentToEdit data:', {
-      clientEmail: documentToEdit.clientEmail,
-      projectTitle: documentToEdit.projectTitle,
-      lineItems: documentToEdit.lineItems?.length,
-      dueDate: documentToEdit.dueDate,
-    });
 
     const docId = documentToEdit.id;
 
@@ -332,7 +318,6 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       ? documentToEdit.projectPhotos.map(p => ({ url: p.url || '', description: p.description || '' }))
       : [];
 
-    console.log('Populating form fields with reset...');
     form.reset({
       clientId: documentToEdit.clientEmail || "",
       projectTitle: documentToEdit.projectTitle || "",
@@ -347,8 +332,6 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     replace(lineItems);
 
     lastLoadedRef.current = docId;
-    console.log('✓✓✓ Form population complete');
-
   }, [documentToEdit, isEditMode, form]);
 
   useEffect(() => {
@@ -398,31 +381,11 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     load();
   }, [user?.id]);
 
-  // Auto-save draft to sessionStorage
-  useEffect(() => {
-    if (!isEditMode || !documentToEdit) return;
-
-    const saveDraft = () => {
-      const formValues = form.getValues();
-      const draft = {
-        docId: documentToEdit.id,
-        data: formValues,
-        timestamp: Date.now(),
-      };
-      if (typeof window !== 'undefined' && isDirty) {
-        sessionStorage.setItem(`invoice_draft_${documentToEdit.id}`, JSON.stringify(draft));
-      }
-    };
-
-    const interval = window.setInterval(saveDraft, 5000); // Save every 5s if dirty
-    return () => window.clearInterval(interval);
-  }, [documentToEdit, isEditMode, form, isDirty]);
-
   const lineItems = form.watch("lineItems");
-  const subtotal = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+  const subtotal = roundCents(lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0));
   const taxRate = documentToEdit?.taxRate ?? companySettings.taxRate ?? 0;
-  const taxAmount = subtotal * (taxRate / 100);
-  const totalAmount = subtotal + taxAmount;
+  const taxAmount = roundCents(subtotal * (taxRate / 100));
+  const totalAmount = roundCents(subtotal + taxAmount);
 
   const handleClientChange = useCallback((clientId: string) => {
     form.setValue('clientId', clientId, { shouldValidate: true });
@@ -453,7 +416,6 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
             generatedAt: new Date().toISOString(),
           },
         });
-        console.log('✅ Work order pre-generated for invoice', docId);
       } else {
         // AI failed — save basic fallback so it's still available
         const tasks = (docData.lineItems || []).map((item, i) => `${i + 1}. ${item.description} (Qty: ${item.quantity})`);
@@ -466,18 +428,13 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
             generatedAt: new Date().toISOString(),
           },
         });
-        console.log('⚠️ AI failed, saved basic work order for invoice', docId);
       }
     }).catch(() => {
       // Silent fail — work order page has its own fallback
-      console.log('⚠️ Work order background generation failed for', docId);
     });
   }
 
   async function onSubmit(data: InvoiceFormValues) {
-    console.log('📝 INVOICE FORM SUBMITTED - Raw data:', data);
-    console.log('📝 Invoice lineItems raw:', data.lineItems);
-
     const normalizedClientId = data.clientId.trim().toLowerCase();
     const client = findClientByEmail(normalizedClientId)
       ?? (selectedClient && selectedClient.email.toLowerCase() === normalizedClientId ? selectedClient : null);
@@ -502,8 +459,6 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
     } catch { }
 
     const mappedLineItems = data.lineItems.map((item, index) => ({ ...item, id: item.id || `${Date.now()}-${index}` }));
-    console.log('📝 Invoice mapped lineItems:', mappedLineItems);
-    console.log('📝 Invoice mapped lineItems count:', mappedLineItems.length);
 
     const docData: Partial<Document> = {
       companyName: freshSettings.companyName || 'Your Company',
@@ -522,21 +477,16 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       projectDescription: data.projectDescription || documentToEdit?.projectDescription || documentToEdit?.notes || '',
       issuedDate: format(data.issuedDate, "yyyy-MM-dd"),
       dueDate: format(data.dueDate, "yyyy-MM-dd"),
-      amount: totalAmount,
+      amount: roundCents(totalAmount),
       taxRate: taxRate,
       lineItems: mappedLineItems,
       notes: data.notes || '',
       terms: data.terms || '',
       projectPhotos: data.projectPhotos?.map(p => ({ url: p.url, description: p.description || '' })) || [],
     };
-    console.log('📝 Invoice final docData:', docData);
-    console.log('📝 Invoice docData.lineItems:', docData.lineItems);
 
     if (isEditMode && documentToEdit) {
-      console.log('📝 UPDATING invoice:', documentToEdit.id);
-      console.log('📝 Invoice update data lineItems:', docData.lineItems);
       await updateDocument(documentToEdit.id, docData);
-      console.log('📝 Invoice update completed');
       clearDraft();
       toast({
         title: "Invoice Updated",
@@ -546,18 +496,13 @@ export function CreateInvoiceForm({ documentToEdit }: CreateInvoiceFormProps) {
       generateWorkOrderInBackground(documentToEdit.id, docData, updateDocument);
       router.push(`/view/invoice/${documentToEdit.id}?internal=true`);
     } else {
-      console.log('📝 CREATING new invoice');
       const newInvoice: Omit<Document, 'id'> = {
         ...docData,
         type: 'Invoice',
         status: 'Draft',
       } as Omit<Document, 'id'>;
 
-      console.log('📝 New invoice data:', newInvoice);
-      console.log('📝 New invoice lineItems:', newInvoice.lineItems);
-
       const newDocId = await addDocument(newInvoice);
-      console.log('📝 Invoice create completed, new ID:', newDocId);
       clearDraft();
 
       toast({

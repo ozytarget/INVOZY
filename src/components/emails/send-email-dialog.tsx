@@ -26,33 +26,50 @@ import { Document } from "@/lib/types";
 import { sendDocumentEmail } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useDocuments } from "@/hooks/use-documents";
+import { useAuth } from "@/providers/auth-provider";
 import { Loader2 } from "lucide-react";
 
-// Ensure document data is synced to backend before sending email with public link
-async function ensureDocumentSynced() {
+// Ensure document data is synced to backend before sending email with public link.
+// Reads only the authenticated user's scoped keys and uses the server timestamp
+// as an optimistic lock so a stale cache can never blindly overwrite newer
+// server state (e.g. a signature that just landed from the public page).
+async function ensureDocumentSynced(userId?: string | null) {
+  if (typeof window === 'undefined' || !userId) return;
   try {
-    // Read current localStorage state and push to server
-    const allKeys = Object.keys(localStorage);
-    const docKey = allKeys.find(k => k.startsWith('demoDocuments:') && !k.includes('Backup'));
-    const clientKey = allKeys.find(k => k.startsWith('demoClients:') && !k.includes('Backup'));
+    const readArray = (key: string): unknown[] => {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
 
-    if (!docKey) return;
+    const documents = readArray(`demoDocuments:${userId}`);
+    // Nothing cached locally: the document already lives server-side.
+    if (documents.length === 0) return;
 
-    const documents = JSON.parse(localStorage.getItem(docKey) || '[]');
-    const clients = JSON.parse(localStorage.getItem(clientKey || '') || '[]');
+    const clients = readArray(`demoClients:${userId}`);
+    const subcontractors = readArray(`demoSubcontractors:${userId}`);
+    let companySettings: Record<string, unknown> = {};
+    try {
+      const rawSettings = localStorage.getItem(`companySettings:${userId}`);
+      const parsedSettings = rawSettings ? JSON.parse(rawSettings) : {};
+      if (parsedSettings && typeof parsedSettings === 'object') companySettings = parsedSettings;
+    } catch {
+      companySettings = {};
+    }
 
-    // Find company settings
-    const settingsKey = allKeys.find(k => k.startsWith('companySettings:'));
-    const companySettings = settingsKey ? JSON.parse(localStorage.getItem(settingsKey) || '{}') : {};
-
-    const subKey = allKeys.find(k => k.startsWith('demoSubcontractors:'));
-    const subcontractors = subKey ? JSON.parse(localStorage.getItem(subKey) || '[]') : [];
+    const stateRes = await fetch('/api/state', { credentials: 'include' });
+    if (!stateRes.ok) return;
+    const serverState = await stateRes.json().catch(() => null);
+    const updated_at: string | undefined = serverState?.updated_at;
 
     await fetch('/api/state', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ clients, documents, companySettings, subcontractors }),
+      body: JSON.stringify({ clients, documents, companySettings, subcontractors, updated_at }),
     });
   } catch (e) {
     console.warn('[SendEmail] Pre-send sync failed:', e);
@@ -69,6 +86,7 @@ type SendEmailDialogProps = {
 export function SendEmailDialog({ document: documentData, companyName, onEmailSent, children }: SendEmailDialogProps) {
   const { toast } = useToast();
   const { clients } = useDocuments();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const primaryEmail = documentData.clientEmail || "";
@@ -81,7 +99,7 @@ export function SendEmailDialog({ document: documentData, companyName, onEmailSe
     setIsLoading(true);
 
     // Force sync to ensure document exists in DB before sending link
-    await ensureDocumentSynced();
+    await ensureDocumentSynced(user?.id);
 
     // Build public share URL instead of current page URL
     const appUrl = typeof window !== 'undefined'
