@@ -111,8 +111,12 @@ export async function POST(request: Request) {
     // Keep only the most recent notifications (newest live at the front)
     const trimmedNotifications = notifications.slice(0, MAX_STORED_NOTIFICATIONS);
 
+    // Deliberately does NOT touch updated_at: that column is the optimistic
+    // lock for the documents/clients/settings payload of PUT /api/state, and
+    // notifications are not part of that payload. Bumping it here made every
+    // public view invalidate the owner's next save with a spurious 409.
     await dbQuery(
-      `UPDATE app_state SET notifications_json = $1, updated_at = now() WHERE user_id = $2`,
+      `UPDATE app_state SET notifications_json = $1 WHERE user_id = $2`,
       [JSON.stringify(trimmedNotifications), row.user_id]
     );
     await syncNormalizedNotifications(row.user_id, trimmedNotifications);

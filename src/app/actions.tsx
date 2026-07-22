@@ -7,6 +7,7 @@ import { Resend } from 'resend';
 import DocumentEmail from '@/components/emails/document-email';
 import WorkOrderEmail from '@/components/emails/work-order-email';
 import { render } from '@react-email/components';
+import { headers } from 'next/headers';
 import { getAuthenticatedUser } from '@/lib/server-auth';
 import { dbQuery } from '@/lib/server-db';
 
@@ -388,17 +389,36 @@ export async function sendDocumentEmail({
     }
 
     // Rebuild the link server-side from the validated shareId so the email can
-    // never carry a client-chosen origin (anti-phishing). Prefer the canonical
-    // app origin; fall back to the origin the caller used (already restricted
-    // to a well-formed /public/<shareId> URL by the extraction above).
-    let linkOrigin = new URL(documentUrl).origin;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    if (appUrl) {
-      try {
-        linkOrigin = new URL(appUrl).origin;
-      } catch {
-        // Misconfigured NEXT_PUBLIC_APP_URL: keep the caller's origin.
+    // never carry a client-chosen origin (anti-phishing). The origin comes from
+    // this request's own headers — the domain the app is actually served from,
+    // already restricted by serverActions.allowedOrigins — so a stale
+    // NEXT_PUBLIC_APP_URL cannot break the link. Fallback chain: request
+    // origin -> request host -> NEXT_PUBLIC_APP_URL -> caller's URL origin.
+    let linkOrigin = '';
+    try {
+      const requestHeaders = await headers();
+      const requestOrigin = requestHeaders.get('origin');
+      if (requestOrigin) {
+        linkOrigin = new URL(requestOrigin).origin;
+      } else {
+        const requestHost = requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host');
+        if (requestHost) linkOrigin = `https://${requestHost}`;
       }
+    } catch {
+      linkOrigin = '';
+    }
+    if (!linkOrigin) {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (appUrl) {
+        try {
+          linkOrigin = new URL(appUrl).origin;
+        } catch {
+          linkOrigin = '';
+        }
+      }
+    }
+    if (!linkOrigin) {
+      linkOrigin = new URL(documentUrl).origin;
     }
     const safeDocumentUrl = `${linkOrigin}/public/${shareId}`;
 

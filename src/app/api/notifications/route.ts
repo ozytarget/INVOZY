@@ -71,8 +71,11 @@ export async function PUT(request: Request) {
     // legacy accounts self-heal instead of being rejected.
     const notifications = (validated.data.notifications ?? []).slice(0, MAX_NOTIFICATIONS);
 
+    // Does NOT bump updated_at: notifications are outside the optimistic-lock
+    // payload of PUT /api/state. Bumping it here made marking a notification
+    // as read invalidate the owner's next document save with a spurious 409.
     await dbQuery(
-      'UPDATE app_state SET notifications_json = $1::jsonb, updated_at = now() WHERE user_id = $2',
+      'UPDATE app_state SET notifications_json = $1::jsonb WHERE user_id = $2',
       [JSON.stringify(notifications), user.id]
     );
     try {

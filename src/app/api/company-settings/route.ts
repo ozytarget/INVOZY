@@ -69,14 +69,16 @@ export async function PUT(request: Request) {
 
     console.log('[company-settings] PUT request');
 
+    // The ON CONFLICT arm intentionally does not bump updated_at: that column
+    // is the optimistic lock for PUT /api/state, and settings travel in that
+    // payload too, so bumping here primed spurious 409s on the next doc save.
     const result = await dbQuery(
       `
         INSERT INTO app_state (user_id, company_settings_json, updated_at)
         VALUES ($1, $2::jsonb, now())
         ON CONFLICT (user_id)
         DO UPDATE SET
-          company_settings_json = EXCLUDED.company_settings_json,
-          updated_at = now()
+          company_settings_json = EXCLUDED.company_settings_json
         RETURNING company_settings_json
       `,
       [user.id, JSON.stringify(settings)]
